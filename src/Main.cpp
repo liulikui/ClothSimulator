@@ -42,6 +42,9 @@ bool keys[256] = { false }; // 假设是标准ASCII键盘
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// 前向声明
+void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up);
+
 // 布料和渲染器对象
 Cloth* cloth = nullptr;
 DX12Renderer* renderer = nullptr;
@@ -131,9 +134,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
             yoffset *= sensitivity;
 
             // 计算相机当前朝向
-            dx::XMVECTOR pos = dx::XMLoadFloat3(&cameraPos);
-            dx::XMVECTOR target = dx::XMLoadFloat3(&cameraTarget);
-            dx::XMVECTOR up = dx::XMLoadFloat3(&cameraUp);
+            dx::XMVECTOR pos = camera->GetPosition();
+            dx::XMVECTOR target = camera->GetTarget();
+            dx::XMVECTOR up = camera->GetUp();
             dx::XMVECTOR front = dx::XMVector3Normalize(dx::XMVectorSubtract(target, pos));
             dx::XMVECTOR right = dx::XMVector3Normalize(dx::XMVector3Cross(front, up));
 
@@ -150,7 +153,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
 
             // 更新相机目标
             target = dx::XMVectorAdd(pos, front);
-            dx::XMStoreFloat3(&cameraTarget, target);
+            camera->SetTarget(target);
         }
         break;
     case WM_MOUSEWHEEL:
@@ -160,12 +163,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
             if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
                 zoomFactor = 1.0f / zoomFactor;
 
-            dx::XMVECTOR pos = dx::XMLoadFloat3(&cameraPos);
-            dx::XMVECTOR target = dx::XMLoadFloat3(&cameraTarget);
+            dx::XMVECTOR pos = camera->GetPosition();
+            dx::XMVECTOR target = camera->GetTarget();
             dx::XMVECTOR dir = dx::XMVectorSubtract(pos, target);
             dir = dx::XMVectorScale(dir, zoomFactor);
             pos = dx::XMVectorAdd(target, dir);
-            dx::XMStoreFloat3(&cameraPos, pos);
+            camera->SetPosition(pos);
         }
         break;
     case WM_CLOSE:
