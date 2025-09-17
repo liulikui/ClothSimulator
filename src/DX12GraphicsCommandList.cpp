@@ -51,20 +51,35 @@ void DX12GraphicsCommandList::SetPipelineState(const void* pipelineState) {
 }
 
 // 实现设置顶点缓冲区
-void DX12GraphicsCommandList::IASetVertexBuffers(uint32_t startSlot, uint32_t numBuffers, const void* vertexBufferViews) {
+void DX12GraphicsCommandList::IASetVertexBuffers(uint32_t startSlot, uint32_t numBuffers, IVertexBufferView** vertexBufferViews) {
     if (commandList_ && vertexBufferViews) {
+        // 创建一个临时数组来存储D3D12_VERTEX_BUFFER_VIEW指针
+        D3D12_VERTEX_BUFFER_VIEW* d3d12Views = new D3D12_VERTEX_BUFFER_VIEW[numBuffers];
+        
+        for (uint32_t i = 0; i < numBuffers; i++) {
+            if (vertexBufferViews[i]) {
+                // 从IVertexBufferView获取原生视图
+                D3D12_VERTEX_BUFFER_VIEW* nativeView = static_cast<D3D12_VERTEX_BUFFER_VIEW*>(vertexBufferViews[i]->GetNativeView());
+                d3d12Views[i] = *nativeView;
+            }
+        }
+        
         commandList_->IASetVertexBuffers(
             startSlot,
             numBuffers,
-            static_cast<const D3D12_VERTEX_BUFFER_VIEW*>(vertexBufferViews)
+            d3d12Views
         );
+        
+        delete[] d3d12Views;
     }
 }
 
 // 实现设置索引缓冲区
-void DX12GraphicsCommandList::IASetIndexBuffer(const void* indexBufferView) {
+void DX12GraphicsCommandList::IASetIndexBuffer(IIndexBufferView* indexBufferView) {
     if (commandList_ && indexBufferView) {
-        commandList_->IASetIndexBuffer(static_cast<const D3D12_INDEX_BUFFER_VIEW*>(indexBufferView));
+        // 从IIndexBufferView获取原生视图
+        D3D12_INDEX_BUFFER_VIEW* nativeView = static_cast<D3D12_INDEX_BUFFER_VIEW*>(indexBufferView->GetNativeView());
+        commandList_->IASetIndexBuffer(nativeView);
     }
 }
 

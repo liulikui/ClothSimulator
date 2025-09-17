@@ -19,8 +19,8 @@ public:
     void RSSetViewports(uint32_t numViewports, const void* viewports) override;
     void RSSetScissorRects(uint32_t numRects, const void* rects) override;
     void SetPipelineState(const void* pipelineState) override;
-    void IASetVertexBuffers(uint32_t startSlot, uint32_t numBuffers, const void* vertexBufferViews) override;
-    void IASetIndexBuffer(const void* indexBufferView) override;
+    void IASetVertexBuffers(uint32_t startSlot, uint32_t numBuffers, IVertexBufferView** vertexBufferViews) override;
+    void IASetIndexBuffer(IIndexBufferView* indexBufferView) override;
     void IASetPrimitiveTopology(uint32_t topology) override;
     void DrawIndexedInstanced(uint32_t indexCountPerInstance, uint32_t instanceCount, 
                              uint32_t startIndexLocation, int32_t baseVertexLocation, 

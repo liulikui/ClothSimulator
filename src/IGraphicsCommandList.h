@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "IGraphicsResource.h"
 
 // 图形命令列表接口抽象类
 class IGraphicsCommandList {
@@ -23,10 +24,10 @@ public:
     virtual void SetPipelineState(const void* pipelineState) = 0;
 
     // 设置顶点缓冲区
-    virtual void IASetVertexBuffers(uint32_t startSlot, uint32_t numBuffers, const void* vertexBufferViews) = 0;
+    virtual void IASetVertexBuffers(uint32_t startSlot, uint32_t numBuffers, IVertexBufferView** vertexBufferViews) = 0;
 
     // 设置索引缓冲区
-    virtual void IASetIndexBuffer(const void* indexBufferView) = 0;
+    virtual void IASetIndexBuffer(IIndexBufferView* indexBufferView) = 0;
 
     // 设置图元拓扑
     virtual void IASetPrimitiveTopology(uint32_t topology) = 0;
