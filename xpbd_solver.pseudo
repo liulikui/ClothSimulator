@@ -1,0 +1,80 @@
+// XPBD求解器核心伪代码
+class XPBDSolver:
+    // 初始化：设置粒子和约束参数
+    function initialize(particles, constraints, dt, iterations):
+        // particles: 粒子数组，每个粒子含位置x、速度v、质量m
+        // constraints: 约束数组，每个约束含：
+        //   - C(x): 约束偏差函数（返回标量）
+        //   - gradient(x): 约束梯度函数（返回每个粒子的梯度向量）
+        //   - alpha: 柔度参数（刚度的倒数，alpha=0为硬约束）
+        // dt: 时间步长
+        // iterations: 每帧约束迭代次数
+        
+        this.particles = particles
+        this.constraints = constraints
+        this.dt = dt
+        this.iterations = iterations
+        
+        // 初始化拉格朗日乘子（每个约束对应一个乘子）
+        for each constraint in constraints:
+            constraint.lambda = 0.0  // 初始乘子为0
+
+    // 主循环：每帧调用一次，更新粒子状态
+    function step():
+        // 1. 保存当前位置作为上一时刻位置（用于后续速度计算）
+        for each particle in particles:
+            particle.x_prev = particle.x  // x_prev = x^n
+        
+        // 2. 计算预测位置（无约束时的惯性位置）
+        //    公式：x~ = x^n + dt * v^n （等价于2x^n - x^{n-1}）
+        for each particle in particles:
+            particle.x_pred = particle.x + this.dt * particle.v  // x_pred = x~
+        
+        // 3. 约束迭代：用Gauss-Seidel逐约束修正位置和乘子
+        for k in 0 to this.iterations - 1:
+            for each constraint in constraints:
+                // a. 获取当前约束涉及的粒子
+                affected_particles = constraint.get_affected_particles()
+                
+                // b. 计算当前约束偏差C(x)和梯度∇C
+                C = constraint.C(affected_particles)  // 约束偏差：C_j(x_i)
+                gradients = constraint.gradient(affected_particles)  // ∇C_j
+                
+                // c. 计算公式(18)中的分母：∇C_j * M^{-1} * ∇C_j^T + α~_j
+                //    α~_j = alpha_j / (dt^2)（时间步修正后的柔度）
+                alpha_tilde = constraint.alpha / (this.dt * this.dt)
+                denominator = 0.0
+                for i in 0 to len(affected_particles) - 1:
+                    p = affected_particles[i]
+                    grad = gradients[i]
+                    // M^{-1}为质量倒数（因M是对角矩阵）
+                    denominator += dot(grad, grad) / p.mass  // ∇C_j * M^{-1} * ∇C_j^T
+                denominator += alpha_tilde  // 加上α~_j
+                
+                // d. 计算公式(18)中的分子：-C_j - α~_j * λ_j
+                numerator = -C - alpha_tilde * constraint.lambda
+                
+                // e. 计算乘子修正量Δλ_j
+                delta_lambda = numerator / denominator
+                
+                // f. 计算位置修正量Δx（公式17：Δx = M^{-1} * ∇C_j^T * Δλ_j）
+                for i in 0 to len(affected_particles) - 1:
+                    p = affected_particles[i]
+                    grad = gradients[i]
+                    p.delta_x = (grad * delta_lambda) / p.mass  // 质量加权修正
+                
+                // g. 更新粒子位置（用最新位置进行下一轮迭代）
+                for i in 0 to len(affected_particles) - 1:
+                    p = affected_particles[i]
+                    p.x += p.delta_x  // x_{i+1} = x_i + Δx
+                
+                // h. 更新约束的拉格朗日乘子
+                constraint.lambda += delta_lambda  // λ_{i+1} = λ_i + Δλ_j
+        
+        // 4. 更新速度（基于修正后的位置和上一时刻位置）
+        //    公式：v^{n+1} = (x^{n+1} - x^n) / dt
+        for each particle in particles:
+            particle.v = (particle.x - particle.x_prev) / this.dt
+        
+        // 5. 可选：应用阻尼或外部力（如重力）
+        apply_external_forces(particles, dt)

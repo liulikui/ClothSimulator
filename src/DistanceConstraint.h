@@ -1,0 +1,121 @@
+﻿#ifndef DISTANCE_CONSTRAINT_H
+#define DISTANCE_CONSTRAINT_H
+
+#include "Constraint.h"
+#include <DirectXMath.h>
+
+// 为了方便使用，定义一个简化的命名空间别名
+namespace dx = DirectX;
+
+// 距离约束类，继承自约束基类
+// 该约束保持两个粒子之间的距离为指定值
+class DistanceConstraint : public Constraint {
+public:
+    // 构造函数
+    // 参数：
+    //   p1 - 第一个粒子的指针
+    //   p2 - 第二个粒子的指针
+    //   restLength - 约束的静止长度（两个粒子之间的目标距离）
+    //   compliance - 约束的柔度（与刚度成反比）
+    DistanceConstraint(Particle* p1, Particle* p2, float restLength, float compliance = 1e-6)
+        : particle1(p1), particle2(p2), restLength(restLength) {
+        this->compliance = compliance;
+    }
+    
+    // 计算约束偏差
+    // 返回：约束偏差值C(x) = |x1 - x2| - restLength
+    float computeConstraintValue() const override {
+        // 将XMFLOAT3转换为XMVECTOR进行计算
+        dx::XMVECTOR pos1 = dx::XMLoadFloat3(&particle1->position);
+        dx::XMVECTOR pos2 = dx::XMLoadFloat3(&particle2->position);
+        
+        // 计算两个粒子之间的向量差
+        dx::XMVECTOR diff = dx::XMVectorSubtract(pos1, pos2);
+        
+        // 计算向量的长度（距离）
+        float distance = dx::XMVectorGetX(dx::XMVector3Length(diff));
+        
+        return distance - restLength;
+    }
+    
+    // 计算约束梯度
+    // 参数：
+    //   gradients - 存储每个受约束粒子的梯度向量的向量
+    void computeGradient(std::vector<dx::XMFLOAT3>& gradients) const override {
+        gradients.clear();
+        gradients.reserve(2);
+        
+        // 将XMFLOAT3转换为XMVECTOR进行计算
+        dx::XMVECTOR pos1 = dx::XMLoadFloat3(&particle1->position);
+        dx::XMVECTOR pos2 = dx::XMLoadFloat3(&particle2->position);
+        
+        // 计算两个粒子之间的向量差
+        dx::XMVECTOR diff = dx::XMVectorSubtract(pos1, pos2);
+        
+        // 计算向量的长度（距离）
+        float distance = dx::XMVectorGetX(dx::XMVector3Length(diff));
+        
+        if (distance > 0.0f) {
+            // 归一化向量
+            dx::XMVECTOR normalizedDiff = dx::XMVector3Normalize(diff);
+            
+            dx::XMFLOAT3 gradient1;
+            dx::XMFLOAT3 gradient2;
+            
+            // 对第一个粒子的梯度
+            dx::XMStoreFloat3(&gradient1, normalizedDiff);
+            gradients.push_back(gradient1);
+            
+            // 对第二个粒子的梯度（方向相反）
+            dx::XMStoreFloat3(&gradient2, dx::XMVectorNegate(normalizedDiff));
+            gradients.push_back(gradient2);
+        } else {
+            // 避免除以零，当两个粒子重合时使用任意方向
+            gradients.push_back(dx::XMFLOAT3(1.0f, 0.0f, 0.0f));
+            gradients.push_back(dx::XMFLOAT3(-1.0f, 0.0f, 0.0f));
+        }
+    }
+    
+    // 获取受此约束影响的所有粒子
+    // 返回：包含两个粒子指针的向量
+    std::vector<Particle*> getParticles() override {
+        std::vector<Particle*> result;
+        result.reserve(2);
+        result.push_back(particle1);
+        result.push_back(particle2);
+        return result;
+    }
+    
+    // 获取受此约束影响的所有粒子（const版本）
+    // 返回：包含两个const粒子指针的向量
+    std::vector<const Particle*> getParticles() const override {
+        std::vector<const Particle*> result;
+        result.reserve(2);
+        result.push_back(particle1);
+        result.push_back(particle2);
+        return result;
+    }
+    
+    // 设置约束的静止长度
+    // 参数：
+    //   length - 新的静止长度
+    void setRestLength(float length) {
+        restLength = length;
+    }
+    
+    // 获取约束的静止长度
+    // 返回：静止长度值
+    float getRestLength() const {
+        return restLength;
+    }
+    
+private:
+    // 受约束的两个粒子
+    Particle* particle1; // 第一个粒子
+    Particle* particle2; // 第二个粒子
+    
+    // 约束的静止长度
+    float restLength; // 两个粒子之间的目标距离
+};
+
+#endif // DISTANCE_CONSTRAINT_H
