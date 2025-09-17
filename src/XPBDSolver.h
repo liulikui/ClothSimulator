@@ -5,7 +5,6 @@
 #include <algorithm>  // 添加这个头文件以支持std::max和std::min
 #include <unordered_map>  // 添加这个头文件以支持std::unordered_map，用于碰撞粒子速度反弹处理
 #include <DirectXMath.h>
-#include <Windows.h>
 #include <fstream>
 #include <sstream>
 #include <string>
