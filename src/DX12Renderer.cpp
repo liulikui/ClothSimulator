@@ -17,9 +17,9 @@ const uint32_t kDefaultFrameCount = 2;
 // 构造函数
 DX12Renderer::DX12Renderer(uint32_t width, uint32_t height, const std::wstring& windowName, HWND hWnd)
     : width_(width), height_(height), windowName_(windowName), backBufferCount_(kDefaultFrameCount), hWnd_(hWnd),
-      fenceValue_(0), fenceEvent_(nullptr), currentFrameIndex_(0), camera_(width, height)
+      fenceValue_(0), fenceEvent_(nullptr), currentFrameIndex_(0)
 {
-    // 相机初始化已经在Camera类构造函数中完成
+    // 相机现在在Main.cpp中初始化
 }
 
 // 析构函数
@@ -803,10 +803,10 @@ bool DX12Renderer::CreateConstantBuffers()
 }
 
 // 更新变换矩阵常量缓冲区
-void DX12Renderer::UpdateConstantBuffer(const dx::XMMATRIX& worldMatrix)
+void DX12Renderer::UpdateConstantBuffer(const dx::XMMATRIX& worldMatrix, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
     // 计算世界-视图-投影矩阵
-    dx::XMMATRIX worldViewProj = worldMatrix * camera_.GetViewMatrix() * camera_.GetProjectionMatrix();
+    dx::XMMATRIX worldViewProj = worldMatrix * viewMatrix * projectionMatrix;
 
     // 准备常量缓冲区数据
     ConstantBuffer data;
@@ -853,7 +853,7 @@ void DX12Renderer::UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor)
 }
 
 // 渲染一帧
-void DX12Renderer::Render()
+void DX12Renderer::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
     // 获取当前后台缓冲区
     currentBackBufferIndex_ = swapChain_->GetCurrentBackBufferIndex();
@@ -926,7 +926,7 @@ void DX12Renderer::Render()
 
         // 更新布料的变换矩阵和材质
         dx::XMMATRIX worldMatrix = dx::XMMatrixIdentity();
-        UpdateConstantBuffer(worldMatrix);
+        UpdateConstantBuffer(worldMatrix, viewMatrix, projectionMatrix);
         UpdateMaterialBuffer(dx::XMFLOAT4(0.0f, 0.8f, 1.0f, 1.0f)); // 亮蓝色布料，更明显
 
         // 设置顶点和索引缓冲区
@@ -957,7 +957,7 @@ void DX12Renderer::Render()
 
         // 更新球体的变换矩阵和材质
         dx::XMMATRIX worldMatrix = dx::XMMatrixTranslation(0.0f, 5.0f, 0.0f);
-        UpdateConstantBuffer(worldMatrix);
+        UpdateConstantBuffer(worldMatrix, viewMatrix, projectionMatrix);
         UpdateMaterialBuffer(dx::XMFLOAT4(0.8f, 0.2f, 0.2f, 1.0f)); // 红色球体
 
         // 设置顶点和索引缓冲区
@@ -1118,11 +1118,7 @@ void DX12Renderer::SetSphereVertices(const std::vector<dx::XMFLOAT3>& positions,
     UploadBufferData(sphereIndexBuffer_, indices);
 }
 
-// 更新相机
-void DX12Renderer::UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up)
-{
-    camera_.UpdateCamera(position, target, up);
-}
+
 
 // 等待前一帧完成
 void DX12Renderer::WaitForPreviousFrame()
@@ -1188,8 +1184,7 @@ void DX12Renderer::Resize(uint32_t width, uint32_t height)
     // 重新创建深度/模板视图
     CreateDepthStencilView();
 
-    // 更新相机以适应新的窗口宽高比
-    camera_.Resize(width_, height_);
+    // 注意：相机调整现在由Main.cpp处理
 }
 
 // 清理资源

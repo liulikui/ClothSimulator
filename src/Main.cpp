@@ -57,6 +57,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
             uint32_t width = LOWORD(lParam);
             uint32_t height = HIWORD(lParam);
             renderer->Resize(width, height);
+            
+            // 同时更新相机的尺寸
+            if (camera) {
+                camera->Resize(width, height);
+            }
         }
         break;
     case WM_KEYDOWN:
@@ -529,11 +534,8 @@ void UpdateClothRenderData() {
     }
 }
 
-// 更新相机的辅助函数（转换为XMVECTOR版本）
+// 更新相机的辅助函数
 void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up) {
-    if (renderer) {
-        renderer->UpdateCamera(position, target, up);
-    }
     if (camera) {
         camera->UpdateCamera(position, target, up);
     }
@@ -700,7 +702,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // 例如：按'C'键切换传统碰撞和XPBD碰撞
         
         // 渲染场景
-        if (renderer) {
+        if (renderer && camera) {
             if (debugOutputEnabled) {
                 static int renderCount = 0;
                 renderCount++;
@@ -708,7 +710,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     std::cout << "Rendering scene, render count: " << renderCount << std::endl;
                 }
             }
-            renderer->Render();
+            renderer->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
         }
     }
     

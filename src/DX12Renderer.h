@@ -38,7 +38,7 @@ public:
     bool Initialize();
 
     // 渲染一帧
-    void Render();
+    void Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
     // 清理资源
     void Cleanup();
@@ -51,18 +51,12 @@ public:
     void SetSphereVertices(const std::vector<dx::XMFLOAT3>& positions, const std::vector<dx::XMFLOAT3>& normals,
                           const std::vector<uint32_t>& indices);
 
-    // 更新相机
-    void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up);
-    
     // 调整窗口大小
     void Resize(uint32_t width, uint32_t height);
     
-    // 获取相机
-    Camera& GetCamera() { return camera_; }
-    
-    // 常量缓冲区相关方法
+    // 更新常量缓冲区
     bool CreateConstantBuffers();
-    void UpdateConstantBuffer(const dx::XMMATRIX& worldMatrix);
+    void UpdateConstantBuffer(const dx::XMMATRIX& worldMatrix, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
     void UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor);
 
     // 获取窗口宽度
@@ -163,9 +157,6 @@ private:
     // 常量缓冲区
     wrl::ComPtr<ID3D12Resource> constantBuffer_;                 // 变换矩阵常量缓冲区
     wrl::ComPtr<ID3D12Resource> materialBuffer_;                 // 材质和光照常量缓冲区
-
-    // 相机
-    Camera camera_;
 
     // 光照参数
     dx::XMFLOAT4 lightPosition_ = { -10.0f, 30.0f, -10.0f, 1.0f };
