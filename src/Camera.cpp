@@ -93,3 +93,41 @@ const dx::XMVECTOR& Camera::GetTarget() const {
 const dx::XMVECTOR& Camera::GetUp() const {
     return cameraUp_;
 }
+
+// 实现键盘输入处理方法
+void Camera::ProcessKeyboardInput(const bool keys[], float deltaTime) {
+    // 计算相机方向向量
+    dx::XMVECTOR front = dx::XMVector3Normalize(dx::XMVectorSubtract(cameraTarget_, cameraPosition_));
+    dx::XMVECTOR up = cameraUp_;
+    dx::XMVECTOR right = dx::XMVector3Normalize(dx::XMVector3Cross(front, up));
+    
+    // 移动速度
+    float moveSpeed = 2.5f * deltaTime;
+    
+    // 向前移动 (W键)
+    if (keys['W']) {
+        cameraPosition_ = dx::XMVectorAdd(cameraPosition_, dx::XMVectorScale(front, moveSpeed));
+        cameraTarget_ = dx::XMVectorAdd(cameraTarget_, dx::XMVectorScale(front, moveSpeed));
+    }
+    
+    // 向后移动 (S键)
+    if (keys['S']) {
+        cameraPosition_ = dx::XMVectorSubtract(cameraPosition_, dx::XMVectorScale(front, moveSpeed));
+        cameraTarget_ = dx::XMVectorSubtract(cameraTarget_, dx::XMVectorScale(front, moveSpeed));
+    }
+    
+    // 向左移动 (A键)
+    if (keys['A']) {
+        cameraPosition_ = dx::XMVectorAdd(cameraPosition_, dx::XMVectorScale(right, moveSpeed));
+        cameraTarget_ = dx::XMVectorAdd(cameraTarget_, dx::XMVectorScale(right, moveSpeed));
+    }
+    
+    // 向右移动 (D键)
+    if (keys['D']) {
+        cameraPosition_ = dx::XMVectorSubtract(cameraPosition_, dx::XMVectorScale(right, moveSpeed));
+        cameraTarget_ = dx::XMVectorSubtract(cameraTarget_, dx::XMVectorScale(right, moveSpeed));
+    }
+    
+    // 更新视图矩阵
+    UpdateViewMatrix();
+}

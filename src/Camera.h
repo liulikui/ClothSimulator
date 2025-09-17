@@ -22,6 +22,9 @@ public:
     void SetFieldOfView(float fov);
     void SetNearClipPlane(float nearPlane);
     void SetFarClipPlane(float farPlane);
+    
+    // 处理键盘输入的方法
+    void ProcessKeyboardInput(const bool keys[], float deltaTime);
 
 private:
     void UpdateViewMatrix();

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include "Cloth.h"
 #include "DX12Renderer.h"
+#include "Camera.h"
 #include <windowsx.h>
 
 // 为了方便使用，定义一个简化的命名空间别名
@@ -23,10 +24,8 @@ bool f9Pressed = false;        // F9键按下标志，用于检测按键状态�
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
 
-// 相机参数 - 调整位置更接近布料
-dx::XMFLOAT3 cameraPos = dx::XMFLOAT3(0.0f, 10.0f, 15.0f); // 直接在布料正前方
-dx::XMFLOAT3 cameraTarget = dx::XMFLOAT3(0.0f, 5.0f, 0.0f); // 直接指向布料中心
-dx::XMFLOAT3 cameraUp = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+// 相机对象
+Camera* camera = nullptr;
 
 // 鼠标控制参数
 float yaw = -90.0f;   // yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right
@@ -260,6 +259,16 @@ BOOL InitializeRenderer() {
     // 创建渲染器实例，传入正确顺序的参数和全屏尺寸
     renderer = new DX12Renderer(screenWidth, screenHeight, windowName, hWnd);
     std::cout << "  - DX12Renderer object created successfully" << std::endl;
+    
+    // 创建相机对象
+    camera = new Camera(screenWidth, screenHeight);
+    std::cout << "  - Camera object created successfully" << std::endl;
+    
+    // 设置相机初始位置和目标
+    dx::XMVECTOR cameraPos = dx::XMVectorSet(0.0f, 10.0f, 15.0f, 1.0f); // 直接在布料正前方
+    dx::XMVECTOR cameraTarget = dx::XMVectorSet(0.0f, 5.0f, 0.0f, 1.0f); // 直接指向布料中心
+    dx::XMVECTOR cameraUp = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    UpdateCamera(cameraPos, cameraTarget, cameraUp);
 
     std::cout << "  - Calling renderer->Initialize()..." << std::endl;
     // 初始化渲染器
@@ -517,55 +526,13 @@ void UpdateClothRenderData() {
     }
 }
 
-// 处理键盘输入的函数（持续移动）
-void ProcessKeyboardInput() {
-    // 计算相机方向向量
-    dx::XMVECTOR pos = dx::XMLoadFloat3(&cameraPos);
-    dx::XMVECTOR target = dx::XMLoadFloat3(&cameraTarget);
-    dx::XMVECTOR front = dx::XMVector3Normalize(dx::XMVectorSubtract(target, pos));
-    dx::XMVECTOR up = dx::XMLoadFloat3(&cameraUp);
-    dx::XMVECTOR right = dx::XMVector3Normalize(dx::XMVector3Cross(front, up));
-    
-    // 移动速度
-    float moveSpeed = 2.5f * deltaTime;
-    
-    // 向前移动 (W键)
-    if (keys['W']) {
-        pos = dx::XMVectorAdd(pos, dx::XMVectorScale(front, moveSpeed));
-        target = dx::XMVectorAdd(target, dx::XMVectorScale(front, moveSpeed));
-    }
-    
-    // 向后移动 (S键)
-    if (keys['S']) {
-        pos = dx::XMVectorSubtract(pos, dx::XMVectorScale(front, moveSpeed));
-        target = dx::XMVectorSubtract(target, dx::XMVectorScale(front, moveSpeed));
-    }
-    
-    // 向左移动 (A键)
-    if (keys['A']) {
-        pos = dx::XMVectorAdd(pos, dx::XMVectorScale(right, moveSpeed));
-        target = dx::XMVectorAdd(target, dx::XMVectorScale(right, moveSpeed));
-    }
-    
-    // 向右移动 (D键)
-    if (keys['D']) {
-        pos = dx::XMVectorSubtract(pos, dx::XMVectorScale(right, moveSpeed));
-        target = dx::XMVectorSubtract(target, dx::XMVectorScale(right, moveSpeed));
-    }
-    
-    // 更新相机位置和目标
-    dx::XMStoreFloat3(&cameraPos, pos);
-    dx::XMStoreFloat3(&cameraTarget, target);
-}
-
 // 更新相机的辅助函数（转换为XMVECTOR版本）
-void UpdateCamera(const dx::XMFLOAT3& position, const dx::XMFLOAT3& target, const dx::XMFLOAT3& up) {
-    dx::XMVECTOR pos = dx::XMLoadFloat3(&position);
-    dx::XMVECTOR tgt = dx::XMLoadFloat3(&target);
-    dx::XMVECTOR upVec = dx::XMLoadFloat3(&up);
-    
+void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up) {
     if (renderer) {
-        renderer->UpdateCamera(pos, tgt, upVec);
+        renderer->UpdateCamera(position, target, up);
+    }
+    if (camera) {
+        camera->UpdateCamera(position, target, up);
     }
 }
 
@@ -582,6 +549,12 @@ void Cleanup() {
         renderer->Cleanup();
         delete renderer;
         renderer = nullptr;
+    }
+    
+    // 清理相机对象
+    if (camera) {
+        delete camera;
+        camera = nullptr;
     }
 }
 
@@ -690,9 +663,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             lastFrame = currentFrame;
         }
         
-        // 处理键盘输入（持续移动）
-        ProcessKeyboardInput();
-        
         // 更新布料模拟
         if (cloth) {
             // 恢复布料物理更新
@@ -716,9 +686,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             // 恢复渲染数据更新
             UpdateClothRenderData();
             
-            // 更新相机
-            UpdateCamera(cameraPos, cameraTarget, cameraUp);
+            // 调用UpdateCamera函数，传入渲染器需要的相机参数
+            UpdateCamera(camera->GetPosition(), camera->GetTarget(), camera->GetUp());
         }
+        
+        // 处理键盘输入
+        camera->ProcessKeyboardInput(keys, deltaTime);
         
         // 可以在这里添加按某个键切换碰撞检测模式的功能
         // 例如：按'C'键切换传统碰撞和XPBD碰撞
