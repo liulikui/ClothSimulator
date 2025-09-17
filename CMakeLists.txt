@@ -5,6 +5,9 @@ project(XPBDClothSimulator)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 添加UTF-8编码支持
+add_compile_options("/source-charset:utf-8" "/execution-charset:utf-8")
+
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 

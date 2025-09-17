@@ -1,4 +1,4 @@
-#ifndef PARTICLE_H
+﻿#ifndef PARTICLE_H
 #define PARTICLE_H
 
 #include <DirectXMath.h>
@@ -12,12 +12,12 @@ public:
     // 参数：
     //   pos - 粒子的初始位置
     //   m - 粒子的质量
-    //   isStatic - 粒子是否为静态（不可移动）
+    //   isStatic - 粒子是否为固定（不可移动）
     Particle(const dx::XMFLOAT3& pos = dx::XMFLOAT3(0.0f, 0.0f, 0.0f), float m = 1.0f, bool isStatic = false)
         : position(pos), oldPosition(pos), velocity(dx::XMFLOAT3(0.0f, 0.0f, 0.0f)), force(dx::XMFLOAT3(0.0f, 0.0f, 0.0f)),
           mass(m), inverseMass(1.0f / m), isStatic(isStatic) {
         if (isStatic) {
-            inverseMass = 0.0f; // 静态粒子的质量倒数为0，表示不受力
+            inverseMass = 0.0f; // 固定粒子的质量倒数为0，表示不受力
         }
     }
 
@@ -30,7 +30,7 @@ public:
             dx::XMVECTOR forceVector = dx::XMLoadFloat3(&force);
             dx::XMVECTOR appliedForce = dx::XMLoadFloat3(&f);
             
-            // 累加力
+            // 叠加力
             forceVector = dx::XMVectorAdd(forceVector, appliedForce);
             
             // 将结果转换回XMFLOAT3
@@ -49,8 +49,8 @@ public:
     dx::XMFLOAT3 velocity;     // 速度
     dx::XMFLOAT3 force;        // 作用在粒子上的力
     float mass;                // 质量
-    float inverseMass;         // 质量的倒数（用于加速计算）
-    bool isStatic;             // 是否为静态粒子
+    float inverseMass;         // 质量的倒数（用于加速度计算）
+    bool isStatic;             // 是否为固定粒子
 };
 
 #endif // PARTICLE_H

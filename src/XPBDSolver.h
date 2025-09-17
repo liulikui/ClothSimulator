@@ -1,4 +1,4 @@
-#ifndef XPBD_SOLVER_H
+﻿#ifndef XPBD_SOLVER_H
 #define XPBD_SOLVER_H
 
 #include <vector>
@@ -350,3 +350,4 @@ private:
 };
 
 #endif // XPBD_SOLVER_H
+ 

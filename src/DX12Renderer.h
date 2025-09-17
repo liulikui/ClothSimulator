@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -13,7 +13,7 @@
 namespace dx = DirectX;
 namespace wrl = Microsoft::WRL;
 
-// 变换矩阵常量缓冲区结构体
+// 交换链常量缓冲区结构体
 struct ConstantBuffer {
     dx::XMFLOAT4X4 worldViewProj; // 世界-视图-投影矩阵
     dx::XMFLOAT4X4 world;         // 世界矩阵
@@ -112,8 +112,8 @@ private:
     wrl::ComPtr<ID3D12Device> device_;                    // D3D12设备
     wrl::ComPtr<IDXGIFactory6> factory_;                  // DXGI工厂
     wrl::ComPtr<IDXGISwapChain4> swapChain_;              // 交换链
-    uint32_t backBufferCount_ = 2;                            // 后台缓冲区数量
-    uint32_t currentBackBufferIndex_ = 0;                     // 当前后台缓冲区索引
+    uint32_t backBufferCount_ = 2;                            // 后缓冲区数量
+    uint32_t currentBackBufferIndex_ = 0;                     // 当前后缓冲区索引
 
     // 命令对象
     wrl::ComPtr<ID3D12CommandAllocator> commandAllocators_[2];    // 命令分配器数组
@@ -124,7 +124,7 @@ private:
     wrl::ComPtr<ID3D12Fence> fence_;                     // 围栏
     uint64_t fenceValue_ = 0;                              // 围栏值
     HANDLE fenceEvent_ = nullptr;                        // 围栏事件
-    uint32_t currentFrameIndex_; // 当前帧索引，用于双缓冲
+    uint32_t currentFrameIndex_; // 当前帧索引，用于缓存
 
     // 描述符堆
     wrl::ComPtr<ID3D12DescriptorHeap> rtvHeap_;          // 渲染目标视图堆
@@ -135,7 +135,7 @@ private:
     uint32_t srvDescriptorSize_ = 0;                         // 着色器资源视图描述符大小
 
     // 资源
-    std::vector<wrl::ComPtr<ID3D12Resource>> backBuffers_;       // 后台缓冲区
+    std::vector<wrl::ComPtr<ID3D12Resource>> backBuffers_;       // 后缓冲区
     wrl::ComPtr<ID3D12Resource> depthStencilBuffer_;             // 深度/模板缓冲区
 
     // 根签名和管道状态
@@ -155,7 +155,7 @@ private:
     uint32_t sphereIndexCount_ = 0;                                  // 球体索引数量
     
     // 常量缓冲区
-    wrl::ComPtr<ID3D12Resource> constantBuffer_;                 // 变换矩阵常量缓冲区
+    wrl::ComPtr<ID3D12Resource> constantBuffer_;                 // 交换矩阵常量缓冲区
     wrl::ComPtr<ID3D12Resource> materialBuffer_;                 // 材质和光照常量缓冲区
 
     // 光照参数

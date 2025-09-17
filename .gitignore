@@ -1,0 +1,67 @@
+# 构建目录
+/build/
+/temp_build/
+
+# Visual Studio 文件
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.ncb
+*.sdf
+*.opensdf
+ipch/
+
+# 编译输出
+*.obj
+*.pdb
+*.ilk
+*.pch
+*.idb
+*.res
+*.log
+*.tlog
+*.lastbuildstate
+*.exp
+*.lib
+*.exe
+*.dll
+*.dylib
+*.so
+
+# CMake 生成文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# 编辑器配置
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln.docstates
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

@@ -68,8 +68,8 @@ public:
             useXPBDCollision = use;
             
             // 如果启用XPBD碰撞，将所有球体碰撞约束添加到总约束列表
-            // 如果禁用XPBD碰撞，从总约束列表中移除所有球体碰撞约束
-            // 注意：使用直接遍历而非std::find，避免类型转换问题
+            // 如果禁用XPBD碰撞，从总约束列表中删除所有球体碰撞约束
+            // 注意：使用直接比较而非std::find，避免类型转换问题
             auto it = constraints.begin();
             while (it != constraints.end()) {
                 bool isSphereConstraint = false;
@@ -98,7 +98,6 @@ public:
     bool getUseXPBDCollision() const { return useXPBDCollision; }
 
     // 计算布料的法线数据
-    // 计算布料的法线数据
     void computeNormals();
     
     // 获取布料的顶点位置数据
@@ -117,7 +116,7 @@ private:
     // 创建布料的约束
     void createConstraints(float size);
     
-    // 初始化球体碰撞约束（一次性创建，避免每帧重建）
+    // 初始化球体碰撞约束（一次性创建，避免每次重建）
     void initializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
     
     // 布料的尺寸参数

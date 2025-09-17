@@ -1,4 +1,4 @@
-#ifndef CONSTRAINT_H
+﻿#ifndef CONSTRAINT_H
 #define CONSTRAINT_H
 
 #include <vector>
@@ -55,3 +55,4 @@ public:
 };
 
 #endif // CONSTRAINT_H
+
