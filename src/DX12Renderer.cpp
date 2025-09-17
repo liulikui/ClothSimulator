@@ -1,5 +1,6 @@
 #include "DX12Renderer.h"
 #include "Scene.h"
+#include "DX12GraphicsCommandList.h"
 #include <iostream>
 #include <fstream>
 #include <string>
