@@ -99,14 +99,17 @@ public:
 
     // 计算布料的法线数据
     // 参数：
-    //   positions - 输出参数，存储计算后的顶点位置
-    //   normals - 输出参数，存储计算后的顶点法线
-    //   indices - 输出参数，存储计算后的索引数据
     //   debugOutput - 是否输出调试信息
-    void computeNormals(std::vector<dx::XMFLOAT3>& positions, 
-                        std::vector<dx::XMFLOAT3>& normals, 
-                        std::vector<uint32_t>& indices, 
-                        bool debugOutput = false);
+    void computeNormals(bool debugOutput = false);
+    
+    // 获取布料的顶点位置数据
+    const std::vector<dx::XMFLOAT3>& getPositions() const { return positions; }
+    
+    // 获取布料的顶点法线数据
+    const std::vector<dx::XMFLOAT3>& getNormals() const { return normals; }
+    
+    // 获取布料的索引数据
+    const std::vector<uint32_t>& getIndices() const { return indices; }
 
 private:
     // 创建布料的粒子
@@ -134,6 +137,11 @@ private:
     
     // 重力
     dx::XMFLOAT3 gravity; // 作用在布料上的重力
+    
+    // 渲染数据
+    std::vector<dx::XMFLOAT3> positions; // 布料顶点位置数据
+    std::vector<dx::XMFLOAT3> normals; // 布料顶点法线数据
+    std::vector<uint32_t> indices; // 布料索引数据
 };
 
 #endif // CLOTH_H

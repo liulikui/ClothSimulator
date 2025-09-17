@@ -232,29 +232,47 @@ void Cloth::createConstraints(float size) {
 }
 
 // 计算布料的法线数据
-void Cloth::computeNormals(std::vector<dx::XMFLOAT3>& positions, 
-                          std::vector<dx::XMFLOAT3>& normals, 
-                          std::vector<uint32_t>& indices, 
-                          bool debugOutput) {
-    // 清空输出向量
-    positions.clear();
-    normals.clear();
-    indices.clear();
+void Cloth::computeNormals(bool debugOutput) {
+    // 清空位置和法线向量（索引只计算一次）
+    this->positions.clear();
+    this->normals.clear();
+    
+    // 只有在索引为空时才计算索引数据（确保只计算一次）
+    if (this->indices.empty()) {
+        // 生成三角形面的索引数据
+        for (int y = 0; y < height - 1; ++y) {
+            for (int x = 0; x < width - 1; ++x) {
+                // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
+                int i1 = y * width + x;
+                int i2 = y * width + x + 1;
+                int i3 = (y + 1) * width + x + 1;
+                
+                this->indices.push_back(i1);
+                this->indices.push_back(i2);
+                this->indices.push_back(i3);
+                
+                // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
+                i1 = y * width + x;
+                i2 = (y + 1) * width + x + 1;
+                i3 = (y + 1) * width + x;
+                
+                this->indices.push_back(i1);
+                this->indices.push_back(i2);
+                this->indices.push_back(i3);
+            }
+        }
+    }
     
     // 计算法线（使用面法线的平均值）
     std::vector<dx::XMFLOAT3> vertexNormals(particles.size(), dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
     
-    // 生成三角形面和计算法线
+    // 计算顶点法线
     for (int y = 0; y < height - 1; ++y) {
         for (int x = 0; x < width - 1; ++x) {
             // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
             int i1 = y * width + x;
             int i2 = y * width + x + 1;
             int i3 = (y + 1) * width + x + 1;
-            
-            indices.push_back(i1);
-            indices.push_back(i2);
-            indices.push_back(i3);
             
             // 计算面法线 - 反转法线方向
             dx::XMVECTOR v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i2].position), dx::XMLoadFloat3(&particles[i1].position));
@@ -286,10 +304,6 @@ void Cloth::computeNormals(std::vector<dx::XMFLOAT3>& positions,
             i2 = (y + 1) * width + x + 1;
             i3 = (y + 1) * width + x;
             
-            indices.push_back(i1);
-            indices.push_back(i2);
-            indices.push_back(i3);
-            
             // 计算面法线 - 反转法线方向
             v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i2].position), dx::XMLoadFloat3(&particles[i1].position));
             v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i3].position), dx::XMLoadFloat3(&particles[i1].position));
@@ -318,7 +332,7 @@ void Cloth::computeNormals(std::vector<dx::XMFLOAT3>& positions,
     
     // 归一化顶点法线并准备位置和法线数据
     for (size_t i = 0; i < particles.size(); ++i) {
-        positions.push_back(particles[i].position);
+        this->positions.push_back(particles[i].position);
         
         // 归一化顶点法线，添加检查避免对零向量进行归一化
         dx::XMVECTOR n = dx::XMLoadFloat3(&vertexNormals[i]);
@@ -333,17 +347,17 @@ void Cloth::computeNormals(std::vector<dx::XMFLOAT3>& positions,
             normalizedNormal = dx::XMFLOAT3(0.0f, 1.0f, 0.0f); // 向上的法线
         }
         
-        normals.push_back(normalizedNormal);
+        this->normals.push_back(normalizedNormal);
     }
     
     // 只有在启用调试输出时才打印详细信息
     if (debugOutput) {
-        std::cout << "Cloth::computeNormals: generated " << positions.size() << " positions, " << normals.size() << " normals, " << indices.size() << " indices" << std::endl;
+        std::cout << "Cloth::computeNormals: generated " << this->positions.size() << " positions, " << this->normals.size() << " normals, " << this->indices.size() << " indices" << std::endl;
         
         // 检查是否有NaN值
         bool hasNaN = false;
-        for (int i = 0; i < normals.size(); i++) {
-            if (std::isnan(normals[i].x) || std::isnan(normals[i].y) || std::isnan(normals[i].z)) {
+        for (int i = 0; i < this->normals.size(); i++) {
+            if (std::isnan(this->normals[i].x) || std::isnan(this->normals[i].y) || std::isnan(this->normals[i].z)) {
                 std::cout << "WARNING: NaN found in normal at index " << i << std::endl;
                 hasNaN = true;
                 break;

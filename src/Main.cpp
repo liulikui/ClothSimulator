@@ -392,13 +392,13 @@ void UpdateClothRenderData() {
         }
     }
     
-    // 创建顶点数据（位置和法线）
-    std::vector<dx::XMFLOAT3> positions;
-    std::vector<dx::XMFLOAT3> normals;
-    std::vector<uint32_t> indices;
-    
     // 使用Cloth类的computeNormals方法计算法线数据
-    cloth->computeNormals(positions, normals, indices, debugOutputEnabled);
+    cloth->computeNormals(debugOutputEnabled);
+    
+    // 通过getter方法获取渲染数据
+    const std::vector<dx::XMFLOAT3>& positions = cloth->getPositions();
+    const std::vector<dx::XMFLOAT3>& normals = cloth->getNormals();
+    const std::vector<uint32_t>& indices = cloth->getIndices();
     
     // 只有在启用调试输出时才打印详细信息
     if (debugOutputEnabled) {
