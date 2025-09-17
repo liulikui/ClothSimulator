@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include "Camera.h"
+#include "IGraphicsCommandList.h"
 
 // 前向声明
 class Scene;
@@ -73,6 +74,9 @@ public:
 
     // 获取窗口高度
     uint32_t GetHeight() const { return height_; }
+
+    // 创建图形命令列表
+    std::unique_ptr<IGraphicsCommandList> CreateCommandList();
 
 private:
     // 创建设备和交换链
