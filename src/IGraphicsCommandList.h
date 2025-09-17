@@ -46,4 +46,7 @@ public:
 
     // 获取原生命令列表指针（用于实现细节访问）
     virtual void* GetNativeCommandList() = 0;
+
+    // 设置图形根常量缓冲区视图
+    virtual void SetGraphicsRootConstantBufferView(uint32_t rootParameterIndex, IConstBufferView* constBufferView) = 0;
 };

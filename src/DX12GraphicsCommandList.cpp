@@ -129,3 +129,14 @@ void DX12GraphicsCommandList::Close() {
 void* DX12GraphicsCommandList::GetNativeCommandList() {
     return commandList_;
 }
+
+// 实现设置图形根常量缓冲区视图
+void DX12GraphicsCommandList::SetGraphicsRootConstantBufferView(uint32_t rootParameterIndex, IConstBufferView* constBufferView) {
+    if (commandList_ && constBufferView) {
+        // 获取常量缓冲区的起始地址
+        uint64_t bufferLocation = constBufferView->GetBufferLocation();
+        
+        // 调用底层D3D12方法设置常量缓冲区
+        commandList_->SetGraphicsRootConstantBufferView(rootParameterIndex, bufferLocation);
+    }
+}

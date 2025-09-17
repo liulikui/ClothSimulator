@@ -62,3 +62,30 @@ public:
     // 创建索引缓冲区视图
     virtual IIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) = 0;
 };
+
+// 常量缓冲区视图接口
+class IConstBufferView {
+public:
+    virtual ~IConstBufferView() = default;
+    
+    // 获取缓冲区起始地址
+    virtual uint64_t GetBufferLocation() const = 0;
+    
+    // 获取缓冲区大小
+    virtual uint32_t GetSizeInBytes() const = 0;
+    
+    // 获取原生视图指针
+    virtual void* GetNativeView() = 0;
+};
+
+// 常量缓冲区接口
+class IConstBuffer : public IGraphicsResource {
+public:
+    virtual ~IConstBuffer() = default;
+    
+    // 创建常量缓冲区视图
+    virtual IConstBufferView* CreateConstBufferView(uint32_t sizeInBytes) = 0;
+
+    // 更新常量缓冲区数据
+    virtual void Update(const void* data, uint32_t sizeInBytes) = 0;
+};

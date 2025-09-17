@@ -30,6 +30,9 @@ public:
     void Close() override;
     void* GetNativeCommandList() override;
 
+    // 实现设置图形根常量缓冲区视图
+    void SetGraphicsRootConstantBufferView(uint32_t rootParameterIndex, IConstBufferView* constBufferView) override;
+
 private:
     ID3D12GraphicsCommandList* commandList_; // 底层D3D12命令列表
 };

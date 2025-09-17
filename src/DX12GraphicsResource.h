@@ -85,3 +85,63 @@ private:
     uint32_t m_sizeInBytes;
     bool m_is32Bit;
 };
+
+// DX12常量缓冲区视图实现
+class DX12ConstBufferView : public IConstBufferView {
+public:
+    DX12ConstBufferView(uint64_t bufferLocation, uint32_t sizeInBytes)
+        : m_bufferLocation(bufferLocation), m_sizeInBytes(sizeInBytes) {}
+    
+    ~DX12ConstBufferView() override = default;
+    
+    uint64_t GetBufferLocation() const override { return m_bufferLocation; }
+    uint32_t GetSizeInBytes() const override { return m_sizeInBytes; }
+    void* GetNativeView() override { 
+        // 注意：对于常量缓冲区，直接使用缓冲区位置，没有专门的视图结构
+        // 这里返回nullptr，因为SetGraphicsRootConstantBufferView方法直接使用BufferLocation
+        return nullptr; 
+    }
+    
+private:
+    uint64_t m_bufferLocation; // 缓冲区的GPU虚拟地址
+    uint32_t m_sizeInBytes;    // 缓冲区大小
+};
+
+// DX12常量缓冲区实现
+class DX12ConstBuffer : public IConstBuffer {
+public:
+    DX12ConstBuffer(ID3D12Resource* buffer, uint32_t sizeInBytes)
+        : m_buffer(buffer), m_sizeInBytes(sizeInBytes) {}
+    
+    ~DX12ConstBuffer() override = default;
+    
+    void* GetNativeResource() override { return m_buffer.Get(); }
+    
+    IConstBufferView* CreateConstBufferView(uint32_t sizeInBytesParam) override {
+        uint32_t sizeInBytes = (sizeInBytesParam > 0) ? sizeInBytesParam : m_sizeInBytes;
+        uint64_t bufferLocation = m_buffer->GetGPUVirtualAddress();
+        
+        return new DX12ConstBufferView(bufferLocation, sizeInBytes);
+    }
+    
+    void Update(const void* data, uint32_t sizeInBytes) override {
+        if (!m_buffer || !data || sizeInBytes == 0) {
+            return;
+        }
+        
+        // 确保大小不超过缓冲区总大小
+        uint32_t updateSize = (sizeInBytes > m_sizeInBytes) ? m_sizeInBytes : sizeInBytes;
+        
+        // 映射缓冲区并复制数据
+        void* mappedData = nullptr;
+        D3D12_RANGE readRange = {0, 0}; // 表示我们不读取任何数据
+        if (SUCCEEDED(m_buffer->Map(0, &readRange, &mappedData))) {
+            memcpy(mappedData, data, updateSize);
+            m_buffer->Unmap(0, nullptr);
+        }
+    }
+    
+private:
+    wrl::ComPtr<ID3D12Resource> m_buffer;   // 底层D3D12资源
+    uint32_t m_sizeInBytes;                 // 缓冲区大小（字节）
+};
