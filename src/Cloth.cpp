@@ -232,7 +232,7 @@ void Cloth::createConstraints(float size) {
 }
 
 // 计算布料的法线数据
-void Cloth::computeNormals(bool debugOutput) {
+void Cloth::computeNormals() {
     // 清空位置和法线向量（索引只计算一次）
     this->positions.clear();
     this->normals.clear();
@@ -350,21 +350,5 @@ void Cloth::computeNormals(bool debugOutput) {
         this->normals.push_back(normalizedNormal);
     }
     
-    // 只有在启用调试输出时才打印详细信息
-    if (debugOutput) {
-        std::cout << "Cloth::computeNormals: generated " << this->positions.size() << " positions, " << this->normals.size() << " normals, " << this->indices.size() << " indices" << std::endl;
-        
-        // 检查是否有NaN值
-        bool hasNaN = false;
-        for (int i = 0; i < this->normals.size(); i++) {
-            if (std::isnan(this->normals[i].x) || std::isnan(this->normals[i].y) || std::isnan(this->normals[i].z)) {
-                std::cout << "WARNING: NaN found in normal at index " << i << std::endl;
-                hasNaN = true;
-                break;
-            }
-        }
-        if (!hasNaN) {
-            std::cout << "All normals are valid (no NaN values)" << std::endl;
-        }
-    }
+
 }

@@ -98,9 +98,8 @@ public:
     bool getUseXPBDCollision() const { return useXPBDCollision; }
 
     // 计算布料的法线数据
-    // 参数：
-    //   debugOutput - 是否输出调试信息
-    void computeNormals(bool debugOutput = false);
+    // 计算布料的法线数据
+    void computeNormals();
     
     // 获取布料的顶点位置数据
     const std::vector<dx::XMFLOAT3>& getPositions() const { return positions; }

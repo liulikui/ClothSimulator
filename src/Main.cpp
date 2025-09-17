@@ -393,7 +393,7 @@ void UpdateClothRenderData() {
     }
     
     // 使用Cloth类的computeNormals方法计算法线数据
-    cloth->computeNormals(debugOutputEnabled);
+    cloth->computeNormals();
     
     // 通过getter方法获取渲染数据
     const std::vector<dx::XMFLOAT3>& positions = cloth->getPositions();
