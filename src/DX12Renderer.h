@@ -9,6 +9,9 @@
 #include <memory>
 #include "Camera.h"
 
+// 前向声明
+class Scene;
+
 // 简化命名空间
 namespace dx = DirectX;
 namespace wrl = Microsoft::WRL;
@@ -39,6 +42,9 @@ public:
 
     // 渲染一帧
     void Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    
+    // 渲染整个场景
+    void RenderScene(const Scene& scene, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
     // 清理资源
     void Cleanup();
@@ -58,6 +64,12 @@ public:
     bool CreateConstantBuffers();
     void UpdateConstantBuffer(const dx::XMMATRIX& worldMatrix, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
     void UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor);
+
+    // 更新光源位置
+    void UpdateLightPosition(const dx::XMFLOAT4& position);
+    
+    // 更新光源颜色
+    void UpdateLightColor(const dx::XMFLOAT4& color);
 
     // 获取窗口宽度
     uint32_t GetWidth() const { return width_; }
@@ -96,9 +108,6 @@ private:
     template<typename T>
     void UploadBufferData(wrl::ComPtr<ID3D12Resource>& buffer, const std::vector<T>& data);
 
-    // 生成mipmap
-    void GenerateMips(ID3D12GraphicsCommandList* commandList, ID3D12Resource* texture, uint32_t srvIndex);
-    
     // 等待前一帧完成
     void WaitForPreviousFrame();
 

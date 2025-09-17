@@ -6,6 +6,7 @@
 #include "Cloth.h"
 #include "DX12Renderer.h"
 #include "Camera.h"
+#include "Sphere.h"
 #include <windowsx.h>
 
 // 为了方便使用，定义一个简化的命名空间别名
@@ -290,59 +291,7 @@ BOOL InitializeRenderer() {
     return TRUE;
 }
 
-// 生成球体数据
-void GenerateSphereData(float radius, uint32_t sectors, uint32_t stacks,
-    std::vector<dx::XMFLOAT3>& positions, std::vector<dx::XMFLOAT3>& normals, std::vector<uint32_t>& indices) {
-    // 清空现有数据
-    positions.clear();
-    normals.clear();
-    indices.clear();
 
-    // 生成顶点和法线
-    for (uint32_t i = 0; i <= stacks; ++i) {
-        float phi = dx::XMConvertToRadians(180.0f * static_cast<float>(i) / stacks); // 极角
-        float sinPhi = sin(phi);
-        float cosPhi = cos(phi);
-
-        for (uint32_t j = 0; j <= sectors; ++j) {
-            float theta = dx::XMConvertToRadians(360.0f * static_cast<float>(j) / sectors); // 方位角
-            float sinTheta = sin(theta);
-            float cosTheta = cos(theta);
-
-            // 添加顶点位置
-            dx::XMFLOAT3 pos;
-            pos.x = radius * sinPhi * cosTheta;
-            pos.y = radius * cosPhi;
-            pos.z = radius * sinPhi * sinTheta;
-            positions.push_back(pos);
-
-            // 添加法线（单位向量）
-            dx::XMFLOAT3 normal;
-            normal.x = sinPhi * cosTheta;
-            normal.y = cosPhi;
-            normal.z = sinPhi * sinTheta;
-            normals.push_back(normal);
-        }
-    }
-
-    // 生成索引
-    for (uint32_t i = 0; i < stacks; ++i) {
-        uint32_t row1 = i * (sectors + 1);
-        uint32_t row2 = (i + 1) * (sectors + 1);
-
-        for (uint32_t j = 0; j < sectors; ++j) {
-            // 第一个三角形
-            indices.push_back(row1 + j);
-            indices.push_back(row2 + j + 1);
-            indices.push_back(row1 + j + 1);
-
-            // 第二个三角形
-            indices.push_back(row1 + j);
-            indices.push_back(row2 + j);
-            indices.push_back(row2 + j + 1);
-        }
-    }
-}
 
 // 全局渲染计数器，用于控制调试输出频率
 int globalRenderFrameCount = 0;
@@ -532,11 +481,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 初始化球体数据
     std::cout << "Initializing sphere data..." << std::endl;
-    std::vector<dx::XMFLOAT3> spherePositions;
-    std::vector<dx::XMFLOAT3> sphereNormals;
-    std::vector<uint32_t> sphereIndices;
-    GenerateSphereData(2.0f, 32, 32, spherePositions, sphereNormals, sphereIndices);
-    renderer->SetSphereVertices(spherePositions, sphereNormals, sphereIndices);
+    Sphere tempSphere(dx::XMFLOAT3(0.0f, 0.0f, 0.0f), 2.0f, 32, 32); // 创建临时球体对象生成数据
+    renderer->SetSphereVertices(tempSphere.getPositions(), tempSphere.getNormals(), tempSphere.getIndices());
     std::cout << "Sphere data initialized successfully" << std::endl;
     
     // 初始化时间
