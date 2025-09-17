@@ -7,6 +7,7 @@
 #include "Constraint.h"
 #include "DistanceConstraint.h"
 #include "XPBDSolver.h"
+#include <cstdint> // For uint32_t
 
 // 前向声明
 class SphereCollisionConstraint;
@@ -95,6 +96,17 @@ public:
     
     // 获取是否使用XPBD碰撞约束
     bool getUseXPBDCollision() const { return useXPBDCollision; }
+
+    // 计算布料的法线数据
+    // 参数：
+    //   positions - 输出参数，存储计算后的顶点位置
+    //   normals - 输出参数，存储计算后的顶点法线
+    //   indices - 输出参数，存储计算后的索引数据
+    //   debugOutput - 是否输出调试信息
+    void computeNormals(std::vector<dx::XMFLOAT3>& positions, 
+                        std::vector<dx::XMFLOAT3>& normals, 
+                        std::vector<uint32_t>& indices, 
+                        bool debugOutput = false);
 
 private:
     // 创建布料的粒子

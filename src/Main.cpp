@@ -397,105 +397,11 @@ void UpdateClothRenderData() {
     std::vector<dx::XMFLOAT3> normals;
     std::vector<uint32_t> indices;
     
-    // 计算法线（使用面法线的平均值）
-    std::vector<dx::XMFLOAT3> vertexNormals(particles.size(), dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
-    
-    // 生成三角形面和计算法线
-    for (int y = 0; y < height - 1; ++y) {
-        for (int x = 0; x < width - 1; ++x) {
-            // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
-            int i1 = y * width + x;
-            int i2 = y * width + x + 1;
-            int i3 = (y + 1) * width + x + 1;
-            
-            indices.push_back(i1);
-            indices.push_back(i2);
-            indices.push_back(i3);
-            
-            // 计算面法线 - 反转法线方向
-            dx::XMVECTOR v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i2].position), dx::XMLoadFloat3(&particles[i1].position));
-            dx::XMVECTOR v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i3].position), dx::XMLoadFloat3(&particles[i1].position));
-            dx::XMVECTOR crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
-            
-            // 检查叉乘结果是否为零向量，避免NaN
-            float lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
-            dx::XMVECTOR normal;
-            
-            if (lengthSquared > 0.0001f) {
-                normal = dx::XMVector3Normalize(crossProduct);
-            } else {
-                // 如果叉乘结果接近零，使用默认法线
-                normal = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // 向上的法线
-            }
-            
-            // 累加到顶点法线
-            dx::XMVECTOR n1 = dx::XMLoadFloat3(&vertexNormals[i1]);
-            dx::XMVECTOR n2 = dx::XMLoadFloat3(&vertexNormals[i2]);
-            dx::XMVECTOR n3 = dx::XMLoadFloat3(&vertexNormals[i3]);
-            
-            dx::XMStoreFloat3(&vertexNormals[i1], dx::XMVectorAdd(n1, normal));
-            dx::XMStoreFloat3(&vertexNormals[i2], dx::XMVectorAdd(n2, normal));
-            dx::XMStoreFloat3(&vertexNormals[i3], dx::XMVectorAdd(n3, normal));
-            
-            // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
-            i1 = y * width + x;
-            i2 = (y + 1) * width + x + 1;
-            i3 = (y + 1) * width + x;
-            
-            indices.push_back(i1);
-            indices.push_back(i2);
-            indices.push_back(i3);
-            
-            // 计算面法线 - 反转法线方向
-            v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i2].position), dx::XMLoadFloat3(&particles[i1].position));
-            v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i3].position), dx::XMLoadFloat3(&particles[i1].position));
-            crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
-            
-            // 检查叉乘结果是否为零向量，避免NaN
-            lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
-            
-            if (lengthSquared > 0.0001f) {
-                normal = dx::XMVector3Normalize(crossProduct);
-            } else {
-                // 如果叉乘结果接近零，使用默认法线
-                normal = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // 向上的法线
-            }
-            
-            // 累加到顶点法线
-            n1 = dx::XMLoadFloat3(&vertexNormals[i1]);
-            n2 = dx::XMLoadFloat3(&vertexNormals[i2]);
-            n3 = dx::XMLoadFloat3(&vertexNormals[i3]);
-            
-            dx::XMStoreFloat3(&vertexNormals[i1], dx::XMVectorAdd(n1, normal));
-            dx::XMStoreFloat3(&vertexNormals[i2], dx::XMVectorAdd(n2, normal));
-            dx::XMStoreFloat3(&vertexNormals[i3], dx::XMVectorAdd(n3, normal));
-        }
-    }
-    
-    // 归一化顶点法线并准备位置和法线数据
-    for (size_t i = 0; i < particles.size(); ++i) {
-        positions.push_back(particles[i].position);
-        
-        // 归一化顶点法线，添加检查避免对零向量进行归一化
-        dx::XMVECTOR n = dx::XMLoadFloat3(&vertexNormals[i]);
-        float lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(n));
-        dx::XMFLOAT3 normalizedNormal;
-        
-        if (lengthSquared > 0.0001f) {
-            n = dx::XMVector3Normalize(n);
-            dx::XMStoreFloat3(&normalizedNormal, n);
-        } else {
-            // 如果顶点法线接近零，使用默认法线
-            normalizedNormal = dx::XMFLOAT3(0.0f, 1.0f, 0.0f); // 向上的法线
-        }
-        
-        normals.push_back(normalizedNormal);
-    }
+    // 使用Cloth类的computeNormals方法计算法线数据
+    cloth->computeNormals(positions, normals, indices, debugOutputEnabled);
     
     // 只有在启用调试输出时才打印详细信息
     if (debugOutputEnabled) {
-        std::cout << "UpdateClothRenderData: generated " << positions.size() << " positions, " << normals.size() << " normals, " << indices.size() << " indices" << std::endl;
-        
         // 每10帧输出一次部分顶点和法线数据进行验证
         if (globalRenderFrameCount % 10 == 0) {
             std::cout << "\n--- Frame " << globalRenderFrameCount << " Selected Vertex Data ---" << std::endl;
@@ -506,19 +412,6 @@ void UpdateClothRenderData() {
                           << positions[i].x << ", " << positions[i].y << ", " << positions[i].z << "), "
                           << "normal = (" 
                           << normals[i].x << ", " << normals[i].y << ", " << normals[i].z << ")" << std::endl;
-            }
-            
-            // 检查是否有NaN值
-            bool hasNaN = false;
-            for (int i = 0; i < normals.size(); i++) {
-                if (std::isnan(normals[i].x) || std::isnan(normals[i].y) || std::isnan(normals[i].z)) {
-                    std::cout << "WARNING: NaN found in normal at index " << i << std::endl;
-                    hasNaN = true;
-                    break;
-                }
-            }
-            if (!hasNaN) {
-                std::cout << "All normals are valid (no NaN values)" << std::endl;
             }
             std::cout << "--------------------------------------\n" << std::endl;
         }
