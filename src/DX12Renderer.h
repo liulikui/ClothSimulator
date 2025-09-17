@@ -42,9 +42,6 @@ public:
 
     // 渲染一帧
     void Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
-    
-    // 渲染整个场景
-    void RenderScene(const Scene& scene, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
     // 清理资源
     void Cleanup();

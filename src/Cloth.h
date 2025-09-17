@@ -7,6 +7,7 @@
 #include "Constraint.h"
 #include "DistanceConstraint.h"
 #include "XPBDSolver.h"
+#include "Primitive.h"
 #include <cstdint> // For uint32_t
 
 // 前向声明
@@ -15,7 +16,7 @@ class SphereCollisionConstraint;
 // 为了方便使用，创建一个命名空间别名
 namespace dx = DirectX;
 
-class Cloth {
+class Cloth : public Primitive {
 public:
     // 构造函数：创建一个布料对象
     // 参数：
@@ -27,10 +28,10 @@ public:
     Cloth(const dx::XMFLOAT3& position, int width, int height, float size, float mass);
     
     // 析构函数
-    ~Cloth();
+    ~Cloth() override;
     
     // 更新布料状态
-    void update(float deltaTime);
+    void update(float deltaTime) override;
     
     // 获取布料的所有粒子
     const std::vector<Particle>& getParticles() const {
@@ -97,17 +98,14 @@ public:
     // 获取是否使用XPBD碰撞约束
     bool getUseXPBDCollision() const { return useXPBDCollision; }
 
-    // 计算布料的法线数据
-    void computeNormals();
-    
     // 获取布料的顶点位置数据
-    const std::vector<dx::XMFLOAT3>& getPositions() const { return positions; }
+    const std::vector<dx::XMFLOAT3>& getPositions() const override { return positions; }
     
     // 获取布料的顶点法线数据
-    const std::vector<dx::XMFLOAT3>& getNormals() const { return normals; }
+    const std::vector<dx::XMFLOAT3>& getNormals() const override { return normals; }
     
     // 获取布料的索引数据
-    const std::vector<uint32_t>& getIndices() const { return indices; }
+    const std::vector<uint32_t>& getIndices() const override { return indices; }
 
 private:
     // 创建布料的粒子
