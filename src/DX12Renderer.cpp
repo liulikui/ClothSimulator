@@ -1,7 +1,5 @@
 #include "DX12Renderer.h"
 #include "Scene.h"
-#include "DX12GraphicsCommandList.h"
-#include "DX12GraphicsResource.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -68,37 +66,6 @@ bool DX12Renderer::Initialize()
     }
     
     return true;
-}
-
-// 创建图形命令列表
-std::unique_ptr<IGraphicsCommandList> DX12Renderer::CreateCommandList() {
-    // 确保设备已经初始化
-    if (!device_ || !commandAllocators_[currentFrameIndex_]) {
-        throw std::runtime_error("Device or command allocator not initialized");
-    }
-
-    // 重置命令分配器
-    HRESULT hr = commandAllocators_[currentFrameIndex_]->Reset();
-    if (FAILED(hr)) {
-        throw std::runtime_error("Failed to reset command allocator");
-    }
-
-    // 创建一个新的命令列表
-    wrl::ComPtr<ID3D12GraphicsCommandList> newCommandList;
-    hr = device_->CreateCommandList(
-        0,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        commandAllocators_[currentFrameIndex_].Get(),
-        nullptr,  // 不需要初始管道状态
-        IID_PPV_ARGS(&newCommandList)
-    );
-
-    if (FAILED(hr)) {
-        throw std::runtime_error("Failed to create command list");
-    }
-
-    // 返回一个包装了新命令列表的DX12GraphicsCommandList对象
-    return std::make_unique<DX12GraphicsCommandList>(newCommandList.Get());
 }
 
 // 更新光源位置
@@ -810,40 +777,6 @@ bool DX12Renderer::CreateMaterialBuffer()
 
     return true;
 }
-
-// 创建摄像机常量缓冲区
-std::unique_ptr<IConstBuffer> DX12Renderer::CreateCameraConstBuffer()
-{
-    // 定义摄像机常量缓冲区结构体
-    struct CameraConstBufferData
-    {
-        dx::XMFLOAT4X4 ViewMatrix;
-        dx::XMFLOAT4X4 ViewProjMatrix;
-    };
-
-    const UINT bufferSize = sizeof(CameraConstBufferData);
-
-    try
-    {
-        wrl::ComPtr<ID3D12Resource> buffer = CreateBuffer(
-            bufferSize,
-            D3D12_RESOURCE_FLAG_NONE,
-            { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 },
-            D3D12_RESOURCE_STATE_GENERIC_READ
-        );
-
-        // 创建并返回IConstBuffer接口
-        return std::make_unique<DX12ConstBuffer>(buffer.Get(), bufferSize);
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "Failed to create camera constant buffer: " << e.what() << std::endl;
-        return nullptr;
-    }
-}
-
-// 更新常量缓冲区的代码已被移除，现在使用Scene中的cameraConstBuffer
-
 
 // 更新材质和光照常量缓冲区
 void DX12Renderer::UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor)

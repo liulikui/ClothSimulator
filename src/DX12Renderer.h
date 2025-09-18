@@ -61,9 +61,6 @@ public:
     // 更新常量缓冲区
     bool CreateMaterialBuffer();
     void UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor);
-    
-    // 创建摄像机常量缓冲区
-    std::unique_ptr<IConstBuffer> CreateCameraConstBuffer();
 
     // 更新光源位置
     void UpdateLightPosition(const dx::XMFLOAT4& position);
@@ -76,9 +73,6 @@ public:
 
     // 获取窗口高度
     uint32_t GetHeight() const { return height_; }
-
-    // 创建图形命令列表
-    std::unique_ptr<IGraphicsCommandList> CreateCommandList();
     
     // 渲染单个Primitive对象
     // 参数：
