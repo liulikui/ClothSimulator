@@ -133,10 +133,10 @@ public:
     virtual void SetRootUnorderedAccessView(uint32_t rootParameterIndex, uint64_t bufferLocation) = 0;
 
     // 创建UniformBuffer
-    virtual IConstBuffer* CreateUniformBuffer(uint32_t sizeInBytes) = 0;
+    virtual IRALUniformBuffer* CreateUniformBuffer(uint32_t sizeInBytes) = 0;
 
     // 更新UniformBuffer数据
-    virtual void UpdateUniformBuffer(IConstBuffer* buffer, const void* data, uint32_t sizeInBytes) = 0;
+    virtual void UpdateUniformBuffer(IRALUniformBuffer* buffer, const void* data, uint32_t sizeInBytes) = 0;
 
     // 绘制调用（无索引）
     virtual void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0) = 0;

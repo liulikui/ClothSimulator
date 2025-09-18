@@ -477,10 +477,10 @@ public:
 	virtual IIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) = 0;
 };
 
-// 常量缓冲区视图接口
-class IConstBufferView {
+// UniformBuffer视图接口
+class IRALUniformBufferView {
 public:
-	virtual ~IConstBufferView() = default;
+	virtual ~IRALUniformBufferView() = default;
 	
 	// 获取缓冲区起始地址
 	virtual uint64_t GetBufferLocation() const = 0;
@@ -492,15 +492,15 @@ public:
 	virtual void* GetNativeView() = 0;
 };
 
-// 常量缓冲区接口
-class IConstBuffer : public IRALResource {
+// UniformBuffer接口
+class IRALUniformBuffer : public IRALResource {
 public:
-	virtual ~IConstBuffer() = default;
+	virtual ~IRALUniformBuffer() = default;
 	
-	// 创建常量缓冲区视图
-	virtual IConstBufferView* CreateConstBufferView(uint32_t sizeInBytes) = 0;
+	// 创建UniformBuffer视图
+	virtual IRALUniformBufferView* CreateUniformBufferView(uint32_t sizeInBytes) = 0;
 
-	// 更新常量缓冲区数据
+	// 更新UniformBuffer数据
 	virtual void Update(const void* data, uint32_t sizeInBytes) = 0;
 };
 
