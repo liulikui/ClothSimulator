@@ -2,7 +2,6 @@
 #define SCENE_H
 
 #include "Primitive.h"
-#include "IGraphicsResource.h"
 #include <vector>
 #include <memory>
 #include <DirectXMath.h>
@@ -98,9 +97,6 @@ private:
     // 光源属性
     dx::XMFLOAT4 lightPosition = {10.0f, 10.0f, 10.0f, 1.0f}; // 默认光源位置
     dx::XMFLOAT4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
-
-    // 摄像机相关的常量缓冲区
-    std::unique_ptr<IConstBuffer> cameraConstBuffer;
 };
 
 #endif // SCENE_H
