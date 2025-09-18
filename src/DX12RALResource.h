@@ -863,4 +863,93 @@ protected:
 	uint32_t m_totalSizeInBytes; // 缓冲区总大小
 };
 
+// DX12实现的渲染目标
+class DX12RALRenderTarget : public IRALRenderTarget
+{
+public:
+	DX12RALRenderTarget()
+		: m_nativeResource(nullptr)
+		, m_nativeRenderTargetView(nullptr)
+		, m_width(0)
+		, m_height(0)
+		, m_format(DataFormat::Undefined)
+	{
+	}
+
+	virtual ~DX12RALRenderTarget() = default;
+
+	// 获取渲染目标宽度
+	virtual uint32_t GetWidth() const override
+	{
+		return m_width;
+	}
+
+	// 获取渲染目标高度
+	virtual uint32_t GetHeight() const override
+	{
+		return m_height;
+	}
+
+	// 获取渲染目标格式
+	virtual DataFormat GetFormat() const override
+	{
+		return m_format;
+	}
+
+	// 清除渲染目标
+	virtual void Clear(const float color[4]) override
+	{
+		// 实现将在DX12Renderer中完成
+	}
+
+	// 获取原生渲染目标视图
+	virtual void* GetNativeRenderTargetView() const override
+	{
+		return m_nativeRenderTargetView;
+	}
+
+	// 获取原生资源指针
+	virtual void* GetNativeResource() const override
+	{
+		return m_nativeResource;
+	}
+
+	// 设置原生资源指针
+	void SetNativeResource(void* resource)
+	{
+		m_nativeResource = resource;
+	}
+
+	// 设置原生渲染目标视图
+	void SetNativeRenderTargetView(void* rtv)
+	{
+		m_nativeRenderTargetView = rtv;
+	}
+
+	// 设置宽度
+	void SetWidth(uint32_t width)
+	{
+		m_width = width;
+	}
+
+	// 设置高度
+	void SetHeight(uint32_t height)
+	{
+		m_height = height;
+	}
+
+	// 设置格式
+	void SetFormat(DataFormat format)
+	{
+		m_format = format;
+	}
+
+protected:
+	void* m_nativeResource;           // ID3D12Resource*
+	void* m_nativeRenderTargetView;   // ID3D12DescriptorHeap中的RTV
+	uint32_t m_width;                 // 渲染目标宽度
+	uint32_t m_height;                // 渲染目标高度
+	DataFormat m_format;              // 渲染目标格式
+};
+
 #endif // DX12RALRESOURCE_H
