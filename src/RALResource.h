@@ -16,6 +16,7 @@ enum class RALResourceType
 	ComputePipelineState,
 	RayTracingPipelineState,
 	Texture,
+	RenderTarget,
 	Viewport,
 
 	Count,
@@ -502,6 +503,33 @@ public:
 
 	// 更新UniformBuffer数据
 	virtual void Update(const void* data, uint32_t sizeInBytes) = 0;
+};
+
+// RenderTarget基类
+class IRALRenderTarget : public IRALViewableResource
+{
+public:
+	IRALRenderTarget()
+		: IRALViewableResource(RALResourceType::RenderTarget)
+	{
+	}
+	
+	virtual ~IRALRenderTarget() = default;
+
+	// 获取渲染目标宽度
+	virtual uint32_t GetWidth() const = 0;
+	
+	// 获取渲染目标高度
+	virtual uint32_t GetHeight() const = 0;
+	
+	// 获取渲染目标格式
+	virtual DataFormat GetFormat() const = 0;
+	
+	// 清除渲染目标
+	virtual void Clear(const float color[4]) = 0;
+	
+	// 获取原生渲染目标视图
+	virtual void* GetNativeRenderTargetView() const = 0;
 };
 
 #endif // RALRESOURCE_H
