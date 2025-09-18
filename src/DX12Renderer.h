@@ -8,7 +8,6 @@
 #include <string>
 #include <memory>
 #include "Camera.h"
-#include "IGraphicsCommandList.h"
 
 // 简化命名空间
 namespace dx = DirectX;
