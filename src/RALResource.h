@@ -35,8 +35,7 @@ enum class RALShaderType
     Count,
 };
 
-
-//Render Abstraction Layer接口基类
+// Render Abstraction Layer接口基类
 class IRALResource 
 {
 public:
@@ -50,18 +49,18 @@ protected:
     virtual ~IRALResource() = default;
 
 public:
-    //获取资源类型
+    // 获取资源类型
     RALResourceType GetResourceType() const {
         return m_resourceType;
     }
 
-    //增加引用计数
+    // 增加引用计数
     void AddRef()
     {
         m_refCount.fetch_add(1, std::memory_order_acquire);
     }
 
-    //减少引用计数
+    // 减少引用计数
     void Release()
     {
         if (m_refCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
@@ -85,6 +84,8 @@ public:
     {
     }
 
+    virtual ~IRALShader() = default;
+
     RALShaderType GetShaderType() const
     {
         return m_shaderType;
@@ -94,6 +95,7 @@ protected:
     RALShaderType m_shaderType;
 };
 
+// 顶点着色器类
 class IRALVertexShader : public IRALShader
 {
 public:
@@ -101,8 +103,11 @@ public:
         : IRALShader(RALShaderType::Vertex)
     {
     }
+    
+    virtual ~IRALVertexShader() = default;
 };
 
+// 像素着色器类
 class IRALPixelShader : public IRALShader
 {
 public:
@@ -110,8 +115,11 @@ public:
         : IRALShader(RALShaderType::Pixel)
     {
     }
+    
+    virtual ~IRALPixelShader() = default;
 };
 
+// 网格着色器类
 class IRALMeshShader : public IRALShader
 {
 public:
@@ -119,16 +127,104 @@ public:
         : IRALShader(RALShaderType::Mesh)
     {
     }
+    
+    virtual ~IRALMeshShader() = default;
+};
+
+// 放大着色器类
+class IRALAmplificationShader : public IRALShader
+{
+public:
+    IRALAmplificationShader()
+        : IRALShader(RALShaderType::Amplification)
+    {
+    }
+    
+    virtual ~IRALAmplificationShader() = default;
+};
+
+// 几何着色器类
+class IRALGeometryShader : public IRALShader
+{
+public:
+    IRALGeometryShader()
+        : IRALShader(RALShaderType::Geometry)
+    {
+    }
+    
+    virtual ~IRALGeometryShader() = default;
+};
+
+// 计算着色器类
+class IRALComputeShader : public IRALShader
+{
+public:
+    IRALComputeShader()
+        : IRALShader(RALShaderType::Compute)
+    {
+    }
+    
+    virtual ~IRALComputeShader() = default;
+};
+
+// 光线生成着色器类
+class IRALRayGenShader : public IRALShader
+{
+public:
+    IRALRayGenShader()
+        : IRALShader(RALShaderType::RayGen)
+    {
+    }
+    
+    virtual ~IRALRayGenShader() = default;
+};
+
+// 光线未命中着色器类
+class IRALRayMissShader : public IRALShader
+{
+public:
+    IRALRayMissShader()
+        : IRALShader(RALShaderType::RayMiss)
+    {
+    }
+    
+    virtual ~IRALRayMissShader() = default;
+};
+
+// 光线命中组着色器类
+class IRALRayHitGroupShader : public IRALShader
+{
+public:
+    IRALRayHitGroupShader()
+        : IRALShader(RALShaderType::RayHitGroup)
+    {
+    }
+    
+    virtual ~IRALRayHitGroupShader() = default;
+};
+
+// 光线可调用着色器类
+class IRALRayCallableShader : public IRALShader
+{
+public:
+    IRALRayCallableShader()
+        : IRALShader(RALShaderType::RayCallable)
+    {
+    }
+    
+    virtual ~IRALRayCallableShader() = default;
 };
 
 
-//Viewable资源
+// Viewable资源
 class IRALViewableResource : public IRALResource
 {
 public:
     IRALViewableResource(RALResourceType type) : IRALResource(type)
     {
     }
+    
+    virtual ~IRALViewableResource() = default;
 };
 
 enum ETextureType
@@ -140,7 +236,7 @@ enum ETextureType
     TextureCubeArray,
 };
 
-//Texture基类
+// Texture基类
 class IRALTexture : public IRALViewableResource
 {
 public:
@@ -150,6 +246,8 @@ public:
     {
 
     }
+    
+    virtual ~IRALTexture() = default;
 
     // 获取原生资源指针
     virtual void* GetNativeResource() const
