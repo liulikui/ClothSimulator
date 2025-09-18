@@ -3,7 +3,9 @@
 
 #include <cstdint>
 #include <atomic>
+#include "DataFormat.h"
 
+// Render Abstraction Layer资源类型
 enum class RALResourceType
 {
 	NONE,
@@ -19,6 +21,7 @@ enum class RALResourceType
 	Count,
 };
 
+// Render Abstraction Layer Shader类型
 enum class RALShaderType
 {
 	Vertex,
@@ -33,6 +36,66 @@ enum class RALShaderType
 	RayCallable,
 
 	Count,
+};
+
+// 顶点数据格式（描述单个属性的类型和长度）
+enum class RALVertexFormat
+{
+	Float1,   // float
+	Float2,   // float2
+	Float3,   // float3
+	Float4,   // float4
+	Half2,    // half2 (16位浮点数)
+	Half4,    // half4
+	Int1,     // int32
+	Int2,     // int32x2
+	Int3,     // int32x3
+	Int4,     // int32x4
+	Uint1,    // uint32
+	Uint2,    // uint32x2
+	Uint3,    // uint32x3
+	Uint4,    // uint32x4
+	Byte4,    // int8x4 (通常用于压缩法线)
+	UByte4,   // uint8x4 (通常用于颜色)
+	Short2,   // int16x2
+	Short4,   // int16x4
+	UByte4N,  // uint8x4 归一化到 [0,1]
+	Byte4N,   // int8x4 归一化到 [-1,1]
+	Short2N,  // int16x2 归一化到 [-1,1]
+	Short4N   // int16x4 归一化到 [-1,1]
+};
+
+// 顶点属性语义（用于标识属性用途，辅助上层逻辑）
+enum class RALVertexSemantic
+{
+	Position,    // 顶点位置
+	Normal,      // 法线
+	Tangent,     // 切线
+	Bitangent,   // 副切线
+	TexCoord0,   // 纹理坐标集0
+	TexCoord1,   // 纹理坐标集1
+	Color0,      // 颜色集0
+	Color1,      // 颜色集1
+	BoneIndices, // 骨骼索引
+	BoneWeights  // 骨骼权重
+	// 可扩展更多语义
+};
+
+// 单个顶点属性的描述
+struct RALVertexAttribute 
+{
+	RALVertexSemantic semantic;  // 属性语义（如POSITION）
+	RALVertexFormat format;      // 数据格式（如Float3）
+	uint32_t bufferSlot;      // 绑定的顶点缓冲区索引（支持多缓冲区）
+	uint32_t offset;          // 在缓冲区中的字节偏移量
+};
+
+// 顶点缓冲区绑定描述（每个缓冲区单独配置）
+struct RALVertexBufferBinding
+{
+	uint32_t stride;          // 每个顶点的字节步长（单个顶点数据总大小）
+	bool isInstanceData;      // 是否为实例化数据（false=顶点数据，true=实例数据）
+	uint32_t instanceStepRate;// 实例步长（每N个实例更新一次，仅isInstanceData=true有效）
 };
 
 // Render Abstraction Layer接口基类
