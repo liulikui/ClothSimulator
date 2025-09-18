@@ -113,8 +113,8 @@ public:
     // 绑定索引缓冲区
     virtual void SetIndexBuffer(IRALIndexBufferView* indexBufferView) = 0;
 
-    // 绑定根签名（如果有的话）
-    virtual void SetRootSignature(void* rootSignature) = 0;
+    // 绑定根签名
+    virtual void SetRootSignature(IRALRootSignature* rootSignature) = 0;
 
     // 绑定根常量
     virtual void SetRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value) = 0;

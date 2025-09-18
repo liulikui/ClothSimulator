@@ -10,7 +10,7 @@
 using namespace Microsoft::WRL;
 
 // 将跨平台DataFormat转换为DX12的DXGI_FORMAT
-DXGI_FORMAT toDXGIFormat(DataFormat format) {
+inline DXGI_FORMAT toDXGIFormat(DataFormat format) {
 	switch (format) 
 	{
 		// 单通道8位
@@ -1049,6 +1049,33 @@ protected:
 	uint32_t m_width;                 // 深度模板视图宽度
 	uint32_t m_height;                // 深度模板视图高度
 	DataFormat m_format;              // 深度模板视图格式
+};
+
+// DX12实现的根签名
+class DX12RALRootSignature : public IRALRootSignature
+{
+public:
+	DX12RALRootSignature()
+		: IRALRootSignature()
+	{
+	}
+
+	virtual ~DX12RALRootSignature() = default;
+
+	// 设置原生根签名指针
+	void SetNativeRootSignature(ID3D12RootSignature* rootSignature)
+	{
+		m_nativeRootSignature = rootSignature;
+	}
+
+	// 获取原生根签名指针
+	virtual void* GetNativeResource() override
+	{
+		return m_nativeRootSignature.Get();
+	}
+
+protected:
+	ComPtr<ID3D12RootSignature> m_nativeRootSignature; // ID3D12RootSignature*
 };
 
 #endif // DX12RALRESOURCE_H

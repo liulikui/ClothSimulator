@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -8,6 +8,8 @@
 #include <string>
 #include <memory>
 #include "Camera.h"
+#include "RALResource.h"
+#include "DX12RALResource.h"
 
 // 简化命名空间
 namespace dx = DirectX;
@@ -68,10 +70,10 @@ public:
     void UpdateLightColor(const dx::XMFLOAT4& color);
 
     // 获取窗口宽度
-    uint32_t GetWidth() const { return width_; }
+    uint32_t GetWidth() const { return m_width; }
 
     // 获取窗口高度
-    uint32_t GetHeight() const { return height_; }
+    uint32_t GetHeight() const { return m_height; }
     
     // 渲染单个Primitive对象
     // 参数：
@@ -116,61 +118,64 @@ private:
     void WaitForPreviousFrame();
 
     // 成员变量
-    uint32_t width_;                           // 窗口宽度
-    uint32_t height_;                          // 窗口高度
-    std::wstring windowName_;              // 窗口名称
-    HWND hWnd_;                            // 窗口句柄
+    uint32_t m_width;                           // 窗口宽度
+    uint32_t m_height;                          // 窗口高度
+    std::wstring m_windowName;              // 窗口名称
+    HWND m_hWnd;                            // 窗口句柄
 
     // 设备和交换链
-    wrl::ComPtr<ID3D12Device> device_;                    // D3D12设备
-    wrl::ComPtr<IDXGIFactory6> factory_;                  // DXGI工厂
-    wrl::ComPtr<IDXGISwapChain4> swapChain_;              // 交换链
-    uint32_t backBufferCount_ = 2;                            // 后缓冲区数量
-    uint32_t currentBackBufferIndex_ = 0;                     // 当前后缓冲区索引
+    wrl::ComPtr<ID3D12Device> m_device;                    // D3D12设备
+    wrl::ComPtr<IDXGIFactory6> m_factory;                  // DXGI工厂
+    wrl::ComPtr<IDXGISwapChain4> m_swapChain;              // 交换链
+    uint32_t m_backBufferCount = 2;                            // 后缓冲区数量
+    uint32_t m_currentBackBufferIndex = 0;                     // 当前后缓冲区索引
 
     // 命令对象
-    wrl::ComPtr<ID3D12CommandAllocator> commandAllocators_[2];    // 命令分配器数组
-    wrl::ComPtr<ID3D12GraphicsCommandList> commandList_;      // 命令列表
-    wrl::ComPtr<ID3D12CommandQueue> commandQueue_;            // 命令队列
+    wrl::ComPtr<ID3D12CommandAllocator> m_commandAllocators[2];    // 命令分配器数组
+    wrl::ComPtr<ID3D12GraphicsCommandList> m_commandList;      // 命令列表
+    wrl::ComPtr<ID3D12CommandQueue> m_commandQueue;            // 命令队列
 
     // 同步对象
-    wrl::ComPtr<ID3D12Fence> fence_;                     // 围栏
-    uint64_t fenceValue_ = 0;                              // 围栏值
-    HANDLE fenceEvent_ = nullptr;                        // 围栏事件
-    uint32_t currentFrameIndex_; // 当前帧索引，用于缓存
+    wrl::ComPtr<ID3D12Fence> m_fence;                     // 围栏
+    uint64_t m_fenceValue = 0;                              // 围栏值
+    HANDLE m_fenceEvent = nullptr;                        // 围栏事件
+    uint32_t m_currentFrameIndex; // 当前帧索引，用于缓存
 
     // 描述符堆
-    wrl::ComPtr<ID3D12DescriptorHeap> rtvHeap_;          // 渲染目标视图堆
-    wrl::ComPtr<ID3D12DescriptorHeap> dsvHeap_;          // 深度/模板视图堆
-    wrl::ComPtr<ID3D12DescriptorHeap> srvHeap_;          // 着色器资源视图堆
-    uint32_t rtvDescriptorSize_ = 0;                         // 渲染目标视图描述符大小
-    uint32_t dsvDescriptorSize_ = 0;                         // 深度/模板视图描述符大小
-    uint32_t srvDescriptorSize_ = 0;                         // 着色器资源视图描述符大小
+    wrl::ComPtr<ID3D12DescriptorHeap> m_rtvHeap;          // 渲染目标视图堆
+    wrl::ComPtr<ID3D12DescriptorHeap> m_dsvHeap;          // 深度/模板视图堆
+    wrl::ComPtr<ID3D12DescriptorHeap> m_srvHeap;          // 着色器资源视图堆
+    uint32_t m_rtvDescriptorSize = 0;                         // 渲染目标视图描述符大小
+    uint32_t m_dsvDescriptorSize = 0;                         // 深度/模板视图描述符大小
+    uint32_t m_srvDescriptorSize = 0;                         // 着色器资源视图描述符大小
 
     // 资源
-    std::vector<wrl::ComPtr<ID3D12Resource>> backBuffers_;       // 后缓冲区
-    wrl::ComPtr<ID3D12Resource> depthStencilBuffer_;             // 深度/模板缓冲区
+    std::vector<wrl::ComPtr<ID3D12Resource>> m_backBuffers;       // 后缓冲区
+    wrl::ComPtr<ID3D12Resource> m_depthStencilBuffer;             // 深度/模板缓冲区
 
     // 根签名和管道状态
-    wrl::ComPtr<ID3D12RootSignature> rootSignature_;             // 根签名
-    wrl::ComPtr<ID3D12PipelineState> clothPipelineState_;        // 布料管道状态
-    wrl::ComPtr<ID3D12PipelineState> spherePipelineState_;       // 球体管道状态
+    std::unique_ptr<IRALRootSignature> m_rootSignature;           // 根签名
+    wrl::ComPtr<ID3D12PipelineState> m_clothPipelineState;        // 布料管道状态
+    wrl::ComPtr<ID3D12PipelineState> m_spherePipelineState;       // 球体管道状态
+
+    // 设置根签名
+    void SetRootSignature(std::unique_ptr<IRALRootSignature> rootSignature);
 
     // 布料和球体资源
-    wrl::ComPtr<ID3D12Resource> clothVertexBuffer_;              // 布料顶点缓冲区
-    wrl::ComPtr<ID3D12Resource> clothIndexBuffer_;               // 布料索引缓冲区
-    wrl::ComPtr<ID3D12Resource> sphereVertexBuffer_;             // 球体顶点缓冲区
-    wrl::ComPtr<ID3D12Resource> sphereIndexBuffer_;              // 球体索引缓冲区
+    wrl::ComPtr<ID3D12Resource> m_clothVertexBuffer;              // 布料顶点缓冲区
+    wrl::ComPtr<ID3D12Resource> m_clothIndexBuffer;               // 布料索引缓冲区
+    wrl::ComPtr<ID3D12Resource> m_sphereVertexBuffer;             // 球体顶点缓冲区
+    wrl::ComPtr<ID3D12Resource> m_sphereIndexBuffer;              // 球体索引缓冲区
 
-    uint32_t clothVertexCount_ = 0;                                  // 布料顶点数量
-    uint32_t clothIndexCount_ = 0;                                   // 布料索引数量
-    uint32_t sphereVertexCount_ = 0;                                 // 球体顶点数量
-    uint32_t sphereIndexCount_ = 0;                                  // 球体索引数量
+    uint32_t m_clothVertexCount = 0;                                  // 布料顶点数量
+    uint32_t m_clothIndexCount = 0;                                   // 布料索引数量
+    uint32_t m_sphereVertexCount = 0;                                 // 球体顶点数量
+    uint32_t m_sphereIndexCount = 0;                                  // 球体索引数量
     
     // 常量缓冲区
-    wrl::ComPtr<ID3D12Resource> materialBuffer_;                 // 材质和光照常量缓冲区
+    wrl::ComPtr<ID3D12Resource> m_materialBuffer;                 // 材质和光照常量缓冲区
 
     // 光照参数
-    dx::XMFLOAT4 lightPosition_ = { -10.0f, 30.0f, -10.0f, 1.0f };
-    dx::XMFLOAT4 lightColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
+    dx::XMFLOAT4 m_lightPosition = { -10.0f, 30.0f, -10.0f, 1.0f };
+    dx::XMFLOAT4 m_lightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 };

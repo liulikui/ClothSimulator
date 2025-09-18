@@ -54,7 +54,7 @@ public:
     virtual void SetPipelineState(IRALResource* pipelineState) override;
     virtual void SetVertexBuffers(uint32_t startSlot, uint32_t count, IRALVertexBufferView** vertexBufferViews) override;
     virtual void SetIndexBuffer(IRALIndexBufferView* indexBufferView) override;
-    virtual void SetRootSignature(void* rootSignature) override;
+    virtual void SetRootSignature(IRALRootSignature* rootSignature) override;
     virtual void SetRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value) override;
     virtual void SetRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values) override;
     virtual void SetRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable) override;

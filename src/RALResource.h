@@ -18,6 +18,7 @@ enum class RALResourceType
 	Texture,
 	RenderTarget,
 	Viewport,
+	RootSignature,
 
 	Count,
 };
@@ -551,6 +552,18 @@ public:
 
 	// 更新UniformBuffer数据
 	virtual void Update(const void* data, uint32_t sizeInBytes) = 0;
+};
+
+// RootSignature接口
+class IRALRootSignature : public IRALResource
+{
+public:
+	IRALRootSignature()
+		: IRALResource(RALResourceType::RootSignature)
+	{
+	}
+
+	virtual ~IRALRootSignature() = default;
 };
 
 // RenderTarget基类

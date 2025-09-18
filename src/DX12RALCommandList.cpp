@@ -182,10 +182,10 @@ void DX12RALGraphicsCommandList::SetIndexBuffer(IRALIndexBufferView* indexBuffer
 }
 
 // 绑定根签名
-void DX12RALGraphicsCommandList::SetRootSignature(void* rootSignature)
+void DX12RALGraphicsCommandList::SetRootSignature(IRALRootSignature* rootSignature)
 {
     if (rootSignature) {
-        ID3D12RootSignature* dxRootSignature = static_cast<ID3D12RootSignature*>(rootSignature);
+        ID3D12RootSignature* dxRootSignature = static_cast<ID3D12RootSignature*>(rootSignature->GetNativeResource());
         m_commandList->SetGraphicsRootSignature(dxRootSignature);
     }
 }
