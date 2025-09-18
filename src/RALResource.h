@@ -424,10 +424,10 @@ protected:
 };
 
 // 顶点缓冲区视图接口
-class IVertexBufferView
+class IRALVertexBufferView
 {
 public:
-	virtual ~IVertexBufferView() = default;
+	virtual ~IRALVertexBufferView() = default;
 	
 	// 获取缓冲区起始地址
 	virtual uint64_t GetBufferLocation() const = 0;
@@ -443,9 +443,9 @@ public:
 };
 
 // 索引缓冲区视图接口
-class IIndexBufferView {
+class IRALIndexBufferView {
 public:
-	virtual ~IIndexBufferView() = default;
+	virtual ~IRALIndexBufferView() = default;
 	
 	// 获取缓冲区起始地址
 	virtual uint64_t GetBufferLocation() const = 0;
@@ -461,21 +461,21 @@ public:
 };
 
 // 顶点缓冲区接口
-class IVertexBuffer : public IRALResource {
+class IRALVertexBuffer : public IRALResource {
 public:
-	virtual ~IVertexBuffer() = default;
+	virtual ~IRALVertexBuffer() = default;
 	
 	// 创建顶点缓冲区视图
-	virtual IVertexBufferView* CreateVertexBufferView(uint32_t stride, uint32_t sizeInBytes) = 0;
+	virtual IRALVertexBufferView* CreateVertexBufferView(uint32_t stride, uint32_t sizeInBytes) = 0;
 };
 
 // 索引缓冲区接口
-class IIndexBuffer : public IRALResource {
+class IRALIndexBuffer : public IRALResource {
 public:
-	virtual ~IIndexBuffer() = default;
+	virtual ~IRALIndexBuffer() = default;
 	
 	// 创建索引缓冲区视图
-	virtual IIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) = 0;
+	virtual IRALIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) = 0;
 };
 
 // UniformBuffer视图接口

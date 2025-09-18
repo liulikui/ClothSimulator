@@ -108,10 +108,10 @@ public:
     virtual void SetPipelineState(IRALResource* pipelineState) = 0;
 
     // 绑定顶点缓冲区
-    virtual void SetVertexBuffers(uint32_t startSlot, uint32_t count, IVertexBufferView** vertexBufferViews) = 0;
+    virtual void SetVertexBuffers(uint32_t startSlot, uint32_t count, IRALVertexBufferView** vertexBufferViews) = 0;
 
     // 绑定索引缓冲区
-    virtual void SetIndexBuffer(IIndexBufferView* indexBufferView) = 0;
+    virtual void SetIndexBuffer(IRALIndexBufferView* indexBufferView) = 0;
 
     // 绑定根签名（如果有的话）
     virtual void SetRootSignature(void* rootSignature) = 0;

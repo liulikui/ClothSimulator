@@ -522,7 +522,7 @@ protected:
 };
 
 // DX12实现的顶点缓冲区视图
-class DX12VertexBufferView : public IVertexBufferView
+class DX12VertexBufferView : public IRALVertexBufferView
 {
 public:
 	DX12VertexBufferView()
@@ -591,7 +591,7 @@ protected:
 };
 
 // DX12实现的索引缓冲区视图
-class DX12IndexBufferView : public IIndexBufferView
+class DX12IndexBufferView : public IRALIndexBufferView
 {
 public:
 	DX12IndexBufferView()
@@ -660,7 +660,7 @@ protected:
 };
 
 // DX12实现的顶点缓冲区
-class DX12RALVertexBuffer : public IVertexBuffer
+class DX12RALVertexBuffer : public IRALVertexBuffer
 {
 public:
 	DX12RALVertexBuffer()
@@ -672,7 +672,7 @@ public:
 	virtual ~DX12RALVertexBuffer() = default;
 
 	// 创建顶点缓冲区视图
-	virtual IVertexBufferView* CreateVertexBufferView(uint32_t stride, uint32_t sizeInBytes) override;
+	virtual IRALVertexBufferView* CreateVertexBufferView(uint32_t stride, uint32_t sizeInBytes) override;
 
 	// 设置原生资源指针
 	void SetNativeResource(void* resource)
@@ -704,7 +704,7 @@ protected:
 };
 
 // DX12实现的索引缓冲区
-class DX12RALIndexBuffer : public IIndexBuffer
+class DX12RALIndexBuffer : public IRALIndexBuffer
 {
 public:
 	DX12RALIndexBuffer()
@@ -717,7 +717,7 @@ public:
 	virtual ~DX12RALIndexBuffer() = default;
 
 	// 创建索引缓冲区视图
-	virtual IIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) override;
+	virtual IRALIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) override;
 
 	// 设置原生资源指针
 	void SetNativeResource(void* resource)
