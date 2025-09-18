@@ -87,7 +87,7 @@ enum class DataFormat : uint32_t
 
 // 辅助函数：获取格式的字节大小
 // 计算单个数据元素的字节大小（如顶点属性、纹理像素）
-uint32_t getFormatSize(DataFormat format) 
+inline uint32_t getFormatSize(DataFormat format) 
 {
     switch (format) {
         // 单通道8位格式（1字节）

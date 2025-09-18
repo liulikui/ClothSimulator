@@ -65,8 +65,8 @@ public:
     virtual void ResourceBarrier(const RALResourceBarrier& barrier) = 0;
     virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) = 0;
 
-    // 内存屏障
-    virtual void MemoryBarrier() = 0;
+    // 内存屏障 - 重命名以避免Windows宏替换
+    virtual void MemoryBarriers() = 0;
 
     // 关闭命令列表（准备执行）
     virtual void Close() = 0;
@@ -93,10 +93,10 @@ public:
     virtual ~IRALGraphicsCommandList() = default;
 
     // 清除渲染目标
-    virtual void ClearRenderTargetView(void* renderTargetView, const float color[4]) = 0;
+    virtual void ClearRenderTargetView(IRALRenderTargetView* renderTargetView, const float color[4]) = 0;
 
     // 清除深度/模板视图
-    virtual void ClearDepthStencilView(void* depthStencilView, float depth, uint8_t stencil) = 0;
+    virtual void ClearDepthStencilView(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil) = 0;
 
     // 设置视口
     virtual void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) = 0;
@@ -151,7 +151,7 @@ public:
     virtual void DrawIndexedIndirect(void* bufferLocation, uint32_t drawCount, uint32_t stride) = 0;
 
     // 设置渲染目标
-    virtual void SetRenderTargets(uint32_t renderTargetCount, void** renderTargetViews, void* depthStencilView = nullptr) = 0;
+    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTargetView** renderTargetViews, IRALDepthStencilView* depthStencilView = nullptr) = 0;
 
     // 执行渲染通道
     virtual void ExecuteRenderPass(const void* renderPass, const void* framebuffer) = 0;

@@ -118,6 +118,9 @@ public:
 		return m_resourceType;
 	}
 
+	// 获取原生资源指针
+	virtual void* GetNativeResource() = 0;
+
 	// 增加引用计数
 	void AddRef()
 	{
@@ -463,6 +466,11 @@ public:
 // 顶点缓冲区接口
 class IRALVertexBuffer : public IRALResource {
 public:
+	IRALVertexBuffer()
+		: IRALResource(RALResourceType::UniformBuffer)
+	{
+	}
+public:
 	virtual ~IRALVertexBuffer() = default;
 	
 	// 创建顶点缓冲区视图
@@ -471,6 +479,11 @@ public:
 
 // 索引缓冲区接口
 class IRALIndexBuffer : public IRALResource {
+public:
+	IRALIndexBuffer()
+		: IRALResource(RALResourceType::UniformBuffer)
+	{
+	}
 public:
 	virtual ~IRALIndexBuffer() = default;
 	
@@ -493,8 +506,43 @@ public:
 	virtual void* GetNativeView() = 0;
 };
 
+// 渲染目标视图接口
+class IRALRenderTargetView {
+public:
+	virtual ~IRALRenderTargetView() = default;
+	
+	// 获取原生渲染目标视图指针
+	virtual void* GetNativeRenderTargetView() const = 0;
+};
+
+// 深度模板视图接口
+class IRALDepthStencilView {
+public:
+	virtual ~IRALDepthStencilView() = default;
+	
+	// 获取深度模板视图宽度
+	virtual uint32_t GetWidth() const = 0;
+	
+	// 获取深度模板视图高度
+	virtual uint32_t GetHeight() const = 0;
+	
+	// 获取深度模板视图格式
+	virtual DataFormat GetFormat() const = 0;
+	
+	// 清除深度模板视图
+	virtual void Clear(float depth, uint8_t stencil) = 0;
+	
+	// 获取原生深度模板视图指针
+	virtual void* GetNativeDepthStencilView() const = 0;
+};
+
 // UniformBuffer接口
 class IRALUniformBuffer : public IRALResource {
+public:
+	IRALUniformBuffer()
+		: IRALResource(RALResourceType::UniformBuffer)
+	{
+	}
 public:
 	virtual ~IRALUniformBuffer() = default;
 	
@@ -530,6 +578,12 @@ public:
 	
 	// 获取原生渲染目标视图
 	virtual void* GetNativeRenderTargetView() const = 0;
+	
+	// 创建渲染目标视图
+	virtual IRALRenderTargetView* CreateRenderTargetView() = 0;
+	
+	// 创建深度模板视图
+	virtual IRALDepthStencilView* CreateDepthStencilView() = 0;
 };
 
 #endif // RALRESOURCE_H

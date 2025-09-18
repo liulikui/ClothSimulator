@@ -1,0 +1,81 @@
+#pragma once
+
+#include "RALCommandList.h"
+#include <d3d12.h>
+#include <wrl.h>
+
+using Microsoft::WRL::ComPtr;
+
+// DX12RALCommandList类
+class DX12RALCommandList : public IRALCommandList
+{
+public:
+    // 构造函数和析构函数
+    DX12RALCommandList();
+    virtual ~DX12RALCommandList();
+
+    // 从IRALCommandList继承的方法
+    virtual void ResourceBarrier(const RALResourceBarrier& barrier) override;
+    virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) override;
+    virtual void MemoryBarriers() override;
+    
+    // 其他方法
+    virtual void Close() override;
+    virtual void Reset() override;
+    virtual void* GetNativeCommandList() override;
+
+protected:
+    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
+    ComPtr<ID3D12GraphicsCommandList> m_commandList;
+};
+
+// DX12RALGraphicsCommandList类
+class DX12RALGraphicsCommandList : public IRALGraphicsCommandList
+{
+public:
+    // 构造函数和析构函数
+    DX12RALGraphicsCommandList(ComPtr<ID3D12Device> device, ComPtr<ID3D12CommandAllocator> commandAllocator);
+    virtual ~DX12RALGraphicsCommandList();
+
+    // 从IRALCommandList继承的方法
+    virtual void ResourceBarrier(const RALResourceBarrier& barrier) override;
+    virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) override;
+    virtual void MemoryBarriers() override;
+    virtual void Close() override;
+    virtual void Reset() override;
+    virtual void* GetNativeCommandList() override;
+
+    // 从IRALGraphicsCommandList继承的方法
+    virtual void ClearRenderTargetView(IRALRenderTargetView* renderTargetView, const float color[4]) override;
+    virtual void ClearDepthStencilView(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil) override;
+    virtual void SetViewport(float x, float y, float width, float height, float minDepth, float maxDepth) override;
+    virtual void SetScissorRect(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
+    virtual void SetPipelineState(IRALResource* pipelineState) override;
+    virtual void SetVertexBuffers(uint32_t startSlot, uint32_t count, IRALVertexBufferView** vertexBufferViews) override;
+    virtual void SetIndexBuffer(IRALIndexBufferView* indexBufferView) override;
+    virtual void SetRootSignature(void* rootSignature) override;
+    virtual void SetRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value) override;
+    virtual void SetRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values) override;
+    virtual void SetRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable) override;
+    virtual void SetRootConstantBufferView(uint32_t rootParameterIndex, uint64_t bufferLocation) override;
+    virtual void SetRootShaderResourceView(uint32_t rootParameterIndex, uint64_t bufferLocation) override;
+    virtual void SetRootUnorderedAccessView(uint32_t rootParameterIndex, uint64_t bufferLocation) override;
+    virtual IRALUniformBuffer* CreateUniformBuffer(uint32_t sizeInBytes) override;
+    virtual void UpdateUniformBuffer(IRALUniformBuffer* buffer, const void* data, uint32_t sizeInBytes) override;
+    virtual void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t startVertexLocation, uint32_t startInstanceLocation) override;
+    virtual void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t startIndexLocation, int32_t baseVertexLocation, uint32_t startInstanceLocation) override;
+    virtual void DrawIndirect(void* bufferLocation, uint32_t drawCount, uint32_t stride) override;
+    virtual void DrawIndexedIndirect(void* bufferLocation, uint32_t drawCount, uint32_t stride) override;
+    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTargetView** renderTargetViews, IRALDepthStencilView* depthStencilView) override;
+    virtual void ExecuteRenderPass(const void* renderPass, const void* framebuffer) override;
+
+protected:
+    // 辅助方法：将RAL资源状态转换为DX12资源状态
+    D3D12_RESOURCE_STATES ConvertToDX12ResourceState(RALResourceState state);
+
+    // 成员变量
+    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
+    ComPtr<ID3D12GraphicsCommandList> m_commandList;
+};

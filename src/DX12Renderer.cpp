@@ -9,6 +9,8 @@
 #include <d3d12sdklayers.h> // 包含D3D12调试层相关的定义
 #endif
 
+#include "DX12RALResource.h"
+
 // 日志函数声明
 extern void logDebug(const std::string& message);
 
