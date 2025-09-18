@@ -3,11 +3,44 @@
 #include <iostream>
 #include <vector>
 #include <cstdint>
+#include <fstream>
+#include <string>
 #include "Cloth.h"
 #include "DX12Renderer.h"
 #include "Camera.h"
 #include "Sphere.h"
+#include "Scene.h"
 #include <windowsx.h>
+
+// 日志文件
+std::ofstream logFile;
+
+// 日志函数
+void logDebug(const std::string& message) {
+    std::cout << message << std::endl;
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.flush();
+    }
+}
+
+// 初始化日志文件
+void initLogFile() {
+    logFile.open("debug_log.txt", std::ios::out | std::ios::trunc);
+    if (logFile.is_open()) {
+        logFile << "[LOG] Debug log started." << std::endl;
+    } else {
+        std::cerr << "Failed to open log file!" << std::endl;
+    }
+}
+
+// 关闭日志文件
+void closeLogFile() {
+    if (logFile.is_open()) {
+        logFile << "[LOG] Debug log ended." << std::endl;
+        logFile.close();
+    }
+}
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -46,9 +79,10 @@ float lastFrame = 0.0f;
 // 前向声明
 void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up);
 
-// 布料和渲染器对象
+// 布料、渲染器和场景对象
 Cloth* cloth = nullptr;
 DX12Renderer* renderer = nullptr;
+Scene* scene = nullptr;
 
 // 窗口过程函数
 LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lParam) {
@@ -81,7 +115,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
                 
                 // 显示调试状态切换消息
                 const char* statusMsg = debugOutputEnabled ? "Debug output ENABLED" : "Debug output DISABLED";
-                std::cout << "[F9] " << statusMsg << std::endl;
+                logDebug("[F9] " + std::string(statusMsg));
             }
             break;
         default:
@@ -287,6 +321,11 @@ BOOL InitializeRenderer() {
         return FALSE;
     }
     std::cout << "  - renderer->Initialize() succeeded" << std::endl;
+    
+    // 创建场景对象
+    std::cout << "  - Creating Scene object..." << std::endl;
+    scene = new Scene();
+    std::cout << "  - Scene object created successfully" << std::endl;
 
     return TRUE;
 }
@@ -382,6 +421,12 @@ void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, cons
 
 // 清理资源
 void Cleanup() {
+    // 清理场景对象
+    if (scene) {
+        delete scene;
+        scene = nullptr;
+    }
+    
     // 清理布料对象
     if (cloth) {
         delete cloth;
@@ -412,8 +457,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     freopen("CONOUT$", "w", stdout);
     freopen("CONOUT$", "w", stderr);
     
+    // 初始化日志文件
+    initLogFile();
+    
     // 无条件输出一些基本信息
-    std::cout << "[TEST] Console window created" << std::endl;
+    logDebug("[TEST] Console window created");
     
     // 解析命令行参数
     std::string cmdLine(lpCmdLine);
@@ -429,7 +477,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             }
             std::string maxFramesStr = cmdLine.substr(start, end - start);
             maxFrames = std::stoi(maxFramesStr);
-            std::cout << "Max frames set to: " << maxFrames << std::endl;
+            logDebug("Max frames set to: " + std::to_string(maxFrames));
         } catch (const std::exception& e) {
             std::cerr << "Error parsing maxFrames parameter: " << e.what() << std::endl;
             std::cerr << "Using default maxFrames value (-1 = unlimited)" << std::endl;
@@ -474,13 +522,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 默认启用XPBD碰撞约束
     cloth->setUseXPBDCollision(true);
     
+    // 设置布料的材质颜色（蓝色）
+    cloth->setDiffuseColor(dx::XMFLOAT4(0.3f, 0.5f, 1.0f, 1.0f));
+    
     std::cout << "Cloth object created successfully" << std::endl;
     
-    // 初始化球体数据
-    std::cout << "Initializing sphere data..." << std::endl;
-    Sphere tempSphere(dx::XMFLOAT3(0.0f, 0.0f, 0.0f), 2.0f, 32, 32); // 创建临时球体对象生成数据
-    renderer->SetSphereVertices(tempSphere.getPositions(), tempSphere.getNormals(), tempSphere.getIndices());
-    std::cout << "Sphere data initialized successfully" << std::endl;
+    // 创建并初始化球体对象
+    std::cout << "Creating sphere object..." << std::endl;
+    auto sphere = std::make_shared<Sphere>(dx::XMFLOAT3(0.0f, 0.0f, 0.0f), 2.0f, 32, 32);
+    
+    // 设置球体的材质颜色（红色）
+    sphere->setDiffuseColor(dx::XMFLOAT4(1.0f, 0.3f, 0.3f, 1.0f));
+    
+    // 设置球体的世界矩阵
+    sphere->setPosition(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    sphere->setScale(dx::XMFLOAT3(1.0f, 1.0f, 1.0f));
+    sphere->setRotation(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    
+    // 将球体添加到场景中
+    if (scene) {
+        scene->addPrimitive(sphere);
+        std::cout << "Sphere object added to scene successfully" << std::endl;
+        
+        // 设置场景光源属性
+        scene->setLightPosition(dx::XMFLOAT4(10.0f, 10.0f, 10.0f, 1.0f));
+        scene->setLightColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+    }
     
     // 初始化时间
     lastFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
@@ -524,11 +591,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
             }
             
-            // 恢复渲染数据更新
-            UpdateClothRenderData();
+            // 将布料添加到场景中（如果尚未添加）
+            static bool clothAddedToScene = false;
+            if (scene && cloth && !clothAddedToScene) {
+                scene->addPrimitive(std::shared_ptr<Cloth>(cloth, [](Cloth*){})); // 使用自定义删除器防止重复释放
+                clothAddedToScene = true;
+                logDebug("Cloth object added to scene successfully");
+            }
             
-            // 调用UpdateCamera函数，传入渲染器需要的相机参数
+            // 调用UpdateCamera函数，传入相机参数
             UpdateCamera(camera->GetPosition(), camera->GetTarget(), camera->GetUp());
+        }
+        
+        // 更新场景
+        if (scene) {
+            scene->update(deltaTime);
         }
         
         // 处理键盘输入
@@ -538,22 +615,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // 例如：按'C'键切换传统碰撞和XPBD碰撞
         
         // 渲染场景
-        if (renderer && camera) {
-            if (debugOutputEnabled) {
-                static int renderCount = 0;
-                renderCount++;
-                if (renderCount % 30 == 0) {
-                    std::cout << "Rendering scene, render count: " << renderCount << std::endl;
-                }
-            }
-            renderer->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
+        if (scene && renderer && camera) {
+            static int renderCount = 0;
+            renderCount++;
+            logDebug("[DEBUG] Rendering scene, render count: " + std::to_string(renderCount));
+            logDebug("[DEBUG] Scene has " + std::to_string(scene->getPrimitiveCount()) + " primitives");
+            
+            // 直接调用渲染器的Render方法执行整个渲染流程
+            logDebug("[DEBUG] Calling renderer->Render()");
+            renderer->Render(scene, camera->GetViewMatrix(), camera->GetProjectionMatrix());
+        } else {
+            logDebug("[DEBUG] Cannot render: scene=" + std::to_string(reinterpret_cast<uintptr_t>(scene)) + ", renderer=" + std::to_string(reinterpret_cast<uintptr_t>(renderer)) + ", camera=" + std::to_string(reinterpret_cast<uintptr_t>(camera)));
         }
     }
     
-    std::cout << "Exiting main loop" << std::endl;
+    logDebug("Exiting main loop");
     // 清理资源
     Cleanup();
-    std::cout << "Resources cleaned up" << std::endl;
+    logDebug("Resources cleaned up");
+    
+    // 关闭日志文件
+    closeLogFile();
     
     return 0;
 }

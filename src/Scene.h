@@ -2,9 +2,13 @@
 #define SCENE_H
 
 #include "Primitive.h"
+#include "IGraphicsResource.h"
 #include <vector>
 #include <memory>
 #include <DirectXMath.h>
+
+// 前向声明
+class DX12Renderer;
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -13,9 +17,14 @@ class Scene {
 public:
     // 构造函数
     Scene();
-
+    
     // 析构函数
     ~Scene();
+    
+    // 获取场景中Primitive对象的数量
+    size_t getPrimitiveCount() const {
+        return primitives.size();
+    }
 
     // 更新场景中所有对象的状态
     void update(float deltaTime);
@@ -71,6 +80,13 @@ public:
     const dx::XMFLOAT4& getLightColor() const {
         return lightColor;
     }
+    
+    // 渲染场景
+    // 参数：
+    //   renderer - 用于渲染的DX12Renderer对象
+    //   viewMatrix - 视图矩阵
+    //   projectionMatrix - 投影矩阵
+    void render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
 private:
     // 场景中的所有Primitive对象
@@ -82,6 +98,9 @@ private:
     // 光源属性
     dx::XMFLOAT4 lightPosition = {10.0f, 10.0f, 10.0f, 1.0f}; // 默认光源位置
     dx::XMFLOAT4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
+
+    // 摄像机相关的常量缓冲区
+    std::unique_ptr<IConstBuffer> cameraConstBuffer;
 };
 
 #endif // SCENE_H

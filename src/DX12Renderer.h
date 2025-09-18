@@ -10,12 +10,12 @@
 #include "Camera.h"
 #include "IGraphicsCommandList.h"
 
-// 前向声明
-class Scene;
-
 // 简化命名空间
 namespace dx = DirectX;
 namespace wrl = Microsoft::WRL;
+
+// 前向声明
+class Scene;
 
 // 交换链常量缓冲区结构体
 struct ConstantBuffer {
@@ -42,7 +42,7 @@ public:
     bool Initialize();
 
     // 渲染一帧
-    void Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    void Render(Scene* scene, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
     // 清理资源
     void Cleanup();
@@ -59,9 +59,11 @@ public:
     void Resize(uint32_t width, uint32_t height);
     
     // 更新常量缓冲区
-    bool CreateConstantBuffers();
-    void UpdateConstantBuffer(const dx::XMMATRIX& worldMatrix, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    bool CreateMaterialBuffer();
     void UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor);
+    
+    // 创建摄像机常量缓冲区
+    std::unique_ptr<IConstBuffer> CreateCameraConstBuffer();
 
     // 更新光源位置
     void UpdateLightPosition(const dx::XMFLOAT4& position);
@@ -77,6 +79,14 @@ public:
 
     // 创建图形命令列表
     std::unique_ptr<IGraphicsCommandList> CreateCommandList();
+    
+    // 渲染单个Primitive对象
+    // 参数：
+    //   worldMatrix - 世界矩阵
+    //   diffuseColor - 漫反射颜色
+    //   isCloth - 是否为布料对象（使用布料的PSO）
+    // 注意：视图矩阵和投影矩阵不再作为参数传递，因为它们已经存储在Scene的cameraConstBuffer中
+    void RenderPrimitive(const dx::XMMATRIX& worldMatrix, const dx::XMFLOAT4& diffuseColor, bool isCloth);
 
 private:
     // 创建设备和交换链
@@ -165,7 +175,6 @@ private:
     uint32_t sphereIndexCount_ = 0;                                  // 球体索引数量
     
     // 常量缓冲区
-    wrl::ComPtr<ID3D12Resource> constantBuffer_;                 // 交换矩阵常量缓冲区
     wrl::ComPtr<ID3D12Resource> materialBuffer_;                 // 材质和光照常量缓冲区
 
     // 光照参数

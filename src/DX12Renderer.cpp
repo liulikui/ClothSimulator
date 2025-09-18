@@ -1,6 +1,7 @@
 #include "DX12Renderer.h"
 #include "Scene.h"
 #include "DX12GraphicsCommandList.h"
+#include "DX12GraphicsResource.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -9,6 +10,9 @@
 #ifdef _DEBUG
 #include <d3d12sdklayers.h> // 包含D3D12调试层相关的定义
 #endif
+
+// 日志函数声明
+extern void logDebug(const std::string& message);
 
 // 定义缺失的常量
 #define D3D12_SIMULTANEOUS_RENDERTARGET_COUNT 8
@@ -57,8 +61,8 @@ bool DX12Renderer::Initialize()
     // 创建管道状态对象
     CreatePipelineStateObjects();
 
-    // 创建常量缓冲区
-    if (!CreateConstantBuffers())
+    // 创建材质缓冲区
+    if (!CreateMaterialBuffer())
     {
         return false;
     }
@@ -767,7 +771,7 @@ void DX12Renderer::UploadBufferData(wrl::ComPtr<ID3D12Resource>& buffer, const s
         data.size() * sizeof(T)
     );
 
-    // 转换缓冲区状态
+    // 转换缓冲区状态为GENERIC_READ，这是一个通用状态，可以被用作顶点、索引或常量缓冲区
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
 
@@ -782,86 +786,64 @@ void DX12Renderer::UploadBufferData(wrl::ComPtr<ID3D12Resource>& buffer, const s
     WaitForPreviousFrame();
 }
 
-// 创建常量缓冲区
-bool DX12Renderer::CreateConstantBuffers()
+// 创建材质缓冲区
+bool DX12Renderer::CreateMaterialBuffer()
 {
-    // 创建变换矩阵常量缓冲区
-    D3D12_HEAP_PROPERTIES heapProps = {};
-    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
-
-    D3D12_RESOURCE_DESC desc = {};
-    desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    desc.Alignment = 0;
-    desc.Width = sizeof(ConstantBuffer);
-    desc.Height = 1;
-    desc.DepthOrArraySize = 1;
-    desc.MipLevels = 1;
-    desc.Format = DXGI_FORMAT_UNKNOWN;
-    desc.SampleDesc.Count = 1;
-    desc.SampleDesc.Quality = 0;
-    desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    HRESULT hr = device_->CreateCommittedResource(
-        &heapProps,
-        D3D12_HEAP_FLAG_NONE,
-        &desc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(constantBuffer_.ReleaseAndGetAddressOf())
-    );
-
-    if (FAILED(hr))
-    {
-        std::cerr << "Failed to create constant buffer." << std::endl;
-        return false;
-    }
+    // 创建材质缓冲区描述
+    const UINT materialBufferSize = sizeof(MaterialBuffer);
 
     // 创建材质和光照常量缓冲区
-    desc.Width = sizeof(MaterialBuffer);
-    hr = device_->CreateCommittedResource(
-        &heapProps,
-        D3D12_HEAP_FLAG_NONE,
-        &desc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(materialBuffer_.ReleaseAndGetAddressOf())
-    );
-
-    if (FAILED(hr))
+    try
     {
-        std::cerr << "Failed to create material buffer." << std::endl;
+        materialBuffer_ = CreateBuffer(
+            materialBufferSize,
+            D3D12_RESOURCE_FLAG_NONE,
+            { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 },
+            D3D12_RESOURCE_STATE_GENERIC_READ
+        );
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Failed to create material buffer: " << e.what() << std::endl;
         return false;
     }
 
     return true;
 }
 
-// 更新变换矩阵常量缓冲区
-void DX12Renderer::UpdateConstantBuffer(const dx::XMMATRIX& worldMatrix, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
+// 创建摄像机常量缓冲区
+std::unique_ptr<IConstBuffer> DX12Renderer::CreateCameraConstBuffer()
 {
-    // 计算世界-视图-投影矩阵
-    dx::XMMATRIX worldViewProj = worldMatrix * viewMatrix * projectionMatrix;
+    // 定义摄像机常量缓冲区结构体
+    struct CameraConstBufferData
+    {
+        dx::XMFLOAT4X4 ViewMatrix;
+        dx::XMFLOAT4X4 ViewProjMatrix;
+    };
 
-    // 准备常量缓冲区数据
-    ConstantBuffer data;
-    dx::XMStoreFloat4x4(&data.worldViewProj, dx::XMMatrixTranspose(worldViewProj));
-    dx::XMStoreFloat4x4(&data.world, dx::XMMatrixTranspose(worldMatrix));
+    const UINT bufferSize = sizeof(CameraConstBufferData);
 
-    // 映射并更新缓冲区
-    void* mappedData = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
-    constantBuffer_->Map(0, &readRange, &mappedData);
-    memcpy(mappedData, &data, sizeof(ConstantBuffer));
-    constantBuffer_->Unmap(0, nullptr);
+    try
+    {
+        wrl::ComPtr<ID3D12Resource> buffer = CreateBuffer(
+            bufferSize,
+            D3D12_RESOURCE_FLAG_NONE,
+            { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 },
+            D3D12_RESOURCE_STATE_GENERIC_READ
+        );
 
-    // 设置根参数0（变换矩阵常量缓冲区）
-    commandList_->SetGraphicsRootConstantBufferView(0, constantBuffer_->GetGPUVirtualAddress());
+        // 创建并返回IConstBuffer接口
+        return std::make_unique<DX12ConstBuffer>(buffer.Get(), bufferSize);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Failed to create camera constant buffer: " << e.what() << std::endl;
+        return nullptr;
+    }
 }
+
+// 更新常量缓冲区的代码已被移除，现在使用Scene中的cameraConstBuffer
+
 
 // 更新材质和光照常量缓冲区
 void DX12Renderer::UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor)
@@ -891,8 +873,166 @@ void DX12Renderer::UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor)
     commandList_->SetGraphicsRootConstantBufferView(1, materialBuffer_->GetGPUVirtualAddress());
 }
 
+// 渲染单个Primitive对象
+// 注意：这里不再需要viewMatrix和projectionMatrix参数，因为它们已经存储在Scene的cameraConstBuffer中
+void DX12Renderer::RenderPrimitive(const dx::XMMATRIX& worldMatrix, const dx::XMFLOAT4& diffuseColor, bool isCloth) {
+    logDebug("[DEBUG] RenderPrimitive called, isCloth: " + std::string(isCloth ? "true" : "false"));
+    
+    // 检查commandList是否有效
+    if (!commandList_ || !commandQueue_ || !swapChain_) {
+        logDebug("[DEBUG] RenderPrimitive: Missing required components");
+        return;
+    }
+    
+    // 设置正确的管道状态
+    if (isCloth && clothPipelineState_) {
+        logDebug("[DEBUG] Using cloth pipeline state");
+        commandList_->SetPipelineState(clothPipelineState_.Get());
+    } else if (spherePipelineState_) {
+        logDebug("[DEBUG] Using sphere pipeline state");
+        commandList_->SetPipelineState(spherePipelineState_.Get());
+    } else {
+        logDebug("[DEBUG] No valid pipeline state available");
+        // 如果都没有，返回
+        return;
+    }
+
+    // 更新材质
+    logDebug("[DEBUG] Updating material buffer");
+    UpdateMaterialBuffer(diffuseColor);
+    
+    // 创建世界矩阵缓冲区数据
+    struct WorldMatrixBuffer
+    {
+        dx::XMFLOAT4X4 WorldMatrix;
+    } worldData;
+    dx::XMStoreFloat4x4(&worldData.WorldMatrix, dx::XMMatrixTranspose(worldMatrix));
+    
+    // 创建一个临时的常量缓冲区用于存储世界矩阵
+    wrl::ComPtr<ID3D12Resource> worldMatrixBuffer;
+    try
+    {
+        worldMatrixBuffer = CreateBuffer(
+            sizeof(WorldMatrixBuffer),
+            D3D12_RESOURCE_FLAG_NONE,
+            { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 },
+            D3D12_RESOURCE_STATE_GENERIC_READ
+        );
+        
+        // 更新世界矩阵缓冲区
+        void* mappedData = nullptr;
+        D3D12_RANGE readRange = {0, 0};
+        if (SUCCEEDED(worldMatrixBuffer->Map(0, &readRange, &mappedData)))
+        {
+            memcpy(mappedData, &worldData, sizeof(WorldMatrixBuffer));
+            worldMatrixBuffer->Unmap(0, nullptr);
+        }
+        
+        // 设置根参数0（世界矩阵）
+        commandList_->SetGraphicsRootConstantBufferView(0, worldMatrixBuffer->GetGPUVirtualAddress());
+    }
+    catch (const std::exception& e)
+    {
+        logDebug("[DEBUG] Failed to create world matrix buffer: " + std::string(e.what()));
+        return;
+    }
+    
+    // 设置顶点和索引缓冲区
+    if (isCloth) {
+        logDebug("[DEBUG] Cloth buffers - vertexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(clothVertexBuffer_.Get())) + 
+                ", indexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(clothIndexBuffer_.Get())) + 
+                ", vertexCount: " + std::to_string(clothVertexCount_) + 
+                ", indexCount: " + std::to_string(clothIndexCount_));
+        
+        if (clothVertexBuffer_ && clothIndexBuffer_ && clothVertexCount_ > 0 && clothIndexCount_ > 0) {
+            // 布料顶点缓冲区应该已经是正确的状态，不需要转换
+
+            // 布料索引缓冲区应该已经是正确的状态，不需要转换
+
+            logDebug("[DEBUG] Setting cloth vertex buffer view");
+            D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
+            vertexBufferView.BufferLocation = clothVertexBuffer_->GetGPUVirtualAddress();
+            vertexBufferView.StrideInBytes = sizeof(dx::XMFLOAT3) * 2;  // 位置 + 法线
+            vertexBufferView.SizeInBytes = clothVertexCount_ * sizeof(dx::XMFLOAT3) * 2;
+            commandList_->IASetVertexBuffers(0, 1, &vertexBufferView);
+
+            logDebug("[DEBUG] Setting cloth index buffer view");
+            D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
+            indexBufferView.BufferLocation = clothIndexBuffer_->GetGPUVirtualAddress();
+            indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+            indexBufferView.SizeInBytes = clothIndexCount_ * sizeof(uint32_t);
+            commandList_->IASetIndexBuffer(&indexBufferView);
+
+            // 设置图元拓扑
+            logDebug("[DEBUG] Setting primitive topology");
+            commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+            // 绘制
+            logDebug("[DEBUG] Drawing cloth with " + std::to_string(clothIndexCount_) + " indices");
+            commandList_->DrawIndexedInstanced(clothIndexCount_, 1, 0, 0, 0);
+        } else {
+            logDebug("[DEBUG] Cloth buffers not ready");
+        }
+    } else {
+        logDebug("[DEBUG] Sphere buffers - vertexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(sphereVertexBuffer_.Get())) + 
+                ", indexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(sphereIndexBuffer_.Get())) + 
+                ", vertexCount: " + std::to_string(sphereVertexCount_) + 
+                ", indexCount: " + std::to_string(sphereIndexCount_));
+        
+        if (sphereVertexBuffer_ && sphereIndexBuffer_ && sphereVertexCount_ > 0 && sphereIndexCount_ > 0) {
+            // 转换球体顶点缓冲区状态
+            logDebug("[DEBUG] Transitioning sphere vertex buffer state");
+            D3D12_RESOURCE_BARRIER vertexBarrier = {};
+            vertexBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            vertexBarrier.Transition.pResource = sphereVertexBuffer_.Get();
+            vertexBarrier.Transition.Subresource = 0;
+            vertexBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_GENERIC_READ;
+            vertexBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+            commandList_->ResourceBarrier(1, &vertexBarrier);
+
+            // 转换球体索引缓冲区状态
+            logDebug("[DEBUG] Transitioning sphere index buffer state");
+            D3D12_RESOURCE_BARRIER indexBarrier = {};
+            indexBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            indexBarrier.Transition.pResource = sphereIndexBuffer_.Get();
+            indexBarrier.Transition.Subresource = 0;
+            indexBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_GENERIC_READ;
+            indexBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+            commandList_->ResourceBarrier(1, &indexBarrier);
+
+            logDebug("[DEBUG] Setting sphere vertex buffer view");
+            D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
+            vertexBufferView.BufferLocation = sphereVertexBuffer_->GetGPUVirtualAddress();
+            vertexBufferView.StrideInBytes = sizeof(dx::XMFLOAT3) * 2;  // 位置 + 法线
+            vertexBufferView.SizeInBytes = sphereVertexCount_ * sizeof(dx::XMFLOAT3) * 2;
+            commandList_->IASetVertexBuffers(0, 1, &vertexBufferView);
+
+            logDebug("[DEBUG] Setting sphere index buffer view");
+            D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
+            indexBufferView.BufferLocation = sphereIndexBuffer_->GetGPUVirtualAddress();
+            indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+            indexBufferView.SizeInBytes = sphereIndexCount_ * sizeof(uint32_t);
+            commandList_->IASetIndexBuffer(&indexBufferView);
+
+            // 设置图元拓扑
+            logDebug("[DEBUG] Setting primitive topology");
+            commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+            // 绘制
+            logDebug("[DEBUG] Drawing sphere with " + std::to_string(sphereIndexCount_) + " indices");
+            commandList_->DrawIndexedInstanced(sphereIndexCount_, 1, 0, 0, 0);
+        } else {
+            logDebug("[DEBUG] Sphere buffers not ready");
+        }
+    }
+    logDebug("[DEBUG] RenderPrimitive finished");
+}
+
+// 清理资源
+
+
 // 渲染一帧
-void DX12Renderer::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
+void DX12Renderer::Render(Scene* scene, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
     // 获取当前后台缓冲区
     currentBackBufferIndex_ = swapChain_->GetCurrentBackBufferIndex();
@@ -957,66 +1097,14 @@ void DX12Renderer::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& pr
     scissorRect.bottom = static_cast<LONG>(height_);
     commandList_->RSSetScissorRects(1, &scissorRect);
 
-    // 渲染布料
-    if (clothVertexBuffer_ && clothIndexBuffer_ && clothVertexCount_ > 0 && clothIndexCount_ > 0)
-    {
-        // 设置布料管道状态
-        commandList_->SetPipelineState(clothPipelineState_.Get());
-
-        // 更新布料的变换矩阵和材质
-        dx::XMMATRIX worldMatrix = dx::XMMatrixIdentity();
-        UpdateConstantBuffer(worldMatrix, viewMatrix, projectionMatrix);
-        UpdateMaterialBuffer(dx::XMFLOAT4(0.0f, 0.8f, 1.0f, 1.0f)); // 亮蓝色布料，更明显
-
-        // 设置顶点和索引缓冲区
-        D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
-        vertexBufferView.BufferLocation = clothVertexBuffer_->GetGPUVirtualAddress();
-        vertexBufferView.StrideInBytes = sizeof(dx::XMFLOAT3) * 2;  // 位置 + 法线
-        vertexBufferView.SizeInBytes = clothVertexCount_ * sizeof(dx::XMFLOAT3) * 2;
-        commandList_->IASetVertexBuffers(0, 1, &vertexBufferView);
-
-        D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
-        indexBufferView.BufferLocation = clothIndexBuffer_->GetGPUVirtualAddress();
-        indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-        indexBufferView.SizeInBytes = clothIndexCount_ * sizeof(uint32_t);
-        commandList_->IASetIndexBuffer(&indexBufferView);
-
-        // 设置图元拓扑
-        commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-        // 绘制布料
-        commandList_->DrawIndexedInstanced(clothIndexCount_, 1, 0, 0, 0);
-    }
-
-    // 渲染球体
-    if (sphereVertexBuffer_ && sphereIndexBuffer_ && sphereVertexCount_ > 0 && sphereIndexCount_ > 0)
-    {
-        // 设置球体管道状态
-        commandList_->SetPipelineState(spherePipelineState_.Get());
-
-        // 更新球体的变换矩阵和材质
-        dx::XMMATRIX worldMatrix = dx::XMMatrixTranslation(0.0f, 5.0f, 0.0f);
-        UpdateConstantBuffer(worldMatrix, viewMatrix, projectionMatrix);
-        UpdateMaterialBuffer(dx::XMFLOAT4(0.8f, 0.2f, 0.2f, 1.0f)); // 红色球体
-
-        // 设置顶点和索引缓冲区
-        D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
-        vertexBufferView.BufferLocation = sphereVertexBuffer_->GetGPUVirtualAddress();
-        vertexBufferView.StrideInBytes = sizeof(dx::XMFLOAT3) * 2;  // 位置 + 法线
-        vertexBufferView.SizeInBytes = sphereVertexCount_ * sizeof(dx::XMFLOAT3) * 2;
-        commandList_->IASetVertexBuffers(0, 1, &vertexBufferView);
-
-        D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
-        indexBufferView.BufferLocation = sphereIndexBuffer_->GetGPUVirtualAddress();
-        indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-        indexBufferView.SizeInBytes = sphereIndexCount_ * sizeof(uint32_t);
-        commandList_->IASetIndexBuffer(&indexBufferView);
-
-        // 设置图元拓扑
-        commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-        // 绘制球体
-        commandList_->DrawIndexedInstanced(sphereIndexCount_, 1, 0, 0, 0);
+    // 调用场景的render方法执行实际的渲染逻辑
+    if (scene) {        
+        logDebug("[DEBUG] Render: Calling scene->render()");
+        
+        // 让scene自己处理相机常量缓冲区的创建和更新
+        scene->render(this, viewMatrix, projectionMatrix);
+    } else {
+        logDebug("[DEBUG] Render: WARNING - Scene is null!");
     }
 
     // 资源转换：设置渲染目标为呈现状态
@@ -1048,115 +1136,50 @@ void DX12Renderer::SetClothVertices(const std::vector<dx::XMFLOAT3>& positions, 
 {
     std::cout << "DX12Renderer::SetClothVertices called with " << positions.size() << " positions, " << normals.size() << " normals, " << indices.size() << " indices" << std::endl;
     
-    // 调试输出第一个顶点的位置和法线
-    if (!positions.empty() && !normals.empty()) {
-        std::cout << "First vertex: position = (" << positions[0].x << ", " << positions[0].y << ", " << positions[0].z << "), normal = (" << normals[0].x << ", " << normals[0].y << ", " << normals[0].z << ")" << std::endl;
-    }
-
-    if (positions.empty() || normals.empty() || indices.empty())
-    {
-        std::cout << "Warning: Empty vertex or index data received" << std::endl;
-        return;
-    }
-
-    clothVertexCount_ = static_cast<uint32_t>(positions.size());
-    clothIndexCount_ = static_cast<uint32_t>(indices.size());
-    std::cout << "Setting cloth vertex count: " << clothVertexCount_ << ", index count: " << clothIndexCount_ << std::endl;
-
-    // 创建顶点缓冲区
-    D3D12_HEAP_PROPERTIES heapProps = {};
-    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
-
-    clothVertexBuffer_ = CreateBuffer(
-        clothVertexCount_ * sizeof(dx::XMFLOAT3) * 2,  // 位置 + 法线
-        D3D12_RESOURCE_FLAG_NONE,
-        heapProps,
-        D3D12_RESOURCE_STATE_COMMON
-    );
-
-    // 创建索引缓冲区
-    clothIndexBuffer_ = CreateBuffer(
-        clothIndexCount_ * sizeof(uint32_t),
-        D3D12_RESOURCE_FLAG_NONE,
-        heapProps,
-        D3D12_RESOURCE_STATE_COMMON
-    );
-
-    // 准备顶点数据
-    std::cout << "Preparing vertex data: " << clothVertexCount_ * sizeof(dx::XMFLOAT3) * 2 << " bytes" << std::endl;
-    std::vector<BYTE> vertexData(clothVertexCount_ * sizeof(dx::XMFLOAT3) * 2);
-    for (uint32_t i = 0; i < clothVertexCount_; ++i)
+    // 保存布料顶点和索引数量
+    clothVertexCount_ = positions.size();
+    clothIndexCount_ = indices.size();
+    
+    // 创建布料顶点数据
+    std::vector<uint8_t> vertexData(clothVertexCount_ * sizeof(dx::XMFLOAT3) * 2); // 位置 + 法线
+    for (size_t i = 0; i < clothVertexCount_; ++i)
     {
         size_t positionOffset = i * sizeof(dx::XMFLOAT3) * 2;
         size_t normalOffset = positionOffset + sizeof(dx::XMFLOAT3);
-
+        
         memcpy(&vertexData[positionOffset], &positions[i], sizeof(dx::XMFLOAT3));
         memcpy(&vertexData[normalOffset], &normals[i], sizeof(dx::XMFLOAT3));
     }
-
+    
     // 上传顶点和索引数据
-    std::cout << "Uploading vertex data to GPU" << std::endl;
     UploadBufferData(clothVertexBuffer_, vertexData);
-    std::cout << "Uploading index data to GPU: " << clothIndexCount_ * sizeof(uint32_t) << " bytes" << std::endl;
     UploadBufferData(clothIndexBuffer_, indices);
-    std::cout << "SetClothVertices completed successfully" << std::endl;
 }
+
 
 // 设置球体顶点数据
 void DX12Renderer::SetSphereVertices(const std::vector<dx::XMFLOAT3>& positions, const std::vector<dx::XMFLOAT3>& normals,
                                    const std::vector<uint32_t>& indices)
 {
-    if (positions.empty() || normals.empty() || indices.empty())
-    {
-        return;
-    }
-
-    sphereVertexCount_ = static_cast<uint32_t>(positions.size());
-    sphereIndexCount_ = static_cast<uint32_t>(indices.size());
-
-    // 创建顶点缓冲区
-    D3D12_HEAP_PROPERTIES heapProps = {};
-    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
-
-    sphereVertexBuffer_ = CreateBuffer(
-        sphereVertexCount_ * sizeof(dx::XMFLOAT3) * 2,  // 位置 + 法线
-        D3D12_RESOURCE_FLAG_NONE,
-        heapProps,
-        D3D12_RESOURCE_STATE_COMMON
-    );
-
-    // 创建索引缓冲区
-    sphereIndexBuffer_ = CreateBuffer(
-        sphereIndexCount_ * sizeof(uint32_t),
-        D3D12_RESOURCE_FLAG_NONE,
-        heapProps,
-        D3D12_RESOURCE_STATE_COMMON
-    );
-
-    // 准备顶点数据
-    std::vector<BYTE> vertexData(sphereVertexCount_ * sizeof(dx::XMFLOAT3) * 2);
-    for (uint32_t i = 0; i < sphereVertexCount_; ++i)
+    // 保存球体顶点和索引数量
+    sphereVertexCount_ = positions.size();
+    sphereIndexCount_ = indices.size();
+    
+    // 创建球体顶点数据
+    std::vector<uint8_t> vertexData(sphereVertexCount_ * sizeof(dx::XMFLOAT3) * 2); // 位置 + 法线
+    for (size_t i = 0; i < sphereVertexCount_; ++i)
     {
         size_t positionOffset = i * sizeof(dx::XMFLOAT3) * 2;
         size_t normalOffset = positionOffset + sizeof(dx::XMFLOAT3);
-
+        
         memcpy(&vertexData[positionOffset], &positions[i], sizeof(dx::XMFLOAT3));
         memcpy(&vertexData[normalOffset], &normals[i], sizeof(dx::XMFLOAT3));
     }
-
+    
     // 上传顶点和索引数据
     UploadBufferData(sphereVertexBuffer_, vertexData);
     UploadBufferData(sphereIndexBuffer_, indices);
 }
-
 
 
 // 等待前一帧完成
