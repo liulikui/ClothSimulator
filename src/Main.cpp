@@ -326,6 +326,15 @@ BOOL InitializeRenderer() {
     std::cout << "  - Creating Scene object..." << std::endl;
     scene = new Scene();
     std::cout << "  - Scene object created successfully" << std::endl;
+    
+    // 初始化场景，创建根签名
+    std::cout << "  - Initializing Scene with renderer..." << std::endl;
+    if (!scene->Initialize(renderer)) {
+        std::cerr << "  - scene->Initialize() failed!" << std::endl;
+        MessageBox(NULL, TEXT("Failed to initialize Scene!"), TEXT("Error"), MB_ICONERROR);
+        return FALSE;
+    }
+    std::cout << "  - scene->Initialize() succeeded" << std::endl;
 
     return TRUE;
 }

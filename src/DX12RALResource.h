@@ -162,6 +162,12 @@ public:
 		return m_nativeShader.Get();
 	}
 
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
+	}
+
 protected:
 	ComPtr<ID3DBlob> m_nativeShader; // ID3D12ShaderBytecode* 或 ID3DBlob*
 };
@@ -187,6 +193,12 @@ public:
 	ID3DBlob* GetNativeShader() const
 	{
 		return m_nativeShader.Get();
+	}
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
 	}
 
 protected:
@@ -216,6 +228,12 @@ public:
 		return m_nativeShader.Get();
 	}
 
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
+	}
+
 protected:
 	ComPtr<ID3DBlob> m_nativeShader; // ID3D12ShaderBytecode* 或 ID3DBlob*
 };
@@ -241,6 +259,12 @@ public:
 	ID3DBlob* GetNativeShader() const
 	{
 		return m_nativeShader.Get();
+	}
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
 	}
 
 protected:
@@ -270,6 +294,12 @@ public:
 		return m_nativeShader.Get();
 	}
 
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
+	}
+
 protected:
 	ComPtr<ID3DBlob> m_nativeShader; // ID3D12ShaderBytecode* 或 ID3DBlob*
 };
@@ -295,6 +325,12 @@ public:
 	ID3DBlob* GetNativeShader() const
 	{
 		return m_nativeShader.Get();
+	}
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
 	}
 
 protected:
@@ -324,6 +360,12 @@ public:
 		return m_nativeShader.Get();
 	}
 
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
+	}
+
 protected:
 	ComPtr<ID3DBlob> m_nativeShader; // ID3D12ShaderBytecode* 或 ID3DBlob*
 };
@@ -351,6 +393,12 @@ public:
 		return m_nativeShader.Get();
 	}
 
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
+	}
+
 protected:
 	ComPtr<ID3DBlob> m_nativeShader; // ID3D12ShaderBytecode* 或 ID3DBlob*
 };
@@ -376,6 +424,12 @@ public:
 	void* GetNativeShader() const
 	{
 		return m_nativeShader;
+	}
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
 	}
 
 	// 设置最近命中着色器
@@ -424,6 +478,12 @@ public:
 	ID3DBlob* GetNativeShader() const
 	{
 		return m_nativeShader.Get();
+	}
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() override
+	{
+		return GetNativeShader();
 	}
 
 protected:
@@ -1076,6 +1136,33 @@ public:
 
 protected:
 	ComPtr<ID3D12RootSignature> m_nativeRootSignature; // ID3D12RootSignature*
+};
+
+// DX12实现的图形管线状态
+class DX12RALGraphicsPipelineState : public IGraphicsPipelineState
+{
+public:
+	DX12RALGraphicsPipelineState()
+		: IGraphicsPipelineState()
+	{
+	}
+
+	virtual ~DX12RALGraphicsPipelineState() = default;
+
+	// 设置原生管线状态指针
+	void SetNativePipelineState(ID3D12PipelineState* pipelineState)
+	{
+		m_nativePipelineState = pipelineState;
+	}
+
+	// 获取原生管线状态指针
+	virtual void* GetNativeResource() override
+	{
+		return m_nativePipelineState.Get();
+	}
+
+protected:
+	ComPtr<ID3D12PipelineState> m_nativePipelineState; // ID3D12PipelineState*
 };
 
 #endif // DX12RALRESOURCE_H

@@ -17,6 +17,13 @@ public:
     // 构造函数
     Scene();
     
+    // 初始化场景，创建根签名
+    // 参数：
+    //   pRender - DX12Renderer对象指针
+    // 返回值：
+    //   初始化是否成功
+    bool Initialize(DX12Renderer* pRender);
+    
     // 析构函数
     ~Scene();
     

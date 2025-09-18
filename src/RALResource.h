@@ -3,7 +3,298 @@
 
 #include <cstdint>
 #include <atomic>
+#include <vector>
 #include "DataFormat.h"
+
+// 前向声明
+class IRALRootSignature;
+class IRALVertexShader;
+class IRALPixelShader;
+class IRALHullShader;
+class IRALDomainShader;
+class IRALGeometryShader;
+class IRALAmplificationShader;
+class IRALMeshShader;
+class IRALRayGenerationShader;
+class IRALRayMissShader;
+class IRALRayHitGroupShader;
+class IRALRayCallableShader;
+class IRALComputeShader;
+class IRALTexture;
+class IRALRenderTarget;
+class IRALDepthStencilView;
+class IRALVertexBuffer;
+class IRALIndexBuffer;
+class IRALUniformBuffer;
+class IRALCommandList;
+class IRALViewport;
+
+// 顶点属性语义（用于标识属性用途，辅助上层逻辑）
+enum class RALVertexSemantic
+{
+	Position,    // 顶点位置
+	Normal,      // 法线
+	Tangent,     // 切线
+	Bitangent,   // 副切线
+	TexCoord0,   // 纹理坐标集0
+	TexCoord1,   // 纹理坐标集1
+	Color0,      // 颜色集0
+	Color1,      // 颜色集1
+	BoneIndices, // 骨骼索引
+	BoneWeights  // 骨骼权重
+	// 可扩展更多语义
+};
+
+// 顶点数据格式（描述单个属性的类型和长度）
+enum class RALVertexFormat
+{
+	Float1,   // float
+	Float2,   // float2
+	Float3,   // float3
+	Float4,   // float4
+	Half2,    // half2 (16位浮点数)
+	Half4,    // half4
+	Int1,     // int32
+	Int2,     // int32x2
+	Int3,     // int32x3
+	Int4,     // int32x4
+	Uint1,    // uint32
+	Uint2,    // uint32x2
+	Uint3,    // uint32x3
+	Uint4,    // uint32x4
+	Byte4,    // int8x4 (通常用于压缩法线)
+	UByte4,   // uint8x4 (通常用于颜色)
+	Short2,   // int16x2
+	Short4,   // int16x4
+	UByte4N,  // uint8x4 归一化到 [0,1]
+	Byte4N,   // int8x4 归一化到 [-1,1]
+	Short2N,  // int16x2 归一化到 [-1,1]
+	Short4N   // int16x4 归一化到 [-1,1]
+};
+
+// 单个顶点属性的描述
+struct RALVertexAttribute 
+{
+	RALVertexSemantic semantic;  // 属性语义（如POSITION）
+	RALVertexFormat format;      // 数据格式（如Float3）
+	uint32_t bufferSlot;      // 绑定的顶点缓冲区索引（支持多缓冲区）
+	uint32_t offset;          // 在缓冲区中的字节偏移量
+};
+
+// 图元拓扑类型
+enum class RALPrimitiveTopologyType
+{
+	PointList,
+	LineList,
+	LineStrip,
+	TriangleList,
+	TriangleStrip,
+	LineListAdj,
+	LineStripAdj,
+	TriangleListAdj,
+	TriangleStripAdj
+};
+
+// 三角形剔除模式
+enum class RALCullMode
+{
+    None,
+    Front,
+    Back,
+    FrontAndBack
+};
+
+// 三角形填充模式
+enum class RALFillMode
+{
+    Solid,
+    Wireframe,
+    Point
+};
+
+// 比较操作
+enum class RALCompareOp
+{
+    Never,
+    Less,
+    Equal,
+    LessOrEqual,
+    Greater,
+    NotEqual,
+    GreaterOrEqual,
+    Always
+};
+
+// 混合因子
+enum class RALBlendFactor
+{
+    Zero,
+    One,
+    SourceColor,
+    OneMinusSourceColor,
+    SourceAlpha,
+    OneMinusSourceAlpha,
+    DestinationColor,
+    OneMinusDestinationColor,
+    DestinationAlpha,
+    OneMinusDestinationAlpha,
+    SourceAlphaSaturate
+};
+
+// 混合操作
+enum class RALBlendOp
+{
+    Add,
+    Subtract,
+    ReverseSubtract,
+    Min,
+    Max
+};
+
+// 逻辑操作
+enum class RALLogicOp
+{
+    Noop,
+    And,
+    Or,
+    Xor,
+    Not,
+    Copy,
+    CopyInverted,
+    AndReverse,
+    AndInverted,
+    OrReverse,
+    OrInverted,
+    XorReverse,
+    Equiv,
+    Nand,
+    Nor,
+    Set
+};
+
+// 模板操作
+enum class RALStencilOp
+{
+    Keep,
+    Zero,
+    Replace,
+    IncrementClamp,
+    DecrementClamp,
+    Invert,
+    IncrementWrap,
+    DecrementWrap
+};
+
+// 模板操作状态
+struct RALStencilOpState
+{
+    RALStencilOp failOp = RALStencilOp::Keep;
+    RALStencilOp depthFailOp = RALStencilOp::Keep;
+    RALStencilOp passOp = RALStencilOp::Keep;
+    RALCompareOp compareFunc = RALCompareOp::Always;
+};
+
+// 多重采样描述
+struct RALSampleDesc
+{
+    uint32_t Count = 1;
+    uint32_t Quality = 0;
+};
+
+// 光栅化状态
+struct RasterizerState
+{
+    RALCullMode cullMode = RALCullMode::Back;
+    RALFillMode fillMode = RALFillMode::Solid;
+    bool frontCounterClockwise = false;
+    float depthBias = 0.0f;
+    float depthBiasClamp = 0.0f;
+    float slopeScaledDepthBias = 0.0f;
+    bool depthClipEnable = true;
+    bool multisampleEnable = false;
+    bool antialiasedLineEnable = false;
+    uint32_t forcedSampleCount = 0;
+    bool conservativeRaster = false;
+};
+
+// 混合状态
+struct RALPipelineBlendState
+{
+    bool alphaToCoverageEnable = false;
+    bool independentBlendEnable = false;
+};
+
+// 渲染目标混合状态
+struct RALRenderTargetBlendState
+{
+    bool blendEnable = false;
+    bool logicOpEnable = false;
+    RALBlendFactor srcBlend = RALBlendFactor::One;
+    RALBlendFactor destBlend = RALBlendFactor::Zero;
+    RALBlendOp blendOp = RALBlendOp::Add;
+    RALBlendFactor srcBlendAlpha = RALBlendFactor::One;
+    RALBlendFactor destBlendAlpha = RALBlendFactor::Zero;
+    RALBlendOp blendOpAlpha = RALBlendOp::Add;
+    RALLogicOp logicOp = RALLogicOp::Noop;
+    uint8_t colorWriteMask = 0xF; // RGBA
+};
+
+// 深度模板状态
+struct DepthStencilState
+{
+    bool depthEnable = true;
+    bool depthWriteMask = true;
+    RALCompareOp depthFunc = RALCompareOp::Less;
+    bool stencilEnable = false;
+    uint8_t stencilReadMask = 0xFF;
+    uint8_t stencilWriteMask = 0xFF;
+    RALStencilOpState frontFace;
+    RALStencilOpState backFace;
+};
+
+// 图形管线状态描述
+struct RALGraphicsPipelineStateDesc
+{
+    // 输入布局
+    std::vector<RALVertexAttribute>* inputLayout = nullptr;
+    
+    // 根签名
+    IRALRootSignature* rootSignature = nullptr;
+    
+    // 着色器
+    IRALVertexShader* vertexShader = nullptr;
+    IRALPixelShader* pixelShader = nullptr;
+    IRALGeometryShader* geometryShader = nullptr;
+    IRALHullShader* hullShader = nullptr;
+    IRALDomainShader* domainShader = nullptr;
+    
+    // 图元拓扑类型
+    RALPrimitiveTopologyType primitiveTopologyType = RALPrimitiveTopologyType::TriangleList;
+    
+    // 光栅化状态
+    RasterizerState rasterizerState;
+    
+    // 混合状态
+    RALPipelineBlendState blendState;
+    
+    // 渲染目标混合状态数组
+    std::vector<RALRenderTargetBlendState> renderTargetBlendStates;
+    
+    // 深度模板状态
+    DepthStencilState depthStencilState;
+    
+    // 渲染目标配置
+    uint32_t numRenderTargets = 1;
+    DataFormat renderTargetFormats[8] = { DataFormat::R8G8B8A8_UNorm, DataFormat::Undefined, DataFormat::Undefined, DataFormat::Undefined, 
+                                        DataFormat::Undefined, DataFormat::Undefined, DataFormat::Undefined, DataFormat::Undefined };
+    DataFormat depthStencilFormat = DataFormat::D32_Float;
+    
+    // 多重采样
+    RALSampleDesc sampleDesc;
+    
+    // 采样掩码
+    uint32_t sampleMask = UINT32_MAX;
+};
 
 // Render Abstraction Layer资源类型
 enum class RALResourceType
@@ -40,57 +331,7 @@ enum class RALShaderType
 	Count,
 };
 
-// 顶点数据格式（描述单个属性的类型和长度）
-enum class RALVertexFormat
-{
-	Float1,   // float
-	Float2,   // float2
-	Float3,   // float3
-	Float4,   // float4
-	Half2,    // half2 (16位浮点数)
-	Half4,    // half4
-	Int1,     // int32
-	Int2,     // int32x2
-	Int3,     // int32x3
-	Int4,     // int32x4
-	Uint1,    // uint32
-	Uint2,    // uint32x2
-	Uint3,    // uint32x3
-	Uint4,    // uint32x4
-	Byte4,    // int8x4 (通常用于压缩法线)
-	UByte4,   // uint8x4 (通常用于颜色)
-	Short2,   // int16x2
-	Short4,   // int16x4
-	UByte4N,  // uint8x4 归一化到 [0,1]
-	Byte4N,   // int8x4 归一化到 [-1,1]
-	Short2N,  // int16x2 归一化到 [-1,1]
-	Short4N   // int16x4 归一化到 [-1,1]
-};
 
-// 顶点属性语义（用于标识属性用途，辅助上层逻辑）
-enum class RALVertexSemantic
-{
-	Position,    // 顶点位置
-	Normal,      // 法线
-	Tangent,     // 切线
-	Bitangent,   // 副切线
-	TexCoord0,   // 纹理坐标集0
-	TexCoord1,   // 纹理坐标集1
-	Color0,      // 颜色集0
-	Color1,      // 颜色集1
-	BoneIndices, // 骨骼索引
-	BoneWeights  // 骨骼权重
-	// 可扩展更多语义
-};
-
-// 单个顶点属性的描述
-struct RALVertexAttribute 
-{
-	RALVertexSemantic semantic;  // 属性语义（如POSITION）
-	RALVertexFormat format;      // 数据格式（如Float3）
-	uint32_t bufferSlot;      // 绑定的顶点缓冲区索引（支持多缓冲区）
-	uint32_t offset;          // 在缓冲区中的字节偏移量
-};
 
 // 顶点缓冲区绑定描述（每个缓冲区单独配置）
 struct RALVertexBufferBinding
@@ -105,7 +346,7 @@ class IRALResource
 {
 public:
 	IRALResource(RALResourceType type) 
-		: m_refCount(1)
+		: m_refCount(0)
 		, m_resourceType(type)
 	{
 	}
@@ -283,60 +524,7 @@ public:
 	virtual ~IRALRayCallableShader() = default;
 };
 
-// 三角形剔除模式（控制哪些朝向的三角形会被剔除）
-enum class RALCullMode
-{
-	None,           // 不剔除任何三角形（所有三角形都将被渲染）
-	Front,          // 剔除正面朝向的三角形
-	Back,           // 剔除背面朝向的三角形（最常用默认值）
-	FrontAndBack    // 剔除所有三角形（仅用于特殊调试场景）
-};
 
-// 三角形填充模式（控制光栅化时三角形内部的绘制方式）
-enum class RALFillMode
-{
-	Solid,          // 填充三角形内部（默认渲染模式）
-	Wireframe,      // 只绘制三角形的轮廓线（线框模式）
-	Point           // 只绘制三角形的顶点（点模式，通常用于调试）
-};
-
-// 比较操作（用于深度测试、模板测试等）
-enum class RALCompareOp
-{
-	Never,          // 从不通过比较
-	Less,           // 源 < 目标时通过
-	Equal,          // 源 == 目标时通过
-	LessOrEqual,    // 源 <= 目标时通过
-	Greater,        // 源 > 目标时通过
-	NotEqual,       // 源 != 目标时通过
-	GreaterOrEqual, // 源 >= 目标时通过
-	Always          // 始终通过比较
-};
-
-// 混合因子（用于计算源和目标颜色的混合权重）
-enum class RALBlendFactor
-{
-	Zero,						// 0.0f
-	One,						// 1.0f
-	SourceColor,				// 源颜色 (Rs, Gs, Bs, As)
-	OneMinusSourceColor,		// 1 - 源颜色 (1-Rs, 1-Gs, 1-Bs, 1-As)
-	SourceAlpha,				// 源Alpha (As, As, As, As)
-	OneMinusSourceAlpha,		// 1 - 源Alpha (1-As, 1-As, 1-As, 1-As)
-	DestinationColor,			// 目标颜色 (Rd, Gd, Bd, Ad)
-	OneMinusDestinationColor,	// 1 - 目标颜色 (1-Rd, 1-Gd, 1-Bd, 1-Ad)
-	DestinationAlpha,			// 目标Alpha (Ad, Ad, Ad, Ad)
-	OneMinusDestinationAlpha,	// 1 - 目标Alpha (1-Ad, 1-Ad, 1-Ad, 1-Ad)
-	SourceAlphaSaturate,		// 源Alpha饱和 (min(As, 1-Ad), ...) [仅用于RGB通道]
-};
-
-// 混合操作（用于计算源和目标颜色的混合结果）
-enum class RALBlendOp {
-	Add,            // 源 + 目标
-	Subtract,       // 源 - 目标
-	ReverseSubtract,// 目标 - 源
-	Min,            // min(源, 目标)
-	Max             // max(源, 目标)
-};
 
 // 颜色通道掩码（控制哪些通道允许写入）
 struct RALColorWriteMask {
@@ -564,6 +752,18 @@ public:
 	}
 
 	virtual ~IRALRootSignature() = default;
+};
+
+// Graphics Pipeline State接口
+class IGraphicsPipelineState : public IRALResource
+{
+public:
+	IGraphicsPipelineState()
+		: IRALResource(RALResourceType::GraphicsPipelineState)
+	{
+	}
+
+	virtual ~IGraphicsPipelineState() = default;
 };
 
 // RenderTarget基类

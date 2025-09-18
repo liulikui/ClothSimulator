@@ -13,6 +13,40 @@ extern void logDebug(const std::string& message);
 Scene::Scene() {
     // 初始化场景
     // cameraConstBuffer将在渲染器中创建并传入
+    logDebug("[DEBUG] Scene constructor called");
+}
+
+bool Scene::Initialize(DX12Renderer* pRender) {
+    if (!pRender) {
+        logDebug("[DEBUG] Scene::Initialize failed: renderer is null");
+        return false;
+    }
+    
+    logDebug("[DEBUG] Scene::Initialize called");
+    
+    // 从渲染器获取根签名
+    auto rootSignature = pRender->CreateAndGetRootSignature();
+    if (!rootSignature) {
+        logDebug("[DEBUG] Scene::Initialize failed: failed to create root signature");
+        return false;
+    }
+    
+    // 存储根签名的副本（需要先确保std::unique_ptr可以被复制，或者使用std::shared_ptr）
+    // 注意：std::unique_ptr不能被复制，只能被移动
+    // 由于我们需要在Scene中保留根签名，同时也需要传递给渲染器，我们需要重新设计这部分代码
+    
+    // 方法1：使用std::shared_ptr代替std::unique_ptr（需要修改接口）
+    // 方法2：让渲染器自己创建并管理根签名（不推荐，因为我们已经将逻辑移到了Scene）
+    // 方法3：不存储在Scene中，直接传递给渲染器
+    
+    // 我们选择方法3，因为这是最简单的解决方案
+    logDebug("[DEBUG] Scene::Initialize succeeded: root signature created");
+    
+    // 将根签名设置回渲染器
+    pRender->SetRootSignature(std::move(rootSignature));
+    logDebug("[DEBUG] Scene::Initialize: root signature set to renderer");
+    
+    return true;
 }
 
 Scene::~Scene() {

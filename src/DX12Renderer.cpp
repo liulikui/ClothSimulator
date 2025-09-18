@@ -87,11 +87,11 @@ bool DX12Renderer::CreateDeviceAndSwapChain()
 {
     // 在调试版本中启用D3D12调试层
 #ifdef _DEBUG
-    ID3D12Debug* debugController = nullptr;
-    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+    TSharePtr<ID3D12Debug> debugController;
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(debugController.ReleaseAndGetAddressOf()))))
     {
         debugController->EnableDebugLayer();
-        debugController->Release();
+        // debugController会在离开作用域时自动释放
     }
 #endif
 
@@ -105,9 +105,11 @@ bool DX12Renderer::CreateDeviceAndSwapChain()
 
     // 查找支持DirectX 12的GPU
     bool foundAdapter = false;
-    Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
-    for (uint32_t adapterIndex = 0; !foundAdapter && DXGI_ERROR_NOT_FOUND != m_factory->EnumAdapters1(adapterIndex, &adapter); ++adapterIndex)
+    TSharePtr<IDXGIAdapter1> adapter;
+    IDXGIAdapter1* adapterPtr = nullptr;
+    for (uint32_t adapterIndex = 0; !foundAdapter && DXGI_ERROR_NOT_FOUND != m_factory->EnumAdapters1(adapterIndex, &adapterPtr); ++adapterIndex)
     {
+        adapter = TSharePtr<IDXGIAdapter1>(adapterPtr);
         DXGI_ADAPTER_DESC1 desc;
         adapter->GetDesc1(&desc);
 
@@ -165,7 +167,7 @@ bool DX12Renderer::CreateDeviceAndSwapChain()
     swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     // 创建交换链
-    wrl::ComPtr<IDXGISwapChain1> swapChain1;
+    TSharePtr<IDXGISwapChain1> swapChain1;
     hr = m_factory->CreateSwapChainForHwnd(
         m_commandQueue.Get(),
         m_hWnd,  // 使用传入的窗口句柄
@@ -182,7 +184,7 @@ bool DX12Renderer::CreateDeviceAndSwapChain()
     }
 
     // 提升到IDXGISwapChain4
-    hr = swapChain1.As(&m_swapChain);
+    hr = swapChain1.As(m_swapChain);
     if (FAILED(hr))
     {
         std::cerr << "Failed to upgrade swap chain to IDXGISwapChain4." << std::endl;
@@ -372,11 +374,194 @@ void DX12Renderer::CreateDepthStencilView()
 void DX12Renderer::SetRootSignature(std::unique_ptr<IRALRootSignature> rootSignature)
 {
     m_rootSignature = std::move(rootSignature);
+    logDebug("[DEBUG] DX12Renderer::SetRootSignature called and stored");
 }
 
-// 创建根签名
-void DX12Renderer::CreateRootSignature()
+// 通用着色器编译辅助方法
+ComPtr<ID3DBlob> DX12Renderer::CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target)
 {
+    ComPtr<ID3DBlob> shaderBlob;
+    ComPtr<ID3DBlob> errorBlob;
+    HRESULT hr = D3DCompile(
+        shaderCode,
+        strlen(shaderCode),
+        nullptr,  // 可选的文件名
+        nullptr,  // 可选的宏定义
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,
+        entryPoint,
+        target,
+        0,        // 编译选项
+        0,        // 效果标志
+        shaderBlob.ReleaseAndGetAddressOf(),
+        errorBlob.ReleaseAndGetAddressOf()
+    );
+
+    if (FAILED(hr))
+    {
+        if (errorBlob)
+        {
+            std::string errorMsg = "Failed to compile shader: " + std::string(static_cast<char*>(errorBlob->GetBufferPointer()));
+            logDebug("[DEBUG] " + errorMsg);
+            std::cerr << errorMsg << std::endl;
+        }
+        else
+        {
+            std::string errorMsg = "Failed to compile shader without detailed error. HRESULT: " + std::to_string(hr);
+            logDebug("[DEBUG] " + errorMsg);
+            std::cerr << errorMsg << std::endl;
+        }
+        return nullptr;
+    }
+
+    logDebug("[DEBUG] Shader compiled successfully: " + std::string(entryPoint) + " (" + std::string(target) + ")");
+    return shaderBlob;
+}
+
+// 编译顶点着色器
+std::unique_ptr<IRALVertexShader> DX12Renderer::CompileVertexShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "vs_5_0");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto vertexShader = std::make_unique<DX12RALVertexShader>();
+    vertexShader->SetNativeShader(shaderBlob.Get());
+    return vertexShader;
+}
+
+// 编译像素着色器
+std::unique_ptr<IRALPixelShader> DX12Renderer::CompilePixelShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "ps_5_0");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto pixelShader = std::make_unique<DX12RALPixelShader>();
+    pixelShader->SetNativeShader(shaderBlob.Get());
+    return pixelShader;
+}
+
+// 编译几何着色器
+std::unique_ptr<IRALGeometryShader> DX12Renderer::CompileGeometryShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "gs_5_0");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto geometryShader = std::make_unique<DX12RALGeometryShader>();
+    geometryShader->SetNativeShader(shaderBlob.Get());
+    return geometryShader;
+}
+
+// 编译计算着色器
+std::unique_ptr<IRALComputeShader> DX12Renderer::CompileComputeShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "cs_5_0");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto computeShader = std::make_unique<DX12RALComputeShader>();
+    computeShader->SetNativeShader(shaderBlob.Get());
+    return computeShader;
+}
+
+// 编译网格着色器
+std::unique_ptr<IRALMeshShader> DX12Renderer::CompileMeshShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "ms_6_5");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto meshShader = std::make_unique<DX12RALMeshShader>();
+    meshShader->SetNativeShader(shaderBlob.Get());
+    return meshShader;
+}
+
+// 编译放大着色器
+std::unique_ptr<IRALAmplificationShader> DX12Renderer::CompileAmplificationShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "as_6_5");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto amplificationShader = std::make_unique<DX12RALAmplificationShader>();
+    amplificationShader->SetNativeShader(shaderBlob.Get());
+    return amplificationShader;
+}
+
+// 编译光线生成着色器
+std::unique_ptr<IRALRayGenShader> DX12Renderer::CompileRayGenShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto rayGenShader = std::make_unique<DX12RALRayGenShader>();
+    rayGenShader->SetNativeShader(shaderBlob.Get());
+    return rayGenShader;
+}
+
+// 编译光线未命中着色器
+std::unique_ptr<IRALRayMissShader> DX12Renderer::CompileRayMissShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto rayMissShader = std::make_unique<DX12RALRayMissShader>();
+    rayMissShader->SetNativeShader(shaderBlob.Get());
+    return rayMissShader;
+}
+
+// 编译光线命中组着色器
+std::unique_ptr<IRALRayHitGroupShader> DX12Renderer::CompileRayHitGroupShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto rayHitGroupShader = std::make_unique<DX12RALRayHitGroupShader>();
+    rayHitGroupShader->SetNativeShader(shaderBlob.Get());
+    return rayHitGroupShader;
+}
+
+// 编译光线可调用着色器
+std::unique_ptr<IRALRayCallableShader> DX12Renderer::CompileRayCallableShader(const char* shaderCode, const char* entryPoint)
+{
+    ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
+    if (!shaderBlob)
+    {
+        return nullptr;
+    }
+
+    auto rayCallableShader = std::make_unique<DX12RALRayCallableShader>();
+    rayCallableShader->SetNativeShader(shaderBlob.Get());
+    return rayCallableShader;
+}
+
+// 创建并获取根签名
+std::unique_ptr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
+{
+    logDebug("[DEBUG] DX12Renderer::CreateAndGetRootSignature called");
+    
     // 定义根参数
     std::vector<D3D12_ROOT_PARAMETER> rootParameters(2);
 
@@ -417,8 +602,8 @@ void DX12Renderer::CreateRootSignature()
     rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // 序列化根签名
-    wrl::ComPtr<ID3DBlob> rootSignatureBlob;
-    wrl::ComPtr<ID3DBlob> errorBlob;
+    TSharePtr<ID3DBlob> rootSignatureBlob;
+    TSharePtr<ID3DBlob> errorBlob;
     HRESULT hr = D3D12SerializeRootSignature(
         &rootSignatureDesc,
         D3D_ROOT_SIGNATURE_VERSION_1_0,
@@ -430,13 +615,112 @@ void DX12Renderer::CreateRootSignature()
     {
         if (errorBlob)
         {
-            std::cerr << "Failed to serialize root signature: " << static_cast<char*>(errorBlob->GetBufferPointer()) << std::endl;
+            std::string errorMsg = "Failed to serialize root signature: " + std::string(static_cast<char*>(errorBlob->GetBufferPointer()));
+            logDebug("[DEBUG] " + errorMsg);
+            std::cerr << errorMsg << std::endl;
         }
+        logDebug("[DEBUG] Failed to serialize root signature");
+        return nullptr;
+    }
+
+    // 创建根签名
+    TSharePtr<ID3D12RootSignature> d3d12RootSignature;
+    hr = m_device->CreateRootSignature(
+        0,
+        rootSignatureBlob->GetBufferPointer(),
+        rootSignatureBlob->GetBufferSize(),
+        IID_PPV_ARGS(d3d12RootSignature.ReleaseAndGetAddressOf())
+    );
+
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to create root signature. HRESULT: " << hr << std::endl;
+        logDebug("[DEBUG] Failed to create root signature");
+        return nullptr;
+    }
+    
+    logDebug("[DEBUG] Root signature created successfully");
+    
+    // 创建并返回IRALRootSignature对象
+    auto ralRootSignature = std::make_unique<DX12RALRootSignature>();
+    static_cast<DX12RALRootSignature*>(ralRootSignature.get())->SetNativeRootSignature(d3d12RootSignature.Get());
+    
+    return ralRootSignature;
+}
+
+// 创建根签名（旧方法，保持兼容性，但现在会调用新方法）
+void DX12Renderer::CreateRootSignature()
+{
+    logDebug("[DEBUG] DX12Renderer::CreateRootSignature called (deprecated, use CreateAndGetRootSignature instead)");
+    
+    // 由于根签名现在由Scene管理，这个方法可能不再需要
+    // 但为了保持兼容性，我们仍然实现它
+    // 这里我们可以选择调用新方法并忽略结果，或者保留旧的实现
+    
+    // 保留旧的实现，以便向后兼容
+    // 定义根参数
+    std::vector<D3D12_ROOT_PARAMETER> rootParameters(2);
+
+    // 根参数0: 常量缓冲区视图（变换矩阵）
+    rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rootParameters[0].Descriptor.ShaderRegister = 0;
+    rootParameters[0].Descriptor.RegisterSpace = 0;
+
+    // 根参数1: 常量缓冲区视图（材质和光照）
+    rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[1].Descriptor.ShaderRegister = 0;
+    rootParameters[1].Descriptor.RegisterSpace = 0;
+
+    // 定义静态采样器
+    D3D12_STATIC_SAMPLER_DESC samplerDesc = {};
+    samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    samplerDesc.MipLODBias = 0.0f;
+    samplerDesc.MaxAnisotropy = 1;
+    samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    samplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    samplerDesc.MinLOD = 0.0f;
+    samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+    samplerDesc.ShaderRegister = 0;
+    samplerDesc.RegisterSpace = 0;
+    samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 创建根签名描述
+    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.NumParameters = static_cast<uint32_t>(rootParameters.size());
+    rootSignatureDesc.pParameters = rootParameters.data();
+    rootSignatureDesc.NumStaticSamplers = 1;
+    rootSignatureDesc.pStaticSamplers = &samplerDesc;
+    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    // 序列化根签名
+    TSharePtr<ID3DBlob> rootSignatureBlob;
+    TSharePtr<ID3DBlob> errorBlob;
+    HRESULT hr = D3D12SerializeRootSignature(
+        &rootSignatureDesc,
+        D3D_ROOT_SIGNATURE_VERSION_1_0,
+        rootSignatureBlob.ReleaseAndGetAddressOf(),
+        errorBlob.ReleaseAndGetAddressOf()
+    );
+
+    if (FAILED(hr))
+    {
+        if (errorBlob)
+        {
+            std::string errorMsg = "Failed to serialize root signature: " + std::string(static_cast<char*>(errorBlob->GetBufferPointer()));
+            logDebug("[DEBUG] " + errorMsg);
+            std::cerr << errorMsg << std::endl;
+        }
+        logDebug("[DEBUG] Failed to serialize root signature");
         throw std::runtime_error("Failed to serialize root signature.");
     }
 
     // 创建根签名
-    wrl::ComPtr<ID3D12RootSignature> d3d12RootSignature;
+    TSharePtr<ID3D12RootSignature> d3d12RootSignature;
     hr = m_device->CreateRootSignature(
         0,
         rootSignatureBlob->GetBufferPointer(),
@@ -450,6 +734,8 @@ void DX12Renderer::CreateRootSignature()
         throw std::runtime_error("Failed to create root signature.");
     }
 
+    logDebug("[DEBUG] Root signature created in CreateRootSignature");
+    
     // 创建并设置IRALRootSignature对象
     auto ralRootSignature = std::make_unique<DX12RALRootSignature>();
     static_cast<DX12RALRootSignature*>(ralRootSignature.get())->SetNativeRootSignature(d3d12RootSignature.Get());
@@ -520,8 +806,8 @@ void DX12Renderer::CreatePipelineStateObjects()
         "}";
 
     // 编译顶点着色器
-    wrl::ComPtr<ID3DBlob> vertexShaderBlob;
-    wrl::ComPtr<ID3DBlob> errorBlob;
+    TSharePtr<ID3DBlob> vertexShaderBlob;
+    TSharePtr<ID3DBlob> errorBlob;
     HRESULT hr = D3DCompile(
         vertexShaderCode,
         strlen(vertexShaderCode),
@@ -546,7 +832,7 @@ void DX12Renderer::CreatePipelineStateObjects()
     }
 
     // 编译像素着色器
-    wrl::ComPtr<ID3DBlob> pixelShaderBlob;
+    TSharePtr<ID3DBlob> pixelShaderBlob;
     hr = D3DCompile(
         pixelShaderCode,
         strlen(pixelShaderCode),
@@ -649,7 +935,7 @@ void DX12Renderer::CreatePipelineStateObjects()
 }
 
 // 创建缓冲区
-wrl::ComPtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
+TSharePtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
                                                      D3D12_HEAP_PROPERTIES heapProps,
                                                      D3D12_RESOURCE_STATES initialState)
 {
@@ -666,7 +952,7 @@ wrl::ComPtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOUR
     desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     desc.Flags = flags;
 
-    wrl::ComPtr<ID3D12Resource> buffer;
+    TSharePtr<ID3D12Resource> buffer;
     HRESULT hr = m_device->CreateCommittedResource(
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
@@ -686,7 +972,7 @@ wrl::ComPtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOUR
 
 // 上传资源数据
 template<typename T>
-void DX12Renderer::UploadBufferData(wrl::ComPtr<ID3D12Resource>& buffer, const std::vector<T>& data)
+void DX12Renderer::UploadBufferData(TSharePtr<ID3D12Resource>& buffer, const std::vector<T>& data)
 {
     // 创建上传堆
     D3D12_HEAP_PROPERTIES heapProps = {};
@@ -713,8 +999,8 @@ void DX12Renderer::UploadBufferData(wrl::ComPtr<ID3D12Resource>& buffer, const s
 
     // 创建一个临时的命令分配器和命令列表来执行复制操作
     // 这样就不会影响主命令列表的状态
-    wrl::ComPtr<ID3D12CommandAllocator> tempCommandAllocator;
-    wrl::ComPtr<ID3D12GraphicsCommandList> tempCommandList;
+    TSharePtr<ID3D12CommandAllocator> tempCommandAllocator;
+    TSharePtr<ID3D12GraphicsCommandList> tempCommandList;
     
     // 创建临时命令分配器
     HRESULT hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -858,7 +1144,7 @@ void DX12Renderer::RenderPrimitive(const dx::XMMATRIX& worldMatrix, const dx::XM
     dx::XMStoreFloat4x4(&worldData.WorldMatrix, dx::XMMatrixTranspose(worldMatrix));
     
     // 创建一个临时的常量缓冲区用于存储世界矩阵
-    wrl::ComPtr<ID3D12Resource> worldMatrixBuffer;
+    TSharePtr<ID3D12Resource> worldMatrixBuffer;
     try
     {
         worldMatrixBuffer = CreateBuffer(
@@ -1215,4 +1501,632 @@ void DX12Renderer::Cleanup()
     }
 
     // 释放资源（智能指针会自动处理）
+}
+
+// 创建图形管线状态
+std::unique_ptr<IGraphicsPipelineState> DX12Renderer::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc)
+{
+    // 创建D3D12图形管线状态描述
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    
+    // 设置输入布局
+    if (desc.inputLayout) {
+        // 假设inputLayout是std::vector<RALVertexAttribute>*
+        std::vector<D3D12_INPUT_ELEMENT_DESC> d3dInputLayout;
+        for (const auto& attr : *desc.inputLayout) {
+            D3D12_INPUT_ELEMENT_DESC element = {};
+            // 设置元素名称
+            switch (attr.semantic) {
+            case RALVertexSemantic::Position:
+                element.SemanticName = "POSITION";
+                break;
+            case RALVertexSemantic::Normal:
+                element.SemanticName = "NORMAL";
+                break;
+            case RALVertexSemantic::Tangent:
+                element.SemanticName = "TANGENT";
+                break;
+            case RALVertexSemantic::Bitangent:
+                element.SemanticName = "BINORMAL";
+                break;
+            case RALVertexSemantic::TexCoord0:
+                element.SemanticName = "TEXCOORD";
+                element.SemanticIndex = 0;
+                break;
+            case RALVertexSemantic::TexCoord1:
+                element.SemanticName = "TEXCOORD";
+                element.SemanticIndex = 1;
+                break;
+            case RALVertexSemantic::Color0:
+                element.SemanticName = "COLOR";
+                element.SemanticIndex = 0;
+                break;
+            case RALVertexSemantic::Color1:
+                element.SemanticName = "COLOR";
+                element.SemanticIndex = 1;
+                break;
+            case RALVertexSemantic::BoneIndices:
+                element.SemanticName = "BLENDINDICES";
+                break;
+            case RALVertexSemantic::BoneWeights:
+                element.SemanticName = "BLENDWEIGHT";
+                break;
+            default:
+                element.SemanticName = "UNKNOWN";
+                break;
+            }
+            
+            // 设置格式
+            switch (attr.format) {
+            case RALVertexFormat::Float1:
+                element.Format = DXGI_FORMAT_R32_FLOAT;
+                break;
+            case RALVertexFormat::Float2:
+                element.Format = DXGI_FORMAT_R32G32_FLOAT;
+                break;
+            case RALVertexFormat::Float3:
+                element.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+                break;
+            case RALVertexFormat::Float4:
+                element.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+                break;
+            case RALVertexFormat::UByte4N:
+                element.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+                break;
+            case RALVertexFormat::Byte4N:
+                element.Format = DXGI_FORMAT_R8G8B8A8_SNORM;
+                break;
+            default:
+                element.Format = DXGI_FORMAT_UNKNOWN;
+                break;
+            }
+            
+            element.InputSlot = attr.bufferSlot;
+            element.AlignedByteOffset = attr.offset;
+            element.InputSlotClass = attr.bufferSlot >= 1 ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+            element.InstanceDataStepRate = attr.bufferSlot >= 1 ? 1 : 0;
+            
+            d3dInputLayout.push_back(element);
+        }
+        
+        psoDesc.InputLayout = { d3dInputLayout.data(), static_cast<UINT>(d3dInputLayout.size()) };
+    }
+    
+    // 设置根签名
+    if (desc.rootSignature) {
+        psoDesc.pRootSignature = static_cast<ID3D12RootSignature*>(desc.rootSignature->GetNativeResource());
+    }
+    
+    // 设置顶点着色器
+    if (desc.vertexShader) {
+        auto dx12VertexShader = static_cast<DX12RALVertexShader*>(desc.vertexShader);
+        ID3DBlob* shaderBlob = dx12VertexShader->GetNativeShader();
+        if (shaderBlob) {
+            psoDesc.VS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
+        }
+    }
+    
+    // 设置像素着色器
+    if (desc.pixelShader) {
+        auto dx12PixelShader = static_cast<DX12RALPixelShader*>(desc.pixelShader);
+        ID3DBlob* shaderBlob = dx12PixelShader->GetNativeShader();
+        if (shaderBlob) {
+            psoDesc.PS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
+        }
+    }
+    
+    // 设置几何着色器
+    if (desc.geometryShader) {
+        auto dx12GeometryShader = static_cast<DX12RALGeometryShader*>(desc.geometryShader);
+        ID3DBlob* shaderBlob = dx12GeometryShader->GetNativeShader();
+        if (shaderBlob) {
+            psoDesc.GS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
+        }
+    }
+    
+    // 设置图元拓扑类型
+    switch (desc.primitiveTopologyType) {
+    case RALPrimitiveTopologyType::TriangleList:
+    case RALPrimitiveTopologyType::TriangleStrip:
+    case RALPrimitiveTopologyType::TriangleListAdj:
+    case RALPrimitiveTopologyType::TriangleStripAdj:
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        break;
+    case RALPrimitiveTopologyType::LineList:
+    case RALPrimitiveTopologyType::LineStrip:
+    case RALPrimitiveTopologyType::LineListAdj:
+    case RALPrimitiveTopologyType::LineStripAdj:
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+        break;
+    case RALPrimitiveTopologyType::PointList:
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+        break;
+    default:
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        break;
+    }
+    
+    // 设置光栅化状态
+    D3D12_RASTERIZER_DESC rasterizerDesc = {};
+    switch (desc.rasterizerState.fillMode) {
+    case RALFillMode::Wireframe:
+        rasterizerDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+        break;
+    case RALFillMode::Solid:
+    default:
+        rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+        break;
+    }
+    
+    switch (desc.rasterizerState.cullMode) {
+    case RALCullMode::None:
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+        break;
+    case RALCullMode::Front:
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_FRONT;
+        break;
+    case RALCullMode::Back:
+    default:
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+        break;
+    }
+    
+    rasterizerDesc.FrontCounterClockwise = desc.rasterizerState.frontCounterClockwise;
+    rasterizerDesc.DepthBias = desc.rasterizerState.depthBias;
+    rasterizerDesc.DepthBiasClamp = desc.rasterizerState.depthBiasClamp;
+    rasterizerDesc.SlopeScaledDepthBias = desc.rasterizerState.slopeScaledDepthBias;
+    rasterizerDesc.DepthClipEnable = desc.rasterizerState.depthClipEnable;
+    rasterizerDesc.MultisampleEnable = desc.rasterizerState.multisampleEnable;
+    rasterizerDesc.AntialiasedLineEnable = desc.rasterizerState.antialiasedLineEnable;
+    rasterizerDesc.ForcedSampleCount = desc.rasterizerState.forcedSampleCount;
+    rasterizerDesc.ConservativeRaster = desc.rasterizerState.conservativeRaster ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    psoDesc.RasterizerState = rasterizerDesc;
+    
+    // 设置混合状态
+    D3D12_BLEND_DESC blendDesc = {};
+    blendDesc.AlphaToCoverageEnable = desc.blendState.alphaToCoverageEnable;
+    blendDesc.IndependentBlendEnable = desc.blendState.independentBlendEnable;
+    
+    for (uint32_t i = 0; i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT && i < desc.numRenderTargets; ++i) {
+        const auto& rtBlendState = desc.renderTargetBlendStates[i];
+        auto& rtBlendDesc = blendDesc.RenderTarget[i];
+        
+        rtBlendDesc.BlendEnable = rtBlendState.blendEnable;
+        rtBlendDesc.LogicOpEnable = rtBlendState.logicOpEnable;
+        
+        // 设置源混合因子和目标混合因子
+        switch (rtBlendState.srcBlend) {
+        case RALBlendFactor::Zero:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_ZERO;
+            break;
+        case RALBlendFactor::One:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_ONE;
+            break;
+        case RALBlendFactor::SourceColor:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_COLOR;
+            break;
+        case RALBlendFactor::OneMinusSourceColor:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_INV_SRC_COLOR;
+            break;
+        case RALBlendFactor::SourceAlpha:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusSourceAlpha:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_INV_SRC_ALPHA;
+            break;
+        case RALBlendFactor::DestinationAlpha:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_DEST_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusDestinationAlpha:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_INV_DEST_ALPHA;
+            break;
+        case RALBlendFactor::DestinationColor:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_DEST_COLOR;
+            break;
+        case RALBlendFactor::OneMinusDestinationColor:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+            break;
+        case RALBlendFactor::SourceAlphaSaturate:
+            rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA_SAT;
+            break;
+        default:
+            // 使用默认值
+            break;
+        }
+        
+        // 目标混合因子
+        switch (rtBlendState.destBlend) {
+        case RALBlendFactor::Zero:
+            rtBlendDesc.DestBlend = D3D12_BLEND_ZERO;
+            break;
+        case RALBlendFactor::One:
+            rtBlendDesc.DestBlend = D3D12_BLEND_ONE;
+            break;
+        case RALBlendFactor::SourceColor:
+            rtBlendDesc.DestBlend = D3D12_BLEND_SRC_COLOR;
+            break;
+        case RALBlendFactor::OneMinusSourceColor:
+            rtBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_COLOR;
+            break;
+        case RALBlendFactor::SourceAlpha:
+            rtBlendDesc.DestBlend = D3D12_BLEND_SRC_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusSourceAlpha:
+            rtBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+            break;
+        case RALBlendFactor::DestinationAlpha:
+            rtBlendDesc.DestBlend = D3D12_BLEND_DEST_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusDestinationAlpha:
+            rtBlendDesc.DestBlend = D3D12_BLEND_INV_DEST_ALPHA;
+            break;
+        case RALBlendFactor::DestinationColor:
+            rtBlendDesc.DestBlend = D3D12_BLEND_DEST_COLOR;
+            break;
+        case RALBlendFactor::OneMinusDestinationColor:
+            rtBlendDesc.DestBlend = D3D12_BLEND_INV_DEST_COLOR;
+            break;
+        default:
+            // 使用默认值
+            break;
+        }
+        
+        // 混合操作
+        switch (rtBlendState.blendOp) {
+        case RALBlendOp::Add:
+            rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+            break;
+        case RALBlendOp::Subtract:
+            rtBlendDesc.BlendOp = D3D12_BLEND_OP_SUBTRACT;
+            break;
+        case RALBlendOp::ReverseSubtract:
+            rtBlendDesc.BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
+            break;
+        case RALBlendOp::Min:
+            rtBlendDesc.BlendOp = D3D12_BLEND_OP_MIN;
+            break;
+        case RALBlendOp::Max:
+            rtBlendDesc.BlendOp = D3D12_BLEND_OP_MAX;
+            break;
+        default:
+            // 使用默认值
+            break;
+        }
+        
+        // Alpha混合因子和操作（类似RGB部分）
+        switch (rtBlendState.srcBlendAlpha) {
+        case RALBlendFactor::Zero:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ZERO;
+            break;
+        case RALBlendFactor::One:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+            break;
+        case RALBlendFactor::SourceColor:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_SRC_COLOR;
+            break;
+        case RALBlendFactor::OneMinusSourceColor:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_INV_SRC_COLOR;
+            break;
+        case RALBlendFactor::SourceAlpha:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusSourceAlpha:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+            break;
+        case RALBlendFactor::DestinationAlpha:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusDestinationAlpha:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_INV_DEST_ALPHA;
+            break;
+        case RALBlendFactor::DestinationColor:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_DEST_COLOR;
+            break;
+        case RALBlendFactor::OneMinusDestinationColor:
+            rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_INV_DEST_COLOR;
+            break;
+        default:
+            // 使用默认值
+            break;
+        }
+        
+        switch (rtBlendState.destBlendAlpha) {
+        case RALBlendFactor::Zero:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+            break;
+        case RALBlendFactor::One:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
+            break;
+        case RALBlendFactor::SourceColor:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_SRC_COLOR;
+            break;
+        case RALBlendFactor::OneMinusSourceColor:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_INV_SRC_COLOR;
+            break;
+        case RALBlendFactor::SourceAlpha:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusSourceAlpha:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+            break;
+        case RALBlendFactor::DestinationAlpha:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+            break;
+        case RALBlendFactor::OneMinusDestinationAlpha:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_INV_DEST_ALPHA;
+            break;
+        case RALBlendFactor::DestinationColor:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_DEST_COLOR;
+            break;
+        case RALBlendFactor::OneMinusDestinationColor:
+            rtBlendDesc.DestBlendAlpha = D3D12_BLEND_INV_DEST_COLOR;
+            break;
+        default:
+            // 使用默认值
+            break;
+        }
+        
+        switch (rtBlendState.blendOpAlpha) {
+        case RALBlendOp::Add:
+            rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+            break;
+        case RALBlendOp::Subtract:
+            rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_SUBTRACT;
+            break;
+        case RALBlendOp::ReverseSubtract:
+            rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_REV_SUBTRACT;
+            break;
+        case RALBlendOp::Min:
+            rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_MIN;
+            break;
+        case RALBlendOp::Max:
+            rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_MAX;
+            break;
+        default:
+            // 使用默认值
+            break;
+        }
+        
+        // 逻辑操作
+        switch (rtBlendState.logicOp) {
+        case RALLogicOp::Copy:
+            rtBlendDesc.LogicOp = D3D12_LOGIC_OP_COPY;
+            break;
+        case RALLogicOp::Noop:
+            rtBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+            break;
+        case RALLogicOp::Set:
+            rtBlendDesc.LogicOp = D3D12_LOGIC_OP_SET;
+            break;
+        // RALLogicOp枚举中没有Clear和Invert，这里不做处理
+        // case RALLogicOp::Clear:
+        //    rtBlendDesc.LogicOp = D3D12_LOGIC_OP_CLEAR;
+        //    break;
+        // case RALLogicOp::Invert:
+        //    rtBlendDesc.LogicOp = D3D12_LOGIC_OP_INVERT;
+        //    break;
+        case RALLogicOp::Or:
+            // D3D12_LOGIC_OP_OR在某些版本可能不可用，使用等效操作
+            break;
+        case RALLogicOp::And:
+            // D3D12_LOGIC_OP_AND在某些版本可能不可用，使用等效操作
+            break;
+        case RALLogicOp::Xor:
+            // D3D12_LOGIC_OP_XOR在某些版本可能不可用，使用等效操作
+            break;
+        case RALLogicOp::Nor:
+            // D3D12_LOGIC_OP_NOR在某些版本可能不可用，使用等效操作
+            break;
+        case RALLogicOp::Nand:
+            // D3D12_LOGIC_OP_NAND在某些版本可能不可用，使用等效操作
+            break;
+        case RALLogicOp::Equiv:
+            // D3D12_LOGIC_OP_EQUIV在某些版本可能不可用，使用等效操作
+            break;
+        default:
+            // 默认使用NOOP
+            break;
+        }
+        
+        // 颜色写入掩码
+        rtBlendDesc.RenderTargetWriteMask = static_cast<uint8_t>(rtBlendState.colorWriteMask);
+    }
+    
+    psoDesc.BlendState = blendDesc;
+    
+    // 设置深度模板状态
+    D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+    depthStencilDesc.DepthEnable = desc.depthStencilState.depthEnable;
+    depthStencilDesc.DepthWriteMask = desc.depthStencilState.depthWriteMask ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+    
+    switch (desc.depthStencilState.depthFunc) {
+    case RALCompareOp::Never:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_NEVER;
+        break;
+    case RALCompareOp::Less:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+        break;
+    case RALCompareOp::Equal:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+        break;
+    case RALCompareOp::LessOrEqual:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        break;
+    case RALCompareOp::Greater:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+        break;
+    case RALCompareOp::NotEqual:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_NOT_EQUAL;
+        break;
+    case RALCompareOp::GreaterOrEqual:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+        break;
+    case RALCompareOp::Always:
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+        break;
+    default:
+        // 默认使用LESS
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+        break;
+    }
+    
+    depthStencilDesc.StencilEnable = desc.depthStencilState.stencilEnable;
+    depthStencilDesc.StencilReadMask = desc.depthStencilState.stencilReadMask;
+    depthStencilDesc.StencilWriteMask = desc.depthStencilState.stencilWriteMask;
+    
+    // 设置前向面模板操作
+    switch (desc.depthStencilState.frontFace.failOp) {
+    case RALStencilOp::Keep:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+        break;
+    case RALStencilOp::Zero:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_ZERO;
+        break;
+    case RALStencilOp::Replace:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_REPLACE;
+        break;
+    case RALStencilOp::IncrementClamp:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_INCR_SAT;
+        break;
+    case RALStencilOp::DecrementClamp:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_DECR_SAT;
+        break;
+    case RALStencilOp::Invert:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_INVERT;
+        break;
+    case RALStencilOp::IncrementWrap:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_INCR;
+        break;
+    case RALStencilOp::DecrementWrap:
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_DECR;
+        break;
+    default:
+        // 默认使用KEEP
+        depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+        break;
+    }
+    
+    switch (desc.depthStencilState.frontFace.depthFailOp) {
+    case RALStencilOp::Keep:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+        break;
+    case RALStencilOp::Zero:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_ZERO;
+        break;
+    case RALStencilOp::Replace:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_REPLACE;
+        break;
+    case RALStencilOp::IncrementClamp:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_INCR_SAT;
+        break;
+    case RALStencilOp::DecrementClamp:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_DECR_SAT;
+        break;
+    case RALStencilOp::Invert:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_INVERT;
+        break;
+    case RALStencilOp::IncrementWrap:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_INCR;
+        break;
+    case RALStencilOp::DecrementWrap:
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_DECR;
+        break;
+    default:
+        // 默认使用KEEP
+        depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+        break;
+    }
+    
+    switch (desc.depthStencilState.frontFace.passOp) {
+    case RALStencilOp::Keep:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+        break;
+    case RALStencilOp::Zero:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_ZERO;
+        break;
+    case RALStencilOp::Replace:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+        break;
+    case RALStencilOp::IncrementClamp:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR_SAT;
+        break;
+    case RALStencilOp::DecrementClamp:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_DECR_SAT;
+        break;
+    case RALStencilOp::Invert:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INVERT;
+        break;
+    case RALStencilOp::IncrementWrap:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+        break;
+    case RALStencilOp::DecrementWrap:
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_DECR;
+        break;
+    default:
+        // 默认使用KEEP
+        depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+        break;
+    }
+    
+    switch (desc.depthStencilState.frontFace.compareFunc) {
+    case RALCompareOp::Never:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NEVER;
+        break;
+    case RALCompareOp::Less:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_LESS;
+        break;
+    case RALCompareOp::Equal:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+        break;
+    case RALCompareOp::LessOrEqual:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        break;
+    case RALCompareOp::Greater:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_GREATER;
+        break;
+    case RALCompareOp::NotEqual:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NOT_EQUAL;
+        break;
+    case RALCompareOp::GreaterOrEqual:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+        break;
+    case RALCompareOp::Always:
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+        break;
+    default:
+        // 默认使用ALWAYS
+        depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+        break;
+    }
+    
+    // 设置后向面模板操作（与前向面相同）
+    depthStencilDesc.BackFace = depthStencilDesc.FrontFace;
+    psoDesc.DepthStencilState = depthStencilDesc;
+    
+    // 设置采样器掩码和渲染目标格式
+    psoDesc.SampleMask = desc.sampleMask;
+    psoDesc.NumRenderTargets = desc.numRenderTargets;
+    
+    for (uint32_t i = 0; i < desc.numRenderTargets && i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT; ++i) {
+        psoDesc.RTVFormats[i] = static_cast<DXGI_FORMAT>(desc.renderTargetFormats[i]);
+    }
+    
+    psoDesc.DSVFormat = static_cast<DXGI_FORMAT>(desc.depthStencilFormat);
+    
+    // 设置采样描述
+    psoDesc.SampleDesc.Count = desc.sampleDesc.Count;
+    psoDesc.SampleDesc.Quality = desc.sampleDesc.Quality;
+    
+    // 创建D3D12管线状态对象
+    TSharePtr<ID3D12PipelineState> pipelineState;
+    HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf()));
+    if (FAILED(hr)) {
+        throw std::runtime_error("Failed to create graphics pipeline state object.");
+    }
+    
+    // 创建并返回RAL图形管线状态对象
+    auto ralPipelineState = std::make_unique<DX12RALGraphicsPipelineState>();
+    ralPipelineState->SetNativePipelineState(pipelineState.Get());
+    
+    return ralPipelineState;
 }
