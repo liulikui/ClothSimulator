@@ -53,6 +53,14 @@ Desktop.ini
 
 # 编辑器配置
 .vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Visual Studio Code Counter
+.VSCodeCounter/
 .idea/
 *.suo
 *.ntvs*
