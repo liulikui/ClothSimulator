@@ -24,7 +24,8 @@ namespace dx = DirectX;
 
 // XPBD (Extended Position Based Dynamics) 求解器
 // 一种基于位置的物理模拟系统，特别适合处理约束
-class XPBDSolver {
+class XPBDSolver
+{
 public:
     // 构造函数
     // 参数
@@ -34,10 +35,10 @@ public:
     //   iterations - 约束求解的迭代次数
     XPBDSolver(std::vector<Particle>& particles, std::vector<Constraint*>& constraints,
               float dt = 1.0f/60.0f, int iterations = 50)  // 增加迭代次数到50次，提高高分辨率布料的稳定性
-        : particles(particles), constraints(constraints), timeStep(dt), iterations(iterations)
+        : m_particles(particles), m_constraints(constraints), m_timeStep(dt), m_iterations(iterations)
     {
         // 初始化重力
-        gravity = dx::XMFLOAT3(0.0f, -9.81f, 0.0f);
+        m_gravity = dx::XMFLOAT3(0.0f, -9.81f, 0.0f);
     }
     
     // 析构函数
@@ -57,7 +58,7 @@ public:
     //   dt - 新的时间步长
     void SetTimeStep(float dt)
     {
-        timeStep = dt;
+        m_timeStep = dt;
     }
     
     // 设置约束求解的迭代次数
@@ -65,7 +66,7 @@ public:
     //   its - 新的迭代次数
     void SetIterations(int its)
     {
-        iterations = its;
+        m_iterations = its;
     }
     
     // 设置重力
@@ -73,7 +74,7 @@ public:
     //   g - 新的重力向量
     void SetGravity(const dx::XMFLOAT3& g)
     {
-        gravity = g;
+        m_gravity = g;
     }
     
     // 模拟一步
@@ -84,7 +85,7 @@ public:
         PredictPositions(deltaTime);
         
         // 2. 求解约束多次以获得更准确的结果
-        for (int i = 0; i < iterations; ++i)
+        for (int i = 0; i < m_iterations; ++i)
         {
             SolveConstraints(deltaTime);
         }
@@ -101,9 +102,9 @@ private:
     void PredictPositions(float deltaTime)
     {
         // 将重力转换为XMVECTOR进行计算
-        dx::XMVECTOR gravityVector = dx::XMLoadFloat3(&gravity);
+        dx::XMVECTOR gravityVector = dx::XMLoadFloat3(&m_gravity);
         
-        for (auto& particle : particles)
+        for (auto& particle : m_particles)
         {
             if (!particle.isStatic)
             {
@@ -111,7 +112,7 @@ private:
                 particle.oldPosition = particle.position;
                 
                 // 应用重力：重力本身就是力，不需要再乘以质量
-                particle.ApplyForce(gravity);
+                particle.ApplyForce(m_gravity);
                 
                 // 将粒子的位置和速度转换为XMVECTOR进行计算
                 dx::XMVECTOR pos = dx::XMLoadFloat3(&particle.position);
@@ -131,7 +132,7 @@ private:
     // 求解所有约束
     void SolveConstraints(float deltaTime)
     {
-        for (auto& constraint : constraints)
+        for (auto& constraint : m_constraints)
         {
             // 计算约束值
             float C = constraint->ComputeConstraintValue();
@@ -279,7 +280,7 @@ private:
         std::unordered_map<Particle*, dx::XMVECTOR> collisionGradients;
         
         // 首先收集所有碰撞约束的梯度信息
-        for (auto& constraint : constraints)
+        for (auto& constraint : m_constraints)
         {
             float C = constraint->ComputeConstraintValue();
             std::vector<Particle*> constraintParticles = constraint->GetParticles();
@@ -298,7 +299,7 @@ private:
         }
         const float maxVelocity = 100.0f; // 降低最大速度限制，提高稳定性
         
-        for (auto& particle : particles)
+        for (auto& particle : m_particles)
         {
             if (!particle.isStatic)
             {
@@ -366,7 +367,7 @@ private:
         const float defaultDampingFactor = 0.97f;
         const float highDampingFactor = 0.85f;
         
-        for (auto& particle : particles)
+        for (auto& particle : m_particles)
         {
             if (!particle.isStatic)
             {
@@ -389,11 +390,11 @@ private:
     }
     
     // 成员变量
-    std::vector<Particle>& particles; // 粒子数组的引用
-    std::vector<Constraint*>& constraints; // 约束数组的引用
-    float timeStep; // 时间步长
-    int iterations; // 约束求解的迭代次数
-    dx::XMFLOAT3 gravity; // 重力向量
+    std::vector<Particle>& m_particles; // 粒子数组的引用
+    std::vector<Constraint*>& m_constraints; // 约束数组的引用
+    float m_timeStep; // 时间步长
+    int m_iterations; // 约束求解的迭代次数
+    dx::XMFLOAT3 m_gravity; // 重力向量
     // std::ofstream debugFile; // 调试输出文件流（已禁用）
 };
 

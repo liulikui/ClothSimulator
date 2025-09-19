@@ -42,19 +42,19 @@ public:
     // 获取布料的所有粒子
     const std::vector<Particle>& GetParticles() const
     {
-        return particles;
+        return m_particles;
     }
     
     // 获取布料的宽度（粒子数）
     int GetWidth() const
     {
-        return width;
+        return m_width;
     }
     
     // 获取布料的高度（粒子数）
     int GetHeight() const
     {
-        return height;
+        return m_height;
     }
     
     // 使用传统方法检查布料粒子与球体的碰撞
@@ -75,18 +75,18 @@ public:
     // 设置是否使用XPBD碰撞约束
     void SetUseXPBDCollision(bool use)
     {
-        if (useXPBDCollision != use)
+        if (m_useXPBDCollision != use)
         {
-            useXPBDCollision = use;
+            m_useXPBDCollision = use;
             
             // 如果启用XPBD碰撞，将所有球体碰撞约束添加到总约束列表
             // 如果禁用XPBD碰撞，从总约束列表中删除所有球体碰撞约束
             // 注意：使用直接比较而非std::find，避免类型转换问题
-            auto it = constraints.begin();
-            while (it != constraints.end())
+            auto it = m_constraints.begin();
+            while (it != m_constraints.end())
             {
                 bool isSphereConstraint = false;
-                for (auto sphereConstraint : sphereConstraints)
+                for (auto sphereConstraint : m_sphereConstraints)
                 {
                     if (*it == reinterpret_cast<Constraint*>(sphereConstraint))
                     {
@@ -97,7 +97,7 @@ public:
 
                 if (isSphereConstraint)
                 {
-                    it = constraints.erase(it);
+                    it = m_constraints.erase(it);
                 } 
                 else 
                 {
@@ -105,27 +105,27 @@ public:
                 }
             }
             
-            if (useXPBDCollision)
+            if (m_useXPBDCollision)
             {
-                for (auto constraint : sphereConstraints)
+                for (auto constraint : m_sphereConstraints)
                 {
-                    constraints.push_back(reinterpret_cast<Constraint*>(constraint));
+                    m_constraints.push_back(reinterpret_cast<Constraint*>(constraint));
                 }
             }
         }
     }
     
     // 获取是否使用XPBD碰撞约束
-    bool GetUseXPBDCollision() const { return useXPBDCollision; }
+    bool GetUseXPBDCollision() const { return m_useXPBDCollision; }
 
     // 获取布料的顶点位置数据
-    const std::vector<dx::XMFLOAT3>& GetPositions() const override { return positions; }
+    const std::vector<dx::XMFLOAT3>& GetPositions() const override { return m_positions; }
     
     // 获取布料的顶点法线数据
-    const std::vector<dx::XMFLOAT3>& GetNormals() const override { return normals; }
+    const std::vector<dx::XMFLOAT3>& GetNormals() const override { return m_normals; }
     
     // 获取布料的索引数据
-    const std::vector<uint32_t>& GetIndices() const override { return indices; }
+    const std::vector<uint32_t>& GetIndices() const override { return m_indices; }
 
 private:
     // 创建布料的粒子
@@ -138,26 +138,26 @@ private:
     void InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
     
     // 布料的尺寸参数
-    int width; // 宽度方向的粒子数
-    int height; // 高度方向的粒子数
+    int m_width; // 宽度方向的粒子数
+    int m_height; // 高度方向的粒子数
     
     // 粒子和约束
-    std::vector<Particle> particles; // 布料的所有粒子
-    std::vector<DistanceConstraint> distanceConstraints; // 布料的所有距离约束
-    std::vector<Constraint*> constraints; // 约束指针数组，用于传递给求解器
-    std::vector<SphereCollisionConstraint*> sphereConstraints; // 球体碰撞约束
-    bool useXPBDCollision; // 是否使用XPBD碰撞约束
+    std::vector<Particle> m_particles; // 布料的所有粒子
+    std::vector<DistanceConstraint> m_distanceConstraints; // 布料的所有距离约束
+    std::vector<Constraint*> m_constraints; // 约束指针数组，用于传递给求解器
+    std::vector<SphereCollisionConstraint*> m_sphereConstraints; // 球体碰撞约束
+    bool m_useXPBDCollision; // 是否使用XPBD碰撞约束
     
     // XPBD求解器
-    XPBDSolver solver; // 用于求解布料的物理行为
+    XPBDSolver m_solver; // 用于求解布料的物理行为
     
     // 重力
-    dx::XMFLOAT3 gravity; // 作用在布料上的重力
+    dx::XMFLOAT3 m_gravity; // 作用在布料上的重力
     
     // 渲染数据
-    std::vector<dx::XMFLOAT3> positions; // 布料顶点位置数据
-    std::vector<dx::XMFLOAT3> normals; // 布料顶点法线数据
-    std::vector<uint32_t> indices; // 布料索引数据
+    std::vector<dx::XMFLOAT3> m_positions; // 布料顶点位置数据
+    std::vector<dx::XMFLOAT3> m_normals; // 布料顶点法线数据
+    std::vector<uint32_t> m_indices; // 布料索引数据
     
     // 渲染资源
     TSharePtr<IRALVertexBuffer> m_vertexBuffer;
