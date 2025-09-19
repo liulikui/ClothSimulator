@@ -19,15 +19,6 @@ public:
     // 纯虚函数，更新对象状态
     virtual void update(float deltaTime) = 0;
 
-    // 获取顶点位置数据
-    virtual const std::vector<dx::XMFLOAT3>& getPositions() const = 0;
-
-    // 获取顶点法线数据
-    virtual const std::vector<dx::XMFLOAT3>& getNormals() const = 0;
-
-    // 获取索引数据
-    virtual const std::vector<uint32_t>& getIndices() const = 0;
-
     // 获取对象的世界变换矩阵
     const dx::XMMATRIX& getWorldMatrix() const {
         return worldMatrix;
@@ -46,16 +37,6 @@ public:
 
     // 设置对象的缩放
     void setScale(const dx::XMFLOAT3& scale);
-
-    // 获取对象的材质颜色
-    const dx::XMFLOAT4& getDiffuseColor() const {
-        return diffuseColor;
-    }
-
-    // 设置对象的材质颜色
-    void setDiffuseColor(const dx::XMFLOAT4& color) {
-        diffuseColor = color;
-    }
 
     // 是否可见
     bool isVisible() const {

@@ -628,7 +628,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             static int renderCount = 0;
             renderCount++;
             logDebug("[DEBUG] Rendering scene, render count: " + std::to_string(renderCount));
-            logDebug("[DEBUG] Scene has " + std::to_string(scene->getPrimitiveCount()) + " primitives");
+            logDebug("[DEBUG] Scene has " + std::to_string(scene->getMeshCount()) + " meshes");
             
             // 直接调用渲染器的Render方法执行整个渲染流程
             logDebug("[DEBUG] Calling renderer->Render()");

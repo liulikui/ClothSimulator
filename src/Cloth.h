@@ -7,7 +7,7 @@
 #include "Constraint.h"
 #include "DistanceConstraint.h"
 #include "XPBDSolver.h"
-#include "Primitive.h"
+#include "Mesh.h"
 #include <cstdint> // For uint32_t
 
 // 前向声明
@@ -16,7 +16,7 @@ class SphereCollisionConstraint;
 // 为了方便使用，创建一个命名空间别名
 namespace dx = DirectX;
 
-class Cloth : public Primitive {
+class Cloth : public Mesh {
 public:
     // 构造函数：创建一个布料对象
     // 参数：

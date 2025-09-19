@@ -1,7 +1,7 @@
 #ifndef SPHERE_H
 #define SPHERE_H
 
-#include "Primitive.h"
+#include "Mesh.h"
 #include <DirectXMath.h>
 #include <vector>
 #include <cstdint>
@@ -9,7 +9,7 @@
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-class Sphere : public Primitive {
+class Sphere : public Mesh {
 public:
     // 构造函数：创建一个球体对象
     // 参数：

@@ -18,7 +18,7 @@ extern int& getCollisionConstraintCount();
 //   size - 布料的实际物理尺寸（以米为单位）
 //   mass - 每个粒子的质量
 Cloth::Cloth(const dx::XMFLOAT3& position, int width, int height, float size, float mass)
-    : Primitive(), width(width), height(height), solver(particles, constraints), useXPBDCollision(true) {
+    : Mesh(), width(width), height(height), solver(particles, constraints), useXPBDCollision(true) {
     // 设置布料的位置
     setPosition(position);
     // 创建粒子

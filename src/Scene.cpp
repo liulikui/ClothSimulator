@@ -241,29 +241,29 @@ void Scene::update(float deltaTime) {
     }
 }
 
-bool Scene::addPrimitive(std::shared_ptr<Primitive> primitive) {
-    if (!primitive) {
+bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
+    if (!mesh) {
         return false;
     }
 
     // 检查对象是否已经在场景中
-    auto it = std::find(primitives.begin(), primitives.end(), primitive);
+    auto it = std::find(primitives.begin(), primitives.end(), mesh);
     if (it != primitives.end()) {
         return false;
     }
 
     // 添加对象到场景中
-    primitives.push_back(primitive);
+    primitives.push_back(mesh);
     return true;
 }
 
-bool Scene::removePrimitive(std::shared_ptr<Primitive> primitive) {
-    if (!primitive) {
+bool Scene::removePrimitive(std::shared_ptr<Mesh> mesh) {
+    if (!mesh) {
         return false;
     }
 
     // 查找并移除对象
-    auto it = std::find(primitives.begin(), primitives.end(), primitive);
+    auto it = std::find(primitives.begin(), primitives.end(), mesh);
     if (it != primitives.end()) {
         primitives.erase(it);
         return true;
@@ -289,48 +289,48 @@ void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const
     renderer->UpdateLightPosition(lightPosition);
     renderer->UpdateLightColor(lightColor);
 
-    // 渲染每个可见的Primitive对象
-    logDebug("[DEBUG] Number of primitives in scene: " + std::to_string(primitives.size()));
+    // 渲染每个可见的Mesh对象
+    logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(primitives.size()));
     for (size_t i = 0; i < primitives.size(); ++i) {
-        auto& primitive = primitives[i];
-        logDebug("[DEBUG] Primitive " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(primitive.get())));
-        if (primitive && primitive->isVisible()) {
-            logDebug("[DEBUG] Primitive " + std::to_string(i) + " is visible");
+        auto& mesh = primitives[i];
+        logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
+        if (mesh && mesh->isVisible()) {
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
             
             // 获取对象类型
-            std::string typeName = typeid(*primitive).name();
-            logDebug("[DEBUG] Primitive " + std::to_string(i) + " type: " + typeName);
+            std::string typeName = typeid(*mesh).name();
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " type: " + typeName);
             
             // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
-            const dx::XMMATRIX& worldMatrix = primitive->getWorldMatrix();
-            const dx::XMFLOAT4& diffuseColor = primitive->getDiffuseColor();
-            const std::vector<dx::XMFLOAT3>& positions = primitive->getPositions();
-            const std::vector<dx::XMFLOAT3>& normals = primitive->getNormals();
-            const std::vector<uint32_t>& indices = primitive->getIndices();
+            const dx::XMMATRIX& worldMatrix = mesh->getWorldMatrix();
+            const dx::XMFLOAT4& diffuseColor = mesh->getDiffuseColor();
+            const std::vector<dx::XMFLOAT3>& positions = mesh->getPositions();
+            const std::vector<dx::XMFLOAT3>& normals = mesh->getNormals();
+            const std::vector<uint32_t>& indices = mesh->getIndices();
 
-            logDebug("[DEBUG] Primitive " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " + 
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " + 
                      std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
             
             // 检查是否有有效数据
             if (positions.empty() || normals.empty() || indices.empty()) {
-                logDebug("[DEBUG] Primitive " + std::to_string(i) + " has empty data, skipping");
+                logDebug("[DEBUG] Mesh " + std::to_string(i) + " has empty data, skipping");
                 continue;
             }
 
             // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
-            if (typeid(*primitive) == typeid(Cloth)) {
-                logDebug("[DEBUG] Rendering cloth primitive");
+            if (typeid(*mesh) == typeid(Cloth)) {
+                logDebug("[DEBUG] Rendering cloth mesh");
                 renderer->SetClothVertices(positions, normals, indices);
                 renderer->RenderPrimitive(worldMatrix, diffuseColor, true);
-            } else if (typeid(*primitive) == typeid(Sphere)) {
-                logDebug("[DEBUG] Rendering sphere primitive");
+            } else if (typeid(*mesh) == typeid(Sphere)) {
+                logDebug("[DEBUG] Rendering sphere mesh");
                 renderer->SetSphereVertices(positions, normals, indices);
                 renderer->RenderPrimitive(worldMatrix, diffuseColor, false);
             } else {
-                logDebug("[DEBUG] Unknown primitive type, skipping");
+                logDebug("[DEBUG] Unknown mesh type, skipping");
             }
         } else {
-            logDebug("[DEBUG] Primitive " + std::to_string(i) + " is null or not visible");
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
         }
     }
     logDebug("[DEBUG] Scene::render finished");

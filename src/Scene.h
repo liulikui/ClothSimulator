@@ -1,7 +1,7 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include "Primitive.h"
+#include "Mesh.h"
 #include "TSharePtr.h"
 #include "RALResource.h"
 #include <vector>
@@ -29,33 +29,33 @@ public:
     // 析构函数
     ~Scene();
     
-    // 获取场景中Primitive对象的数量
-    size_t getPrimitiveCount() const {
+    // 获取场景中Mesh对象的数量
+    size_t getMeshCount() const {
         return primitives.size();
     }
 
     // 更新场景中所有对象的状态
     void update(float deltaTime);
 
-    // 添加一个Primitive对象到场景中
+    // 添加一个Mesh对象到场景中
     // 参数：
-    //   primitive - 要添加的Primitive对象指针
+    //   mesh - 要添加的Mesh对象指针
     // 返回值：
     //   添加是否成功
-    bool addPrimitive(std::shared_ptr<Primitive> primitive);
+    bool addPrimitive(std::shared_ptr<Mesh> mesh);
 
-    // 从场景中移除一个Primitive对象
+    // 从场景中移除一个Mesh对象
     // 参数：
-    //   primitive - 要移除的Primitive对象指针
+    //   mesh - 要移除的Mesh对象指针
     // 返回值：
     //   移除是否成功
-    bool removePrimitive(std::shared_ptr<Primitive> primitive);
+    bool removePrimitive(std::shared_ptr<Mesh> mesh);
 
     // 清空场景中的所有对象
     void clear();
 
-    // 获取场景中的所有Primitive对象
-    const std::vector<std::shared_ptr<Primitive>>& getPrimitives() const {
+    // 获取场景中的所有Mesh对象
+    const std::vector<std::shared_ptr<Mesh>>& getPrimitives() const {
         return primitives;
     }
 
@@ -97,8 +97,8 @@ public:
     void render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
 private:
-    // 场景中的所有Primitive对象
-    std::vector<std::shared_ptr<Primitive>> primitives;
+    // 场景中的所有Mesh对象
+    std::vector<std::shared_ptr<Mesh>> primitives;
 
     // 场景的背景颜色
     dx::XMFLOAT4 backgroundColor = {0.9f, 0.9f, 0.9f, 1.0f}; // 默认浅灰色背景
