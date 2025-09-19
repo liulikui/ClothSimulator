@@ -87,7 +87,7 @@ bool DX12Renderer::CreateDeviceAndSwapChain()
 {
     // 在调试版本中启用D3D12调试层
 #ifdef _DEBUG
-    TSharePtr<ID3D12Debug> debugController;
+    ComPtr<ID3D12Debug> debugController;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(debugController.ReleaseAndGetAddressOf()))))
     {
         debugController->EnableDebugLayer();
@@ -167,7 +167,7 @@ bool DX12Renderer::CreateDeviceAndSwapChain()
     swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     // 创建交换链
-    TSharePtr<IDXGISwapChain1> swapChain1;
+    ComPtr<IDXGISwapChain1> swapChain1;
     hr = m_factory->CreateSwapChainForHwnd(
         m_commandQueue.Get(),
         m_hWnd,  // 使用传入的窗口句柄
@@ -608,8 +608,8 @@ TSharePtr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
     rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // 序列化根签名
-    TSharePtr<ID3DBlob> rootSignatureBlob;
-    TSharePtr<ID3DBlob> errorBlob;
+    ComPtr<ID3DBlob> rootSignatureBlob;
+    ComPtr<ID3DBlob> errorBlob;
     HRESULT hr = D3D12SerializeRootSignature(
         &rootSignatureDesc,
         D3D_ROOT_SIGNATURE_VERSION_1_0,
@@ -630,7 +630,7 @@ TSharePtr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
     }
 
     // 创建根签名
-    TSharePtr<ID3D12RootSignature> d3d12RootSignature;
+    ComPtr<ID3D12RootSignature> d3d12RootSignature;
     hr = m_device->CreateRootSignature(
         0,
         rootSignatureBlob->GetBufferPointer(),
@@ -704,8 +704,8 @@ void DX12Renderer::CreateRootSignature()
     rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // 序列化根签名
-    TSharePtr<ID3DBlob> rootSignatureBlob;
-    TSharePtr<ID3DBlob> errorBlob;
+    ComPtr<ID3DBlob> rootSignatureBlob;
+    ComPtr<ID3DBlob> errorBlob;
     HRESULT hr = D3D12SerializeRootSignature(
         &rootSignatureDesc,
         D3D_ROOT_SIGNATURE_VERSION_1_0,
@@ -726,7 +726,7 @@ void DX12Renderer::CreateRootSignature()
     }
 
     // 创建根签名
-    TSharePtr<ID3D12RootSignature> d3d12RootSignature;
+    ComPtr<ID3D12RootSignature> d3d12RootSignature;
     hr = m_device->CreateRootSignature(
         0,
         rootSignatureBlob->GetBufferPointer(),
@@ -812,8 +812,8 @@ void DX12Renderer::CreatePipelineStateObjects()
         "}";
 
     // 编译顶点着色器
-    TSharePtr<ID3DBlob> vertexShaderBlob;
-    TSharePtr<ID3DBlob> errorBlob;
+    ComPtr<ID3DBlob> vertexShaderBlob;
+    ComPtr<ID3DBlob> errorBlob;
     HRESULT hr = D3DCompile(
         vertexShaderCode,
         strlen(vertexShaderCode),
@@ -838,7 +838,7 @@ void DX12Renderer::CreatePipelineStateObjects()
     }
 
     // 编译像素着色器
-    TSharePtr<ID3DBlob> pixelShaderBlob;
+    ComPtr<ID3DBlob> pixelShaderBlob;
     hr = D3DCompile(
         pixelShaderCode,
         strlen(pixelShaderCode),
@@ -941,7 +941,7 @@ void DX12Renderer::CreatePipelineStateObjects()
 }
 
 // 创建缓冲区
-TSharePtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
+ComPtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
                                                      D3D12_HEAP_PROPERTIES heapProps,
                                                      D3D12_RESOURCE_STATES initialState)
 {
@@ -958,7 +958,7 @@ TSharePtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE
     desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     desc.Flags = flags;
 
-    TSharePtr<ID3D12Resource> buffer;
+    ComPtr<ID3D12Resource> buffer;
     HRESULT hr = m_device->CreateCommittedResource(
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
@@ -978,7 +978,7 @@ TSharePtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE
 
 // 上传资源数据
 template<typename T>
-void DX12Renderer::UploadBufferData(TSharePtr<ID3D12Resource>& buffer, const std::vector<T>& data)
+void DX12Renderer::UploadBufferData(ComPtr<ID3D12Resource>& buffer, const std::vector<T>& data)
 {
     // 创建上传堆
     D3D12_HEAP_PROPERTIES heapProps = {};
@@ -1005,8 +1005,8 @@ void DX12Renderer::UploadBufferData(TSharePtr<ID3D12Resource>& buffer, const std
 
     // 创建一个临时的命令分配器和命令列表来执行复制操作
     // 这样就不会影响主命令列表的状态
-    TSharePtr<ID3D12CommandAllocator> tempCommandAllocator;
-    TSharePtr<ID3D12GraphicsCommandList> tempCommandList;
+    ComPtr<ID3D12CommandAllocator> tempCommandAllocator;
+    ComPtr<ID3D12GraphicsCommandList> tempCommandList;
     
     // 创建临时命令分配器
     HRESULT hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -1150,7 +1150,7 @@ void DX12Renderer::RenderPrimitive(const dx::XMMATRIX& worldMatrix, const dx::XM
     dx::XMStoreFloat4x4(&worldData.WorldMatrix, dx::XMMatrixTranspose(worldMatrix));
     
     // 创建一个临时的常量缓冲区用于存储世界矩阵
-    TSharePtr<ID3D12Resource> worldMatrixBuffer;
+    ComPtr<ID3D12Resource> worldMatrixBuffer;
     try
     {
         worldMatrixBuffer = CreateBuffer(
@@ -2124,7 +2124,7 @@ TSharePtr<IRALGraphicsPipelineState> DX12Renderer::CreateGraphicsPipelineState(c
     psoDesc.SampleDesc.Quality = desc.sampleDesc.Quality;
     
     // 创建D3D12管线状态对象
-    TSharePtr<ID3D12PipelineState> pipelineState;
+    ComPtr<ID3D12PipelineState> pipelineState;
     HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf()));
     if (FAILED(hr)) {
         throw std::runtime_error("Failed to create graphics pipeline state object.");

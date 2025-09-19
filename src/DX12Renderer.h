@@ -147,13 +147,13 @@ private:
     void CreatePipelineStateObjects();
 
     // 创建缓冲区
-    TSharePtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
+    ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
                                              D3D12_HEAP_PROPERTIES heapProps,
                                              D3D12_RESOURCE_STATES initialState);
 
     // 上传资源数据
     template<typename T>
-    void UploadBufferData(TSharePtr<ID3D12Resource>& buffer, const std::vector<T>& data);
+    void UploadBufferData(ComPtr<ID3D12Resource>& buffer, const std::vector<T>& data);
 
     // 等待前一帧完成
     void WaitForPreviousFrame();
@@ -165,47 +165,47 @@ private:
     HWND m_hWnd;                            // 窗口句柄
 
     // 设备和交换链
-    TSharePtr<ID3D12Device> m_device;                    // D3D12设备
+    ComPtr<ID3D12Device> m_device;                    // D3D12设备
     
     // 根签名
     TSharePtr<IRALRootSignature> m_rootSignature;
-    TSharePtr<IDXGIFactory6> m_factory;                  // DXGI工厂
-    TSharePtr<IDXGISwapChain4> m_swapChain;              // 交换链
+    ComPtr<IDXGIFactory6> m_factory;                  // DXGI工厂
+    ComPtr<IDXGISwapChain4> m_swapChain;              // 交换链
     uint32_t m_backBufferCount = 2;                            // 后缓冲区数量
     uint32_t m_currentBackBufferIndex = 0;                     // 当前后缓冲区索引
 
     // 命令对象
-    TSharePtr<ID3D12CommandAllocator> m_commandAllocators[2];    // 命令分配器数组
-    TSharePtr<ID3D12GraphicsCommandList> m_commandList;      // 命令列表
-    TSharePtr<ID3D12CommandQueue> m_commandQueue;            // 命令队列
+    ComPtr<ID3D12CommandAllocator> m_commandAllocators[2];    // 命令分配器数组
+    ComPtr<ID3D12GraphicsCommandList> m_commandList;      // 命令列表
+    ComPtr<ID3D12CommandQueue> m_commandQueue;            // 命令队列
 
     // 同步对象
-    TSharePtr<ID3D12Fence> m_fence;                     // 围栏
+    ComPtr<ID3D12Fence> m_fence;                     // 围栏
     uint64_t m_fenceValue = 0;                              // 围栏值
     HANDLE m_fenceEvent = nullptr;                        // 围栏事件
     uint32_t m_currentFrameIndex; // 当前帧索引，用于缓存
 
     // 描述符堆
-    TSharePtr<ID3D12DescriptorHeap> m_rtvHeap;          // 渲染目标视图堆
-    TSharePtr<ID3D12DescriptorHeap> m_dsvHeap;          // 深度/模板视图堆
-    TSharePtr<ID3D12DescriptorHeap> m_srvHeap;          // 着色器资源视图堆
+    ComPtr<ID3D12DescriptorHeap> m_rtvHeap;          // 渲染目标视图堆
+    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;          // 深度/模板视图堆
+    ComPtr<ID3D12DescriptorHeap> m_srvHeap;          // 着色器资源视图堆
     uint32_t m_rtvDescriptorSize = 0;                         // 渲染目标视图描述符大小
     uint32_t m_dsvDescriptorSize = 0;                         // 深度/模板视图描述符大小
     uint32_t m_srvDescriptorSize = 0;                         // 着色器资源视图描述符大小
 
     // 资源
-    std::vector<TSharePtr<ID3D12Resource>> m_backBuffers;       // 后缓冲区
-    TSharePtr<ID3D12Resource> m_depthStencilBuffer;             // 深度/模板缓冲区
+    std::vector<ComPtr<ID3D12Resource>> m_backBuffers;       // 后缓冲区
+    ComPtr<ID3D12Resource> m_depthStencilBuffer;             // 深度/模板缓冲区
 
     // 根签名和管道状态
-    TSharePtr<ID3D12PipelineState> m_clothPipelineState;        // 布料管道状态
-    TSharePtr<ID3D12PipelineState> m_spherePipelineState;       // 球体管道状态
+    ComPtr<ID3D12PipelineState> m_clothPipelineState;        // 布料管道状态
+    ComPtr<ID3D12PipelineState> m_spherePipelineState;       // 球体管道状态
 
     // 布料和球体资源
-    TSharePtr<ID3D12Resource> m_clothVertexBuffer;              // 布料顶点缓冲区
-    TSharePtr<ID3D12Resource> m_clothIndexBuffer;               // 布料索引缓冲区
-    TSharePtr<ID3D12Resource> m_sphereVertexBuffer;             // 球体顶点缓冲区
-    TSharePtr<ID3D12Resource> m_sphereIndexBuffer;              // 球体索引缓冲区
+    ComPtr<ID3D12Resource> m_clothVertexBuffer;              // 布料顶点缓冲区
+    ComPtr<ID3D12Resource> m_clothIndexBuffer;               // 布料索引缓冲区
+    ComPtr<ID3D12Resource> m_sphereVertexBuffer;             // 球体顶点缓冲区
+    ComPtr<ID3D12Resource> m_sphereIndexBuffer;              // 球体索引缓冲区
 
     uint32_t m_clothVertexCount = 0;                                  // 布料顶点数量
     uint32_t m_clothIndexCount = 0;                                   // 布料索引数量
@@ -213,7 +213,7 @@ private:
     uint32_t m_sphereIndexCount = 0;                                  // 球体索引数量
     
     // 常量缓冲区
-    TSharePtr<ID3D12Resource> m_materialBuffer;                 // 材质和光照常量缓冲区
+    ComPtr<ID3D12Resource> m_materialBuffer;                 // 材质和光照常量缓冲区
 
     // 光照参数
     dx::XMFLOAT4 m_lightPosition = { -10.0f, 30.0f, -10.0f, 1.0f };

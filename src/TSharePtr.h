@@ -124,15 +124,6 @@ public:
         std::swap(m_ptr, other.m_ptr);
     }
     
-    // 释放当前指针并返回指向指针的指针
-    T** ReleaseAndGetAddressOf() {
-        if (m_ptr) {
-            m_ptr->Release();
-            m_ptr = nullptr;
-        }
-        return &m_ptr;
-    }
-    
 private:
     T* m_ptr; // 原始指针
 };
