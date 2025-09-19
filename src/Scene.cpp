@@ -232,13 +232,68 @@ Scene::~Scene() {
     clear();
 }
 
-void Scene::update(float deltaTime) {
+void Scene::update(IRALGraphicsCommandList* commandList, float deltaTime) {
     // 更新场景中所有可见对象的状态
     for (auto& primitive : m_primitives) {
             if (primitive && primitive->isVisible()) {
-                primitive->update(deltaTime);
+                primitive->update(commandList, deltaTime);
             }
         }
+}
+
+void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix) {
+    logDebug("[DEBUG] Scene::render called");
+    if (!renderer) {
+        logDebug("[DEBUG] renderer is null");
+        return;
+    }
+
+    // 渲染每个可见的Mesh对象
+    logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
+    for (size_t i = 0; i < m_primitives.size(); ++i) {
+        auto& mesh = m_primitives[i];
+        logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
+        if (mesh && mesh->isVisible()) {
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
+
+            // 获取对象类型
+            std::string typeName = typeid(*mesh).name();
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " type: " + typeName);
+
+            // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
+            const dx::XMMATRIX& worldMatrix = mesh->getWorldMatrix();
+            const dx::XMFLOAT4& diffuseColor = mesh->getDiffuseColor();
+            const std::vector<dx::XMFLOAT3>& positions = mesh->getPositions();
+            const std::vector<dx::XMFLOAT3>& normals = mesh->getNormals();
+            const std::vector<uint32_t>& indices = mesh->getIndices();
+
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " +
+                std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
+
+            // 检查是否有有效数据
+            if (positions.empty() || normals.empty() || indices.empty()) {
+                logDebug("[DEBUG] Mesh " + std::to_string(i) + " has empty data, skipping");
+                continue;
+            }
+
+            // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
+            if (typeid(*mesh) == typeid(Cloth)) {
+                logDebug("[DEBUG] Rendering cloth mesh");
+                //renderer->SetClothVertices(positions, normals, indices);
+            }
+            else if (typeid(*mesh) == typeid(Sphere)) {
+                logDebug("[DEBUG] Rendering sphere mesh");
+                //renderer->SetSphereVertices(positions, normals, indices);
+            }
+            else {
+                logDebug("[DEBUG] Unknown mesh type, skipping");
+            }
+        }
+        else {
+            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
+        }
+    }
+    logDebug("[DEBUG] Scene::render finished");
 }
 
 bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
@@ -248,12 +303,13 @@ bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
 
     // 检查对象是否已经在场景中
     auto it = std::find(m_primitives.begin(), m_primitives.end(), mesh);
-        if (it != m_primitives.end()) {
-            return false;
-        }
+    if (it != m_primitives.end()) {
+        return false;
+    }
 
-        // 添加对象到场景中
-        m_primitives.push_back(mesh);
+    // 添加对象到场景中
+    m_primitives.push_back(std::shared_ptr<Mesh>(mesh));
+
     return true;
 }
 
@@ -275,63 +331,4 @@ bool Scene::removePrimitive(std::shared_ptr<Mesh> mesh) {
 void Scene::clear() {
     // 清空所有对象
     m_primitives.clear();
-}
-
-void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix) {
-    logDebug("[DEBUG] Scene::render called");
-    if (!renderer) {
-        logDebug("[DEBUG] renderer is null");
-        return;
-    }
-
-    // 设置光源位置和颜色
-    logDebug("[DEBUG] Setting light position and color");
-    renderer->UpdateLightPosition(m_lightPosition);
-    renderer->UpdateLightColor(m_lightColor);
-
-    // 渲染每个可见的Mesh对象
-    logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
-    for (size_t i = 0; i < m_primitives.size(); ++i) {
-        auto& mesh = m_primitives[i];
-        logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
-        if (mesh && mesh->isVisible()) {
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
-            
-            // 获取对象类型
-            std::string typeName = typeid(*mesh).name();
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " type: " + typeName);
-            
-            // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
-            const dx::XMMATRIX& worldMatrix = mesh->getWorldMatrix();
-            const dx::XMFLOAT4& diffuseColor = mesh->getDiffuseColor();
-            const std::vector<dx::XMFLOAT3>& positions = mesh->getPositions();
-            const std::vector<dx::XMFLOAT3>& normals = mesh->getNormals();
-            const std::vector<uint32_t>& indices = mesh->getIndices();
-
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " + 
-                     std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
-            
-            // 检查是否有有效数据
-            if (positions.empty() || normals.empty() || indices.empty()) {
-                logDebug("[DEBUG] Mesh " + std::to_string(i) + " has empty data, skipping");
-                continue;
-            }
-
-            // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
-            if (typeid(*mesh) == typeid(Cloth)) {
-                logDebug("[DEBUG] Rendering cloth mesh");
-                renderer->SetClothVertices(positions, normals, indices);
-                renderer->RenderPrimitive(worldMatrix, diffuseColor, true);
-            } else if (typeid(*mesh) == typeid(Sphere)) {
-                logDebug("[DEBUG] Rendering sphere mesh");
-                renderer->SetSphereVertices(positions, normals, indices);
-                renderer->RenderPrimitive(worldMatrix, diffuseColor, false);
-            } else {
-                logDebug("[DEBUG] Unknown mesh type, skipping");
-            }
-        } else {
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
-        }
-    }
-    logDebug("[DEBUG] Scene::render finished");
 }

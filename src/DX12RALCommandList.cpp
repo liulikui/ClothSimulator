@@ -59,12 +59,14 @@ void DX12RALGraphicsCommandList::ResourceBarriers(const RALResourceBarrier* barr
             dxBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
             dxBarrier.UAV.pResource = static_cast<ID3D12Resource*>(barrier.resource->GetNativeResource());
             break;
+        default:
+            break;
         }
         
         dxBarriers.push_back(dxBarrier);
     }
     
-    m_commandList->ResourceBarrier(dxBarriers.size(), dxBarriers.data());
+    m_commandList->ResourceBarrier((UINT)count, dxBarriers.data());
 }
 
 // 关闭命令列表（准备执行）

@@ -8,14 +8,16 @@ namespace dx = DirectX;
 
 class SphereCollisionConstraint : public Constraint {
 public:
-    SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius) {
+    SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius)
+    {
         particle = p;
         sphereCenter = center;
         sphereRadius = radius;
         compliance = 1e-7f;
     }
     
-    SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius, float customCompliance) {
+    SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius, float customCompliance)
+    {
         particle = p;
         sphereCenter = center;
         sphereRadius = radius;

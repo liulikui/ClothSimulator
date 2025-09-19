@@ -28,7 +28,8 @@ public:
     }
     
     // 设置对象的材质颜色
-    void setDiffuseColor(const dx::XMFLOAT4& color) {
+    void setDiffuseColor(const dx::XMFLOAT4& color)
+    {
         diffuseColor = color;
     }
 };

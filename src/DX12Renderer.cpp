@@ -10,6 +10,7 @@
 #endif
 
 #include "DX12RALResource.h"
+#include "DX12RALCommandList.h"
 
 // 日志函数声明
 extern void logDebug(const std::string& message);
@@ -61,31 +62,51 @@ bool DX12Renderer::Initialize()
     // 创建深度/模板视图
     CreateDepthStencilView();
 
-    // 创建根签名
-    CreateRootSignature();
-
-    // 创建管道状态对象
-    CreatePipelineStateObjects();
-
-    // 创建材质缓冲区
-    if (!CreateMaterialBuffer())
-    {
-        return false;
-    }
-    
     return true;
 }
 
-// 更新光源位置
-void DX12Renderer::UpdateLightPosition(const dx::XMFLOAT4& position)
+void DX12Renderer::BeginFrame()
 {
-    m_lightPosition = position;
+    // 获取当前后台缓冲区
+    m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+    rtvHandle.ptr += m_currentBackBufferIndex * m_rtvDescriptorSize;
+
+    // 重置当前帧的命令分配器
+    HRESULT hr = m_commandAllocators[m_currentFrameIndex]->Reset();
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to reset command allocator.");
+    }
 }
 
-// 更新光源颜色
-void DX12Renderer::UpdateLightColor(const dx::XMFLOAT4& color)
+void DX12Renderer::ExecuteCommandLists(uint32_t count, IRALCommandList** ppCommandList)
 {
-    m_lightColor = color;
+    if (count > 0)
+    {
+        std::vector<ID3D12CommandList*> commandLists;
+
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            IRALCommandList* pCommandList = ppCommandList[i];
+            commandLists.push_back((ID3D12CommandList*)pCommandList->GetNativeCommandList());
+        }
+
+        m_commandQueue->ExecuteCommandLists((UINT)count, commandLists.data());
+    }
+}
+
+void DX12Renderer::EndFrame()
+{
+    // 呈现
+    HRESULT presentHr = m_swapChain->Present(1, 0);
+    if (FAILED(presentHr))
+    {
+        throw std::runtime_error("Failed to present swap chain.");
+    }
+
+    // 等待当前帧完成
+    WaitForPreviousFrame();
 }
 
 // 创建设备和交换链
@@ -382,13 +403,6 @@ void DX12Renderer::CreateDepthStencilView()
     );
 }
 
-// 设置根签名
-void DX12Renderer::SetRootSignature(TSharePtr<IRALRootSignature> rootSignature)
-{
-    m_rootSignature = rootSignature;
-    logDebug("[DEBUG] DX12Renderer::SetRootSignature called and stored");
-}
-
 // 通用着色器编译辅助方法
 ComPtr<ID3DBlob> DX12Renderer::CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target)
 {
@@ -574,11 +588,11 @@ IRALGraphicsPipelineState* DX12Renderer::CreateGraphicsPipelineState(const RALGr
 {
     // 创建D3D12图形管线状态描述
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    // 假设inputLayout是std::vector<RALVertexAttribute>*
+    std::vector<D3D12_INPUT_ELEMENT_DESC> d3dInputLayout;
 
     // 设置输入布局
     if (desc.inputLayout) {
-        // 假设inputLayout是std::vector<RALVertexAttribute>*
-        std::vector<D3D12_INPUT_ELEMENT_DESC> d3dInputLayout;
         for (const auto& attr : *desc.inputLayout) {
             D3D12_INPUT_ELEMENT_DESC element = {};
             // 设置元素名称
@@ -1539,296 +1553,10 @@ bool ConvertToD3D12RootParameter(const RALRootParameter& ralParam, D3D12_ROOT_PA
     return true;
 }
 
-// 创建根签名（旧方法，已废弃，保持兼容性）
-void DX12Renderer::CreateRootSignature()
-{
-    logDebug("[DEBUG] DX12Renderer::CreateRootSignature called (deprecated, use CreateAndGetRootSignature instead)");
-    
-    // 由于根签名现在由Scene管理，这个方法可能不再需要
-    // 但为了保持兼容性，我们仍然实现它
-    // 这里我们可以选择调用新方法并忽略结果，或者保留旧的实现
-    
-    // 保留旧的实现，以便向后兼容
-    // 定义根参数
-    std::vector<D3D12_ROOT_PARAMETER> rootParameters(2);
-
-    // 根参数0: 常量缓冲区视图（变换矩阵）
-    rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    rootParameters[0].Descriptor.ShaderRegister = 0;
-    rootParameters[0].Descriptor.RegisterSpace = 0;
-
-    // 根参数1: 常量缓冲区视图（材质和光照）
-    rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rootParameters[1].Descriptor.ShaderRegister = 0;
-    rootParameters[1].Descriptor.RegisterSpace = 0;
-
-    // 定义静态采样器
-    D3D12_STATIC_SAMPLER_DESC samplerDesc = {};
-    samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.MipLODBias = 0.0f;
-    samplerDesc.MaxAnisotropy = 1;
-    samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    samplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    samplerDesc.MinLOD = 0.0f;
-    samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-    samplerDesc.ShaderRegister = 0;
-    samplerDesc.RegisterSpace = 0;
-    samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-    // 创建根签名描述
-    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-    rootSignatureDesc.NumParameters = static_cast<uint32_t>(rootParameters.size());
-    rootSignatureDesc.pParameters = rootParameters.data();
-    rootSignatureDesc.NumStaticSamplers = 1;
-    rootSignatureDesc.pStaticSamplers = &samplerDesc;
-    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    // 序列化根签名
-    ComPtr<ID3DBlob> rootSignatureBlob;
-    ComPtr<ID3DBlob> errorBlob;
-    HRESULT hr = D3D12SerializeRootSignature(
-        &rootSignatureDesc,
-        D3D_ROOT_SIGNATURE_VERSION_1_0,
-        rootSignatureBlob.ReleaseAndGetAddressOf(),
-        errorBlob.ReleaseAndGetAddressOf()
-    );
-
-    if (FAILED(hr))
-    {
-        if (errorBlob)
-        {
-            std::string errorMsg = "Failed to serialize root signature: " + std::string(static_cast<char*>(errorBlob->GetBufferPointer()));
-            logDebug("[DEBUG] " + errorMsg);
-            std::cerr << errorMsg << std::endl;
-        }
-        logDebug("[DEBUG] Failed to serialize root signature");
-        throw std::runtime_error("Failed to serialize root signature.");
-    }
-
-    // 创建根签名
-    ComPtr<ID3D12RootSignature> d3d12RootSignature;
-    hr = m_device->CreateRootSignature(
-        0,
-        rootSignatureBlob->GetBufferPointer(),
-        rootSignatureBlob->GetBufferSize(),
-        IID_PPV_ARGS(d3d12RootSignature.ReleaseAndGetAddressOf())
-    );
-
-    if (FAILED(hr))
-    {
-        std::cerr << "Failed to create root signature. HRESULT: " << hr << std::endl;
-        throw std::runtime_error("Failed to create root signature.");
-    }
-
-    logDebug("[DEBUG] Root signature created in CreateRootSignature");
-    
-    // 创建并设置IRALRootSignature对象
-    auto ralRootSignature = new DX12RALRootSignature();
-    static_cast<DX12RALRootSignature*>(ralRootSignature)->SetNativeRootSignature(d3d12RootSignature.Get());
-    SetRootSignature(TSharePtr<IRALRootSignature>(ralRootSignature));
-}
-
-// 创建管道状态对象
-void DX12Renderer::CreatePipelineStateObjects()
-{
-    // 顶点输入布局
-    D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    };
-
-    // 使用内联着色器代码作为简化示例
-    // 在实际应用中，应该从文件加载HLSL着色器代码并编译
-    const char* vertexShaderCode = ""
-        "struct VS_INPUT {\n"
-        "    float3 pos : POSITION;\n"
-        "    float3 normal : NORMAL;\n"
-        "};\n"
-        "struct VS_OUTPUT {\n"
-        "    float4 pos : SV_POSITION;\n"
-        "    float3 normal : NORMAL;\n"
-        "    float3 worldPos : WORLD_POS;\n"
-        "};\n"
-        "cbuffer ConstantBuffer : register(b0) {\n"
-        "    float4x4 worldViewProj;\n"
-        "    float4x4 world;\n"
-        "};\n"
-        "VS_OUTPUT main(VS_INPUT input) {\n"
-        "    VS_OUTPUT output;\n"
-        "    output.pos = mul(float4(input.pos, 1.0f), worldViewProj);\n"
-        "    output.worldPos = mul(float4(input.pos, 1.0f), world).xyz;\n"
-        "    // Directly transform normal with world matrix since we don't have non-uniform scaling\n"
-        "    float3x3 worldMat = (float3x3)world;\n"
-        "    output.normal = mul(input.normal, worldMat);\n"
-        "    // Ensure normal is normalized for correct lighting\n"
-        "    output.normal = normalize(output.normal);\n"
-        "    return output;\n"
-        "}";
-
-    const char* pixelShaderCode = ""
-        "struct PS_INPUT {\n"
-        "    float4 pos : SV_POSITION;\n"
-        "    float3 normal : NORMAL;\n"
-        "    float3 worldPos : WORLD_POS;\n"
-        "};\n"
-        "cbuffer MaterialBuffer : register(b0) {\n"
-        "    float4 diffuseColor;\n"
-        "    float3 lightPos;\n"
-        "    float3 lightColor;\n"
-        "};\n"
-        "float4 main(PS_INPUT input) : SV_TARGET {\n"
-        "    float3 normal = normalize(input.normal);\n"
-        "    float3 lightDir = normalize(lightPos - input.worldPos);\n"
-        "    float3 viewDir = normalize(float3(0, 0, 5) - input.worldPos);\n"
-        "    float3 halfVec = normalize(lightDir + viewDir);\n"
-        "    \n"
-        "    float diffuse = max(dot(normal, lightDir), 0.0f);\n"
-        "    float specular = pow(max(dot(normal, halfVec), 0.0f), 32.0f);\n"
-        "    \n"
-        "    float3 ambient = float3(0.2f, 0.2f, 0.2f);\n"
-        "    float3 finalColor = ambient + diffuse * diffuseColor.rgb * lightColor + specular * lightColor;\n"
-        "    \n"
-        "    return float4(finalColor, diffuseColor.a);\n"
-        "}";
-
-    // 编译顶点着色器
-    ComPtr<ID3DBlob> vertexShaderBlob;
-    ComPtr<ID3DBlob> errorBlob;
-    HRESULT hr = D3DCompile(
-        vertexShaderCode,
-        strlen(vertexShaderCode),
-        "VertexShader",
-        nullptr,
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,
-        "main",
-        "vs_5_0",
-        0,
-        0,
-        vertexShaderBlob.ReleaseAndGetAddressOf(),
-        errorBlob.ReleaseAndGetAddressOf()
-    );
-
-    if (FAILED(hr))
-    {
-        if (errorBlob)
-        {
-            std::cerr << "Failed to compile vertex shader: " << static_cast<char*>(errorBlob->GetBufferPointer()) << std::endl;
-        }
-        throw std::runtime_error("Failed to compile vertex shader.");
-    }
-
-    // 编译像素着色器
-    ComPtr<ID3DBlob> pixelShaderBlob;
-    hr = D3DCompile(
-        pixelShaderCode,
-        strlen(pixelShaderCode),
-        "PixelShader",
-        nullptr,
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,
-        "main",
-        "ps_5_0",
-        0,
-        0,
-        pixelShaderBlob.ReleaseAndGetAddressOf(),
-        errorBlob.ReleaseAndGetAddressOf()
-    );
-
-    if (FAILED(hr))
-    {
-        if (errorBlob)
-        {
-            std::cerr << "Failed to compile pixel shader: " << static_cast<char*>(errorBlob->GetBufferPointer()) << std::endl;
-        }
-        throw std::runtime_error("Failed to compile pixel shader.");
-    }
-
-    // 图形管道状态描述
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    psoDesc.InputLayout = { inputLayout, ARRAYSIZE(inputLayout) };
-    if (m_rootSignature) {
-        psoDesc.pRootSignature = static_cast<ID3D12RootSignature*>(m_rootSignature->GetNativeResource());
-    }
-    psoDesc.VS = { vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() };
-    psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
-    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    // 使用原生的D3D12结构体代替CD3D12便利类
-    D3D12_RASTERIZER_DESC rasterizerDesc = {};
-    rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE; // 关闭剔除，启用双面渲染
-    rasterizerDesc.FrontCounterClockwise = FALSE;
-    rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-    rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-    rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-    rasterizerDesc.DepthClipEnable = TRUE;
-    rasterizerDesc.MultisampleEnable = FALSE;
-    rasterizerDesc.AntialiasedLineEnable = FALSE;
-    rasterizerDesc.ForcedSampleCount = 0;
-    rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-    psoDesc.RasterizerState = rasterizerDesc;
-
-    D3D12_BLEND_DESC blendDesc = {};
-    blendDesc.AlphaToCoverageEnable = FALSE;
-    blendDesc.IndependentBlendEnable = FALSE;
-    const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc = 
-    {
-        FALSE, FALSE,
-        D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-        D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-        D3D12_LOGIC_OP_NOOP,
-        D3D12_COLOR_WRITE_ENABLE_ALL
-    };
-    for (uint32_t i = 0; i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT; ++i)
-    {
-        blendDesc.RenderTarget[i] = defaultRenderTargetBlendDesc;
-    }
-    psoDesc.BlendState = blendDesc;
-
-    D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
-    depthStencilDesc.DepthEnable = TRUE;
-    depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-    depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-    depthStencilDesc.StencilEnable = FALSE;
-    depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-    depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-    const D3D12_DEPTH_STENCILOP_DESC defaultStencilOp = 
-    {
-        D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP,
-        D3D12_COMPARISON_FUNC_ALWAYS
-    };
-    depthStencilDesc.FrontFace = defaultStencilOp;
-    depthStencilDesc.BackFace = defaultStencilOp;
-    psoDesc.DepthStencilState = depthStencilDesc;
-    psoDesc.SampleMask = UINT32_MAX;
-    psoDesc.NumRenderTargets = 1;
-    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-    psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-    psoDesc.SampleDesc.Count = 1;
-    psoDesc.SampleDesc.Quality = 0;
-
-    // 创建布料管道状态对象
-    hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_clothPipelineState.ReleaseAndGetAddressOf()));
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create cloth pipeline state object.");
-    }
-
-    // 创建球体管道状态对象（与布料相同，但可以根据需要修改）
-    hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_spherePipelineState.ReleaseAndGetAddressOf()));
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create sphere pipeline state object.");
-    }
-}
-
 // 创建缓冲区
 ComPtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
-                                                     D3D12_HEAP_PROPERTIES heapProps,
-                                                     D3D12_RESOURCE_STATES initialState)
+    D3D12_HEAP_PROPERTIES heapProps,
+    D3D12_RESOURCE_STATES initialState)
 {
     D3D12_RESOURCE_DESC desc = {};
     desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -1860,456 +1588,6 @@ ComPtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE_FL
 
     return buffer;
 }
-
-// 上传资源数据
-template<typename T>
-void DX12Renderer::UploadBufferData(ComPtr<ID3D12Resource>& buffer, const std::vector<T>& data)
-{
-    // 创建上传堆
-    D3D12_HEAP_PROPERTIES heapProps = {};
-    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
-
-    // 创建上传缓冲区
-    auto uploadBuffer = CreateBuffer(
-        data.size() * sizeof(T),
-        D3D12_RESOURCE_FLAG_NONE,
-        heapProps,
-        D3D12_RESOURCE_STATE_GENERIC_READ
-    );
-
-    // 映射上传缓冲区并复制数据
-    void* mappedData = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
-    uploadBuffer->Map(0, &readRange, &mappedData);
-    memcpy(mappedData, data.data(), data.size() * sizeof(T));
-    uploadBuffer->Unmap(0, nullptr);
-
-    // 创建一个临时的命令分配器和命令列表来执行复制操作
-    // 这样就不会影响主命令列表的状态
-    ComPtr<ID3D12CommandAllocator> tempCommandAllocator;
-    ComPtr<ID3D12GraphicsCommandList> tempCommandList;
-    
-    // 创建临时命令分配器
-    HRESULT hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                               IID_PPV_ARGS(tempCommandAllocator.ReleaseAndGetAddressOf()));
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create temporary command allocator.");
-    }
-    
-    // 创建临时命令列表
-    hr = m_device->CreateCommandList(0,
-                                   D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                   tempCommandAllocator.Get(),
-                                   nullptr,
-                                   IID_PPV_ARGS(tempCommandList.ReleaseAndGetAddressOf()));
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create temporary command list.");
-    }
-
-    // 记录复制命令到临时命令列表
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = buffer.Get();
-    barrier.Transition.Subresource = 0;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-
-    tempCommandList->ResourceBarrier(1, &barrier);
-
-    // 复制数据
-    tempCommandList->CopyBufferRegion(
-        buffer.Get(),
-        0,
-        uploadBuffer.Get(),
-        0,
-        data.size() * sizeof(T)
-    );
-
-    // 转换缓冲区状态为GENERIC_READ，这是一个通用状态，可以被用作顶点、索引或常量缓冲区
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
-
-    tempCommandList->ResourceBarrier(1, &barrier);
-
-    // 关闭并执行临时命令列表
-    tempCommandList->Close();
-    ID3D12CommandList* ppCommandLists[] = { tempCommandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-    // 等待命令执行完成
-    WaitForPreviousFrame();
-}
-
-// 创建材质缓冲区
-bool DX12Renderer::CreateMaterialBuffer()
-{
-    // 创建材质缓冲区描述
-    const UINT materialBufferSize = sizeof(MaterialBuffer);
-
-    // 创建材质和光照常量缓冲区
-    try
-    {
-        m_materialBuffer = CreateBuffer(
-            materialBufferSize,
-            D3D12_RESOURCE_FLAG_NONE,
-            { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 },
-            D3D12_RESOURCE_STATE_GENERIC_READ
-        );
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "Failed to create material buffer: " << e.what() << std::endl;
-        return false;
-    }
-
-    return true;
-}
-
-// 更新材质和光照常量缓冲区
-void DX12Renderer::UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor)
-{
-    // 准备材质缓冲区数据
-    MaterialBuffer data;
-    data.diffuseColor = diffuseColor;
-    // 将XMFLOAT4转换为XMFLOAT3，只使用前三个分量
-    data.lightPos.x = m_lightPosition.x;
-    data.lightPos.y = m_lightPosition.y;
-    data.lightPos.z = m_lightPosition.z;
-    data.padding1 = 0.0f;
-    // 将XMFLOAT4转换为XMFLOAT3，只使用前三个分量
-    data.lightColor.x = m_lightColor.x;
-    data.lightColor.y = m_lightColor.y;
-    data.lightColor.z = m_lightColor.z;
-    data.padding2 = 0.0f;
-
-    // 映射并更新缓冲区
-    void* mappedData = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
-    m_materialBuffer->Map(0, &readRange, &mappedData);
-    memcpy(mappedData, &data, sizeof(MaterialBuffer));
-    m_materialBuffer->Unmap(0, nullptr);
-
-    // 设置根参数1（材质和光照常量缓冲区）
-    m_commandList->SetGraphicsRootConstantBufferView(1, m_materialBuffer->GetGPUVirtualAddress());
-}
-
-// 渲染单个Primitive对象
-// 注意：这里不再需要viewMatrix和projectionMatrix参数，因为它们已经存储在Scene的cameraConstBuffer中
-void DX12Renderer::RenderPrimitive(const dx::XMMATRIX& worldMatrix, const dx::XMFLOAT4& diffuseColor, bool isCloth) {
-    logDebug("[DEBUG] RenderPrimitive called, isCloth: " + std::string(isCloth ? "true" : "false"));
-    
-    // 检查commandList是否有效
-    if (!m_commandList || !m_commandQueue || !m_swapChain) {
-        logDebug("[DEBUG] RenderPrimitive: Missing required components");
-        return;
-    }
-    
-    // 设置正确的管道状态
-    if (isCloth && m_clothPipelineState) {
-        logDebug("[DEBUG] Using cloth pipeline state");
-        m_commandList->SetPipelineState(m_clothPipelineState.Get());
-    } else if (m_spherePipelineState) {
-        logDebug("[DEBUG] Using sphere pipeline state");
-        m_commandList->SetPipelineState(m_spherePipelineState.Get());
-    } else {
-        logDebug("[DEBUG] No valid pipeline state available");
-        // 如果都没有，返回
-        return;
-    }
-
-    // 更新材质
-    logDebug("[DEBUG] Updating material buffer");
-    UpdateMaterialBuffer(diffuseColor);
-    
-    // 创建世界矩阵缓冲区数据
-    struct WorldMatrixBuffer
-    {
-        dx::XMFLOAT4X4 WorldMatrix;
-    } worldData;
-    dx::XMStoreFloat4x4(&worldData.WorldMatrix, dx::XMMatrixTranspose(worldMatrix));
-    
-    // 创建一个临时的常量缓冲区用于存储世界矩阵
-    ComPtr<ID3D12Resource> worldMatrixBuffer;
-    try
-    {
-        worldMatrixBuffer = CreateBuffer(
-            sizeof(WorldMatrixBuffer),
-            D3D12_RESOURCE_FLAG_NONE,
-            { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 },
-            D3D12_RESOURCE_STATE_GENERIC_READ
-        );
-        
-        // 更新世界矩阵缓冲区
-        void* mappedData = nullptr;
-        D3D12_RANGE readRange = {0, 0};
-        if (SUCCEEDED(worldMatrixBuffer->Map(0, &readRange, &mappedData)))
-        {
-            memcpy(mappedData, &worldData, sizeof(WorldMatrixBuffer));
-            worldMatrixBuffer->Unmap(0, nullptr);
-        }
-        
-        // 设置根参数0（世界矩阵）
-        m_commandList->SetGraphicsRootConstantBufferView(0, worldMatrixBuffer->GetGPUVirtualAddress());
-    }
-    catch (const std::exception& e)
-    {
-        logDebug("[DEBUG] Failed to create world matrix buffer: " + std::string(e.what()));
-        return;
-    }
-    
-    // 设置顶点和索引缓冲区
-    if (isCloth) {
-        logDebug("[DEBUG] Cloth buffers - vertexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(m_clothVertexBuffer.Get())) + 
-                ", indexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(m_clothIndexBuffer.Get())) + 
-                ", vertexCount: " + std::to_string(m_clothVertexCount) + 
-                ", indexCount: " + std::to_string(m_clothIndexCount));
-        
-        if (m_clothVertexBuffer && m_clothIndexBuffer && m_clothVertexCount > 0 && m_clothIndexCount > 0) {
-            // 布料顶点缓冲区应该已经是正确的状态，不需要转换
-
-            // 布料索引缓冲区应该已经是正确的状态，不需要转换
-
-            logDebug("[DEBUG] Setting cloth vertex buffer view");
-            D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
-            vertexBufferView.BufferLocation = m_clothVertexBuffer->GetGPUVirtualAddress();
-            vertexBufferView.StrideInBytes = sizeof(dx::XMFLOAT3) * 2;  // 位置 + 法线
-            vertexBufferView.SizeInBytes = m_clothVertexCount * sizeof(dx::XMFLOAT3) * 2;
-            m_commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-
-            logDebug("[DEBUG] Setting cloth index buffer view");
-            D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
-            indexBufferView.BufferLocation = m_clothIndexBuffer->GetGPUVirtualAddress();
-            indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-            indexBufferView.SizeInBytes = m_clothIndexCount * sizeof(uint32_t);
-            m_commandList->IASetIndexBuffer(&indexBufferView);
-
-            // 设置图元拓扑
-            logDebug("[DEBUG] Setting primitive topology");
-            m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-            // 绘制
-            logDebug("[DEBUG] Drawing cloth with " + std::to_string(m_clothIndexCount) + " indices");
-            m_commandList->DrawIndexedInstanced(m_clothIndexCount, 1, 0, 0, 0);
-        } else {
-            logDebug("[DEBUG] Cloth buffers not ready");
-        }
-    } else {
-        logDebug("[DEBUG] Sphere buffers - vertexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(m_sphereVertexBuffer.Get())) + 
-                ", indexBuffer: " + std::to_string(reinterpret_cast<uintptr_t>(m_sphereIndexBuffer.Get())) + 
-                ", vertexCount: " + std::to_string(m_sphereVertexCount) + 
-                ", indexCount: " + std::to_string(m_sphereIndexCount));
-        
-        if (m_sphereVertexBuffer && m_sphereIndexBuffer && m_sphereVertexCount > 0 && m_sphereIndexCount > 0) {
-            // 转换球体顶点缓冲区状态
-            logDebug("[DEBUG] Transitioning sphere vertex buffer state");
-            D3D12_RESOURCE_BARRIER vertexBarrier = {};
-            vertexBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            vertexBarrier.Transition.pResource = m_sphereVertexBuffer.Get();
-            vertexBarrier.Transition.Subresource = 0;
-            vertexBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_GENERIC_READ;
-            vertexBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-            m_commandList->ResourceBarrier(1, &vertexBarrier);
-
-            // 转换球体索引缓冲区状态
-            logDebug("[DEBUG] Transitioning sphere index buffer state");
-            D3D12_RESOURCE_BARRIER indexBarrier = {};
-            indexBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            indexBarrier.Transition.pResource = m_sphereIndexBuffer.Get();
-            indexBarrier.Transition.Subresource = 0;
-            indexBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_GENERIC_READ;
-            indexBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_INDEX_BUFFER;
-            m_commandList->ResourceBarrier(1, &indexBarrier);
-
-            logDebug("[DEBUG] Setting sphere vertex buffer view");
-            D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
-            vertexBufferView.BufferLocation = m_sphereVertexBuffer->GetGPUVirtualAddress();
-            vertexBufferView.StrideInBytes = sizeof(dx::XMFLOAT3) * 2;  // 位置 + 法线
-            vertexBufferView.SizeInBytes = m_sphereVertexCount * sizeof(dx::XMFLOAT3) * 2;
-            m_commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-
-            logDebug("[DEBUG] Setting sphere index buffer view");
-            D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
-            indexBufferView.BufferLocation = m_sphereIndexBuffer->GetGPUVirtualAddress();
-            indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-            indexBufferView.SizeInBytes = m_sphereIndexCount * sizeof(uint32_t);
-            m_commandList->IASetIndexBuffer(&indexBufferView);
-
-            // 设置图元拓扑
-            logDebug("[DEBUG] Setting primitive topology");
-            m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-            // 绘制
-            logDebug("[DEBUG] Drawing sphere with " + std::to_string(m_sphereIndexCount) + " indices");
-            m_commandList->DrawIndexedInstanced(m_sphereIndexCount, 1, 0, 0, 0);
-        } else {
-            logDebug("[DEBUG] Sphere buffers not ready");
-        }
-    }
-    logDebug("[DEBUG] RenderPrimitive finished");
-}
-
-// 清理资源
-
-
-// 渲染一帧
-void DX12Renderer::Render(Scene* scene, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
-{
-    // 获取当前后台缓冲区
-    m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
-    rtvHandle.ptr += m_currentBackBufferIndex * m_rtvDescriptorSize;
-
-    // 重置当前帧的命令分配器
-    HRESULT hr = m_commandAllocators[m_currentFrameIndex]->Reset();
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to reset command allocator.");
-    }
-
-    // 重置命令列表并关联当前帧的命令分配器
-    hr = m_commandList->Reset(m_commandAllocators[m_currentFrameIndex].Get(), nullptr);
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to reset command list.");
-    }
-
-    // 设置根签名
-    if (m_rootSignature) {
-        ID3D12RootSignature* nativeRootSignature = static_cast<ID3D12RootSignature*>(m_rootSignature->GetNativeResource());
-        m_commandList->SetGraphicsRootSignature(nativeRootSignature);
-    }
-
-    // 资源转换：设置渲染目标为渲染状态
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = m_backBuffers[m_currentBackBufferIndex].Get();
-    barrier.Transition.Subresource = 0;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    m_commandList->ResourceBarrier(1, &barrier);
-
-    // 清除渲染目标和深度缓冲区 - 浅灰色背景
-    const float clearColor[] = { 0.9f, 0.9f, 0.9f, 1.0f };
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->ClearDepthStencilView(
-        m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
-        D3D12_CLEAR_FLAG_DEPTH,
-        1.0f,
-        0,
-        0,
-        nullptr
-    );
-
-    // 设置渲染目标和深度/模板视图
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-    // 设置视口和裁剪矩形
-    D3D12_VIEWPORT viewport = {};
-    viewport.TopLeftX = 0.0f;
-    viewport.TopLeftY = 0.0f;
-    viewport.Width = static_cast<float>(m_width);
-    viewport.Height = static_cast<float>(m_height);
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
-    m_commandList->RSSetViewports(1, &viewport);
-
-    D3D12_RECT scissorRect = {};
-    scissorRect.left = 0;
-    scissorRect.top = 0;
-    scissorRect.right = static_cast<LONG>(m_width);
-    scissorRect.bottom = static_cast<LONG>(m_height);
-    m_commandList->RSSetScissorRects(1, &scissorRect);
-
-    // 调用场景的render方法执行实际的渲染逻辑
-    if (scene) {        
-        logDebug("[DEBUG] Render: Calling scene->render()");
-        
-        // 让scene自己处理相机常量缓冲区的创建和更新
-        scene->render(this, viewMatrix, projectionMatrix);
-    } else {
-        logDebug("[DEBUG] Render: WARNING - Scene is null!");
-    }
-
-    // 资源转换：设置渲染目标为呈现状态
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-    m_commandList->ResourceBarrier(1, &barrier);
-
-    // 关闭命令列表
-    m_commandList->Close();
-
-    // 执行命令列表
-    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-    // 呈现
-    HRESULT presentHr = m_swapChain->Present(1, 0);
-    if (FAILED(presentHr))
-    {
-        throw std::runtime_error("Failed to present swap chain.");
-    }
-
-    // 等待当前帧完成
-    WaitForPreviousFrame();
-}
-
-// 设置布料顶点数据
-void DX12Renderer::SetClothVertices(const std::vector<dx::XMFLOAT3>& positions, const std::vector<dx::XMFLOAT3>& normals,
-                                  const std::vector<uint32_t>& indices)
-{
-    std::cout << "DX12Renderer::SetClothVertices called with " << positions.size() << " positions, " << normals.size() << " normals, " << indices.size() << " indices" << std::endl;
-    
-    // 保存布料顶点和索引数量
-    m_clothVertexCount = positions.size();
-    m_clothIndexCount = indices.size();
-    
-    // 创建布料顶点数据
-    std::vector<uint8_t> vertexData(m_clothVertexCount * sizeof(dx::XMFLOAT3) * 2); // 位置 + 法线
-    for (size_t i = 0; i < m_clothVertexCount; ++i)
-    {
-        size_t positionOffset = i * sizeof(dx::XMFLOAT3) * 2;
-        size_t normalOffset = positionOffset + sizeof(dx::XMFLOAT3);
-        
-        memcpy(&vertexData[positionOffset], &positions[i], sizeof(dx::XMFLOAT3));
-        memcpy(&vertexData[normalOffset], &normals[i], sizeof(dx::XMFLOAT3));
-    }
-    
-    // 上传顶点和索引数据
-    UploadBufferData(m_clothVertexBuffer, vertexData);
-    UploadBufferData(m_clothIndexBuffer, indices);
-}
-
-
-// 设置球体顶点数据
-void DX12Renderer::SetSphereVertices(const std::vector<dx::XMFLOAT3>& positions, const std::vector<dx::XMFLOAT3>& normals,
-                                   const std::vector<uint32_t>& indices)
-{
-    // 保存球体顶点和索引数量
-    m_sphereVertexCount = positions.size();
-    m_sphereIndexCount = indices.size();
-    
-    // 创建球体顶点数据
-    std::vector<uint8_t> vertexData(m_sphereVertexCount * sizeof(dx::XMFLOAT3) * 2); // 位置 + 法线
-    for (size_t i = 0; i < m_sphereVertexCount; ++i)
-    {
-        size_t positionOffset = i * sizeof(dx::XMFLOAT3) * 2;
-        size_t normalOffset = positionOffset + sizeof(dx::XMFLOAT3);
-        
-        memcpy(&vertexData[positionOffset], &positions[i], sizeof(dx::XMFLOAT3));
-        memcpy(&vertexData[normalOffset], &normals[i], sizeof(dx::XMFLOAT3));
-    }
-    
-    // 上传顶点和索引数据
-    UploadBufferData(m_sphereVertexBuffer, vertexData);
-    UploadBufferData(m_sphereIndexBuffer, indices);
-}
-
 
 // 等待前一帧完成
 void DX12Renderer::WaitForPreviousFrame()
@@ -2376,6 +1654,193 @@ void DX12Renderer::Resize(uint32_t width, uint32_t height)
     CreateDepthStencilView();
 
     // 注意：相机调整现在由Main.cpp处理
+}
+
+// 创建图形命令列表
+IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList() {
+    // 使用当前帧的命令分配器创建图形命令列表
+    return new DX12RALGraphicsCommandList(m_device, m_commandAllocators[m_currentFrameIndex]);
+}
+
+// 创建顶点缓冲区
+IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(size_t size, uint32_t stride, bool isStatic) {
+    try {
+        // 创建DX12RALVertexBuffer对象
+        DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size);
+
+        // 设置堆属性
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        if (isStatic) {
+            // 静态缓冲区使用DEFAULT堆，适合GPU读取
+            heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            heapProps.CreationNodeMask = 1;
+            heapProps.VisibleNodeMask = 1;
+        }
+        else {
+            // 动态缓冲区使用UPLOAD堆，适合CPU写入GPU读取
+            heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            heapProps.CreationNodeMask = 1;
+            heapProps.VisibleNodeMask = 1;
+        }
+
+        // 设置初始状态
+        D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+
+        // 创建底层D3D12资源
+        ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
+            size,
+            D3D12_RESOURCE_FLAG_NONE,
+            heapProps,
+            initialState
+        );
+
+        // 设置原生资源
+        vertexBuffer->SetNativeResource(d3d12Resource.Get());
+
+        return vertexBuffer;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Failed to create vertex buffer: " << e.what() << std::endl;
+        return nullptr;
+    }
+}
+
+// 创建索引缓冲区
+IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(size_t size, bool is32BitIndex, bool isStatic) {
+    try {
+        // 创建DX12RALIndexBuffer对象
+        DX12RALIndexBuffer* indexBuffer = new DX12RALIndexBuffer(size, is32BitIndex);
+
+        // 设置堆属性
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        if (isStatic) {
+            // 静态缓冲区使用DEFAULT堆，适合GPU读取
+            heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            heapProps.CreationNodeMask = 1;
+            heapProps.VisibleNodeMask = 1;
+        }
+        else {
+            // 动态缓冲区使用UPLOAD堆，适合CPU写入GPU读取
+            heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            heapProps.CreationNodeMask = 1;
+            heapProps.VisibleNodeMask = 1;
+        }
+
+        // 设置初始状态
+        D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+
+        // 创建底层D3D12资源
+        ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
+            size,
+            D3D12_RESOURCE_FLAG_NONE,
+            heapProps,
+            initialState
+        );
+
+        // 设置原生资源
+        indexBuffer->SetNativeResource(d3d12Resource.Get());
+
+        return indexBuffer;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Failed to create index buffer: " << e.what() << std::endl;
+        return nullptr;
+    }
+}
+
+bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size)
+{
+    // 创建上传堆
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    // 创建上传缓冲区
+    auto uploadBuffer = CreateBuffer(
+        size * sizeof(char),
+        D3D12_RESOURCE_FLAG_NONE,
+        heapProps,
+        D3D12_RESOURCE_STATE_GENERIC_READ
+    );
+
+    // 映射上传缓冲区并复制数据
+    void* mappedData = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    uploadBuffer->Map(0, &readRange, &mappedData);
+    memcpy(mappedData, data, size * sizeof(char));
+    uploadBuffer->Unmap(0, nullptr);
+
+    // 创建一个临时的命令分配器和命令列表来执行复制操作
+    // 这样就不会影响主命令列表的状态
+    ComPtr<ID3D12CommandAllocator> tempCommandAllocator;
+    ComPtr<ID3D12GraphicsCommandList> tempCommandList;
+
+    // 创建临时命令分配器
+    HRESULT hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+        IID_PPV_ARGS(tempCommandAllocator.ReleaseAndGetAddressOf()));
+
+    if (FAILED(hr))
+    {
+        return false;
+    }
+
+    // 创建临时命令列表
+    hr = m_device->CreateCommandList(0,
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        tempCommandAllocator.Get(),
+        nullptr,
+        IID_PPV_ARGS(tempCommandList.ReleaseAndGetAddressOf()));
+
+    if (FAILED(hr))
+    {
+        return false;
+    }
+
+    // 记录复制命令到临时命令列表
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = (ID3D12Resource*)buffer->GetNativeResource();
+    barrier.Transition.Subresource = 0;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+
+    tempCommandList->ResourceBarrier(1, &barrier);
+
+    // 复制数据
+    tempCommandList->CopyBufferRegion(
+        (ID3D12Resource*)buffer->GetNativeResource(),
+        0,
+        uploadBuffer.Get(),
+        0,
+        size * sizeof(char)
+    );
+
+    // 转换缓冲区状态
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+
+    tempCommandList->ResourceBarrier(1, &barrier);
+
+    // 关闭并执行临时命令列表
+    tempCommandList->Close();
+    ID3D12CommandList* ppCommandLists[] = { tempCommandList.Get() };
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+    // 等待命令执行完成
+    WaitForPreviousFrame();
+
+    return true;
 }
 
 // 清理资源

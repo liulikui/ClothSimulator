@@ -302,6 +302,8 @@ enum class RALResourceType
 	NONE,
 	UniformBuffer,
 	UniformBufferLayout,
+	VertexBuffer,
+	IndexBuffer,
 	Shader,
 	GraphicsPipelineState,
 	ComputePipelineState,
@@ -356,12 +358,13 @@ protected:
 
 public:
 	// 获取资源类型
-	RALResourceType GetResourceType() const {
+	RALResourceType GetResourceType() const 
+	{
 		return m_resourceType;
 	}
 
 	// 获取原生资源指针
-	virtual void* GetNativeResource() = 0;
+	virtual void* GetNativeResource() const = 0;
 
 	// 增加引用计数
 	void AddRef()
@@ -575,6 +578,9 @@ public:
 	}
 	
 	virtual ~IRALViewableResource() = default;
+    
+    // 获取原生Shader resource view
+    virtual void* GetNativeShaderResourceView() const = 0;
 };
 
 enum ETextureType
@@ -652,36 +658,61 @@ public:
 	virtual void* GetNativeView() = 0;
 };
 
-// 顶点缓冲区接口
-class IRALVertexBuffer : public IRALResource {
+class IRALBuffer : public IRALResource
+{
 public:
-	IRALVertexBuffer()
-		: IRALResource(RALResourceType::UniformBuffer)
+	IRALBuffer(RALResourceType type, uint64_t size)
+		: IRALResource(type)
+		, m_size(size)
+	{
+
+	}
+
+	uint64_t GetSize() const
+	{
+		return m_size;
+	}
+
+protected:
+	uint64_t m_size;
+};
+
+// 顶点缓冲区接口
+class IRALVertexBuffer : public IRALBuffer
+{
+public:
+	IRALVertexBuffer(uint64_t size)
+		: IRALBuffer(RALResourceType::VertexBuffer, size)
 	{
 	}
 public:
 	virtual ~IRALVertexBuffer() = default;
-	
-	// 创建顶点缓冲区视图
-	virtual IRALVertexBufferView* CreateVertexBufferView(uint32_t stride, uint32_t sizeInBytes) = 0;
 };
 
 // 索引缓冲区接口
-class IRALIndexBuffer : public IRALResource {
+class IRALIndexBuffer : public IRALBuffer
+{
 public:
-	IRALIndexBuffer()
-		: IRALResource(RALResourceType::UniformBuffer)
+	IRALIndexBuffer(uint64_t size, bool is32BitIndex)
+		: IRALBuffer(RALResourceType::IndexBuffer, size)
+		, m_is32BitIndex(is32BitIndex)
 	{
 	}
-public:
+
 	virtual ~IRALIndexBuffer() = default;
-	
-	// 创建索引缓冲区视图
-	virtual IRALIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) = 0;
+
+	bool Is32BitIndex() const
+	{
+		return m_is32BitIndex;
+	}
+
+protected:
+	bool m_is32BitIndex;
 };
 
 // UniformBuffer视图接口
-class IRALUniformBufferView {
+class IRALUniformBufferView
+{
 public:
 	virtual ~IRALUniformBufferView() = default;
 	
@@ -726,13 +757,13 @@ public:
 };
 
 // UniformBuffer接口
-class IRALUniformBuffer : public IRALResource {
+class IRALUniformBuffer : public IRALBuffer{
 public:
-	IRALUniformBuffer()
-		: IRALResource(RALResourceType::UniformBuffer)
+	IRALUniformBuffer(uint64_t size)
+		: IRALBuffer(RALResourceType::UniformBuffer, size)
 	{
 	}
-public:
+
 	virtual ~IRALUniformBuffer() = default;
 	
 	// 创建UniformBuffer视图
@@ -804,7 +835,8 @@ struct RALRootParameter
 };
 
 // 初始化常量根参数
-static inline void InitAsConstants(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, uint32_t num32BitValues, RALShaderVisibility visibility)
+static inline void InitAsConstants(RALRootParameter& param, 
+	uint32_t shaderRegister, uint32_t registerSpace, uint32_t num32BitValues, RALShaderVisibility visibility)
 {
 	param.Type = RALRootParameterType::Constant;
 	param.Data.Constants[0] = shaderRegister;
@@ -814,7 +846,8 @@ static inline void InitAsConstants(RALRootParameter& param, uint32_t shaderRegis
 }
 
 // 初始化CBV根参数
-static inline void InitAsConstantBufferView(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
+static inline void InitAsConstantBufferView(RALRootParameter& param, 
+	uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
 {
 	param.Type = RALRootParameterType::ConstantBufferView;
 	param.Data.Descriptor.ShaderRegister = shaderRegister;
@@ -823,7 +856,8 @@ static inline void InitAsConstantBufferView(RALRootParameter& param, uint32_t sh
 }
 
 // 初始化SRV根参数
-static inline void InitAsShaderResourceView(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
+static inline void InitAsShaderResourceView(RALRootParameter& param, 
+	uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
 {
 	param.Type = RALRootParameterType::ShaderResourceView;
 	param.Data.Descriptor.ShaderRegister = shaderRegister;
@@ -832,7 +866,8 @@ static inline void InitAsShaderResourceView(RALRootParameter& param, uint32_t sh
 }
 
 // 初始化UAV根参数
-static inline void InitAsUnorderedAccessView(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
+static inline void InitAsUnorderedAccessView(RALRootParameter& param, 
+	uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
 {
 	param.Type = RALRootParameterType::UnorderedAccessView;
 	param.Data.Descriptor.ShaderRegister = shaderRegister;
@@ -841,7 +876,8 @@ static inline void InitAsUnorderedAccessView(RALRootParameter& param, uint32_t s
 }
 
 // 初始化描述符表根参数
-static inline void InitAsDescriptorTable(RALRootParameter& param, const std::vector<RALRootDescriptorTableRange>& ranges, RALShaderVisibility visibility)
+static inline void InitAsDescriptorTable(RALRootParameter& param, 
+	const std::vector<RALRootDescriptorTableRange>& ranges, RALShaderVisibility visibility)
 {
 	param.Type = RALRootParameterType::DescriptorTable;
 	param.Data.DescriptorTable.Ranges = ranges;
@@ -916,8 +952,6 @@ enum class RALRootSignatureFlags : uint32_t
     AllowFeedbackTextureLOD = 1 << 7
 };
 
-// 注意：根签名标志位运算符重载已移至DX12Renderer.cpp中实现
-
 // 静态采样器结构体
 struct RALStaticSampler
 {
@@ -938,19 +972,19 @@ struct RALStaticSampler
 
 // 初始化静态采样器
 static inline void InitStaticSampler(RALStaticSampler& sampler, 
-                                     RALFilter filter, 
-                                     RALTextureAddressMode addressU, 
-                                     RALTextureAddressMode addressV, 
-                                     RALTextureAddressMode addressW, 
-                                     float mipLODBias, 
-                                     uint32_t maxAnisotropy, 
-                                     RALComparisonFunc comparisonFunc, 
-                                     RALStaticBorderColor borderColor, 
-                                     float minLOD, 
-                                     float maxLOD, 
-                                     uint32_t shaderRegister, 
-                                     uint32_t registerSpace, 
-                                     RALShaderVisibility visibility)
+	RALFilter filter, 
+	RALTextureAddressMode addressU, 
+	RALTextureAddressMode addressV, 
+	RALTextureAddressMode addressW, 
+	float mipLODBias, 
+	uint32_t maxAnisotropy, 
+	RALComparisonFunc comparisonFunc, 
+	RALStaticBorderColor borderColor, 
+	float minLOD, 
+	float maxLOD, 
+	uint32_t shaderRegister, 
+	uint32_t registerSpace, 
+	RALShaderVisibility visibility)
 {
     sampler.Filter = filter;
     sampler.AddressU = addressU;

@@ -4,22 +4,26 @@
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-void Primitive::setPosition(const dx::XMFLOAT3& position) {
+void Primitive::setPosition(const dx::XMFLOAT3& position)
+{
     this->position = position;
     updateWorldMatrix();
 }
 
-void Primitive::setRotation(const dx::XMFLOAT3& rotation) {
+void Primitive::setRotation(const dx::XMFLOAT3& rotation)
+{
     this->rotation = rotation;
     updateWorldMatrix();
 }
 
-void Primitive::setScale(const dx::XMFLOAT3& scale) {
+void Primitive::setScale(const dx::XMFLOAT3& scale)
+{
     this->scale = scale;
     updateWorldMatrix();
 }
 
-void Primitive::updateWorldMatrix() {
+void Primitive::updateWorldMatrix()
+{
     // 计算旋转矩阵（基于欧拉角）
     dx::XMMATRIX rotX = dx::XMMatrixRotationX(rotation.x);
     dx::XMMATRIX rotY = dx::XMMatrixRotationY(rotation.y);

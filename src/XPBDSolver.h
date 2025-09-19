@@ -1,4 +1,4 @@
-﻿#ifndef XPBD_SOLVER_H
+#ifndef XPBD_SOLVER_H
 #define XPBD_SOLVER_H
 
 #include <vector>
@@ -34,7 +34,8 @@ public:
     //   iterations - 约束求解的迭代次数
     XPBDSolver(std::vector<Particle>& particles, std::vector<Constraint*>& constraints,
               float dt = 1.0f/60.0f, int iterations = 50)  // 增加迭代次数到50次，提高高分辨率布料的稳定性
-        : particles(particles), constraints(constraints), timeStep(dt), iterations(iterations) {
+        : particles(particles), constraints(constraints), timeStep(dt), iterations(iterations)
+    {
         // 初始化重力
         gravity = dx::XMFLOAT3(0.0f, -9.81f, 0.0f);
         
@@ -42,39 +43,45 @@ public:
     }
     
     // 析构函数
-    ~XPBDSolver() {
+    ~XPBDSolver()
+    {
         // 调试输出已禁用，不需要关闭文件
     }
     
     // 调试信息输出（已禁用）
-    void logDebugInfo(float timeStep, size_t iteration, size_t constraintIndex, const std::vector<Particle*>& constraintParticles, float C, float deltaLambda) {
+    void logDebugInfo(float timeStep, size_t iteration, size_t constraintIndex, const std::vector<Particle*>& constraintParticles, float C, float deltaLambda)
+    {
         // 调试输出已禁用
     }
     
     // 设置时间步长
     // 参数
     //   dt - 新的时间步长
-    void setTimeStep(float dt) {
+    void setTimeStep(float dt)
+    {
         timeStep = dt;
     }
     
     // 设置约束求解的迭代次数
     // 参数
     //   its - 新的迭代次数
-    void setIterations(int its) {
+    void setIterations(int its)
+    {
         iterations = its;
     }
     
     // 设置重力
     // 参数
     //   g - 新的重力向量
-    void setGravity(const dx::XMFLOAT3& g) {
+    void setGravity(const dx::XMFLOAT3& g)
+    {
         gravity = g;
     }
     
     // 模拟一步
     // 执行一次完整的XPBD模拟步骤，包括预测、约束求解和位置校正
-    void step(float deltaTime) {
+    void step(float deltaTime)
+    {
         // 1. 预测粒子的位置，考虑外力
         predictPositions(deltaTime);
         
@@ -92,7 +99,8 @@ public:
     
 private:
     // 预测粒子的位置（考虑外力）
-    void predictPositions(float deltaTime) {
+    void predictPositions(float deltaTime)
+    {
         // 将重力转换为XMVECTOR进行计算
         dx::XMVECTOR gravityVector = dx::XMLoadFloat3(&gravity);
         
@@ -241,7 +249,8 @@ private:
     }
     
     // 更新粒子的速度
-    void updateVelocities(float deltaTime) {
+    void updateVelocities(float deltaTime)
+    {
         // 临时存储碰撞粒子的梯度信息，用于后续速度反弹
         std::unordered_map<Particle*, dx::XMVECTOR> collisionGradients;
         
@@ -315,7 +324,8 @@ private:
     }
     
     // 应用阻尼
-    void applyDamping() {
+    void applyDamping()
+    {
         const float velocityThreshold = 2.0f;
         const float defaultDampingFactor = 0.97f;
         const float highDampingFactor = 0.85f;

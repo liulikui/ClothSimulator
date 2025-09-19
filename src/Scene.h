@@ -35,7 +35,14 @@ public:
     }
 
     // 更新场景中所有对象的状态
-    void update(float deltaTime);
+    void update(IRALGraphicsCommandList* commandList, float deltaTime);
+
+    // 渲染场景
+   // 参数：
+   //   renderer - 用于渲染的DX12Renderer对象
+   //   viewMatrix - 视图矩阵
+   //   projectionMatrix - 投影矩阵
+    void render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
     // 添加一个Mesh对象到场景中
     // 参数：
@@ -60,7 +67,8 @@ public:
     }
 
     // 设置场景的背景颜色
-    void setBackgroundColor(const dx::XMFLOAT4& color) {
+    void setBackgroundColor(const dx::XMFLOAT4& color)
+    {
         m_backgroundColor = color;
     }
 
@@ -70,7 +78,8 @@ public:
     }
 
     // 设置场景的光源位置
-    void setLightPosition(const dx::XMFLOAT4& position) {
+    void setLightPosition(const dx::XMFLOAT4& position)
+    {
         m_lightPosition = position;
     }
 
@@ -80,7 +89,8 @@ public:
     }
 
     // 设置场景的光源颜色
-    void setLightColor(const dx::XMFLOAT4& color) {
+    void setLightColor(const dx::XMFLOAT4& color)
+    {
         m_lightColor = color;
     }
 
@@ -88,13 +98,6 @@ public:
     const dx::XMFLOAT4& getLightColor() const {
         return m_lightColor;
     }
-    
-    // 渲染场景
-    // 参数：
-    //   renderer - 用于渲染的DX12Renderer对象
-    //   viewMatrix - 视图矩阵
-    //   projectionMatrix - 投影矩阵
-    void render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
 private:
     // 场景中的所有Mesh对象

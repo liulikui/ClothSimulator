@@ -100,18 +100,6 @@ inline DXGI_FORMAT toDXGIFormat(DataFormat format) {
 	}
 }
 
-// DX12实现的RAL Resource基类
-class DX12RALResource : public IRALResource
-{
-public:
-	DX12RALResource(RALResourceType type)
-		: IRALResource(type)
-	{
-	}
-
-	virtual ~DX12RALResource() = default;
-};
-
 // DX12实现的Shader基类
 class DX12RALShader : public IRALShader
 {
@@ -163,7 +151,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -196,7 +184,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -229,7 +217,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -262,7 +250,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -295,7 +283,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -328,7 +316,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -361,7 +349,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -394,7 +382,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -427,7 +415,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -481,7 +469,7 @@ public:
 	}
 
 	// 实现IRALResource接口
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return GetNativeShader();
 	}
@@ -730,15 +718,12 @@ protected:
 class DX12RALVertexBuffer : public IRALVertexBuffer
 {
 public:
-	DX12RALVertexBuffer()
-		: m_totalSizeInBytes(0)
+	DX12RALVertexBuffer(uint64_t size)
+		: IRALVertexBuffer(size)
 	{
 	}
 
 	virtual ~DX12RALVertexBuffer() = default;
-
-	// 创建顶点缓冲区视图
-	virtual IRALVertexBufferView* CreateVertexBufferView(uint32_t stride, uint32_t sizeInBytes) override;
 
 	// 设置原生资源指针
 	void SetNativeResource(ID3D12Resource* resource)
@@ -747,42 +732,25 @@ public:
 	}
 
 	// 获取原生资源指针
-	ID3D12Resource* GetNativeResource() const
+	virtual void* GetNativeResource() const override
 	{
 		return m_nativeResource.Get();
 	}
 
-	// 设置总大小
-	void SetTotalSizeInBytes(uint32_t size)
-	{
-		m_totalSizeInBytes = size;
-	}
-
-	// 获取总大小
-	uint32_t GetTotalSizeInBytes() const
-	{
-		return m_totalSizeInBytes;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;     // ID3D12Resource*
-	uint32_t m_totalSizeInBytes; // 缓冲区总大小
 };
 
 // DX12实现的索引缓冲区
 class DX12RALIndexBuffer : public IRALIndexBuffer
 {
 public:
-	DX12RALIndexBuffer()
-		: m_totalSizeInBytes(0)
-		, m_is32BitIndex(false)
+	DX12RALIndexBuffer(uint64_t size, bool is32BitIndex)
+		: IRALIndexBuffer(size, is32BitIndex)
 	{
 	}
 
 	virtual ~DX12RALIndexBuffer() = default;
-
-	// 创建索引缓冲区视图
-	virtual IRALIndexBufferView* CreateIndexBufferView(uint32_t sizeInBytes, bool is32Bit) override;
 
 	// 设置原生资源指针
 	void SetNativeResource(ID3D12Resource* resource)
@@ -791,52 +759,26 @@ public:
 	}
 
 	// 获取原生资源指针
-	ID3D12Resource* GetNativeResource() const
+	virtual void* GetNativeResource() const override
 	{
 		return m_nativeResource.Get();
 	}
 
-	// 设置总大小
-	void SetTotalSizeInBytes(uint32_t size)
-	{
-		m_totalSizeInBytes = size;
-	}
-
-	// 获取总大小
-	uint32_t GetTotalSizeInBytes() const
-	{
-		return m_totalSizeInBytes;
-	}
-
-	// 设置索引格式
-	void SetIs32BitIndex(bool is32Bit)
-	{
-		m_is32BitIndex = is32Bit;
-	}
-
-	// 获取索引格式
-	bool Is32BitIndex() const
-	{
-		return m_is32BitIndex;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;     // ID3D12Resource*
-	uint32_t m_totalSizeInBytes; // 缓冲区总大小
-	bool m_is32BitIndex;        // 是否为32位索引
 };
 
 // DX12实现的常量缓冲区视图
-class DX12ConstBufferView : public IRALUniformBufferView
+class DX12UniformBufferView : public IRALUniformBufferView
 {
 public:
-	DX12ConstBufferView()
+	DX12UniformBufferView()
 		: m_bufferLocation(0)
 		, m_sizeInBytes(0)
 	{
 	}
 
-	virtual ~DX12ConstBufferView() = default;
+	virtual ~DX12UniformBufferView() = default;
 
 	// 设置缓冲区起始地址
 	void SetBufferLocation(uint64_t location)
@@ -890,15 +832,15 @@ protected:
 };
 
 // DX12实现的常量缓冲区
-class DX12RALConstBuffer : public IRALUniformBuffer
+class DX12RALUniformBuffer : public IRALUniformBuffer
 {
 public:
-	DX12RALConstBuffer()
-		: m_totalSizeInBytes(0)
+	DX12RALUniformBuffer(uint64_t size)
+		: IRALUniformBuffer(size)
 	{
 	}
 
-	virtual ~DX12RALConstBuffer() = default;
+	virtual ~DX12RALUniformBuffer() = default;
 
 	// 创建常量缓冲区视图
 	virtual IRALUniformBufferView* CreateUniformBufferView(uint32_t sizeInBytes) override;
@@ -906,33 +848,20 @@ public:
 	// 更新常量缓冲区数据
 	virtual void Update(const void* data, uint32_t sizeInBytes) override;
 
+	// 获取原生资源指针
+	virtual void* GetNativeResource() const override
+	{
+		return m_nativeResource.Get();
+	}
+
 	// 设置原生资源指针
 	void SetNativeResource(ID3D12Resource* resource)
 	{
 		m_nativeResource = resource;
 	}
 
-	// 获取原生资源指针
-	ID3D12Resource* GetNativeResource() const
-	{
-		return m_nativeResource.Get();
-	}
-
-	// 设置总大小
-	void SetTotalSizeInBytes(uint32_t size)
-	{
-		m_totalSizeInBytes = size;
-	}
-
-	// 获取总大小
-	uint32_t GetTotalSizeInBytes() const
-	{
-		return m_totalSizeInBytes;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;     // ID3D12Resource*
-	uint32_t m_totalSizeInBytes; // 缓冲区总大小
 };
 
 // DX12实现的渲染目标
@@ -1129,7 +1058,7 @@ public:
 	}
 
 	// 获取原生根签名指针
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return m_nativeRootSignature.Get();
 	}
@@ -1156,7 +1085,7 @@ public:
 	}
 
 	// 获取原生管线状态指针
-	virtual void* GetNativeResource() override
+	virtual void* GetNativeResource() const override
 	{
 		return m_nativePipelineState.Get();
 	}

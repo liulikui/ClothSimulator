@@ -8,6 +8,7 @@
 #include <memory>
 #include "Camera.h"
 #include "RALResource.h"
+#include "RALCommandList.h"
 #include "DX12RALResource.h"
 #include "TSharePtr.h"
 
@@ -16,21 +17,6 @@ namespace dx = DirectX;
 
 // 前向声明
 class Scene;
-
-// 交换链常量缓冲区结构体
-struct ConstantBuffer {
-    dx::XMFLOAT4X4 worldViewProj; // 世界-视图-投影矩阵
-    dx::XMFLOAT4X4 world;         // 世界矩阵
-};
-
-// 材质和光照常量缓冲区结构体
-struct MaterialBuffer {
-    dx::XMFLOAT4 diffuseColor;    // 漫反射颜色
-    dx::XMFLOAT3 lightPos;        // 光源位置
-    float padding1;               // 4字节对齐填充
-    dx::XMFLOAT3 lightColor;      // 光源颜色
-    float padding2;               // 4字节对齐填充
-};
 
 class DX12Renderer {
 public:
@@ -41,49 +27,26 @@ public:
     // 初始化DirectX 12
     bool Initialize();
 
-    // 渲染一帧
-    void Render(Scene* scene, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    // 开始一帧
+    void BeginFrame();
+
+    // 提交CommandLists
+    void ExecuteCommandLists(uint32_t count, IRALCommandList** ppCommandList);
+
+    // 结束一帧
+    void EndFrame();
 
     // 清理资源
     void Cleanup();
 
-    // 设置布料顶点数据
-    void SetClothVertices(const std::vector<dx::XMFLOAT3>& positions, const std::vector<dx::XMFLOAT3>& normals,
-                         const std::vector<uint32_t>& indices);
-
-    // 设置球体顶点数据
-    void SetSphereVertices(const std::vector<dx::XMFLOAT3>& positions, const std::vector<dx::XMFLOAT3>& normals,
-                          const std::vector<uint32_t>& indices);
-
     // 调整窗口大小
     void Resize(uint32_t width, uint32_t height);
-    
-    // 更新常量缓冲区
-    bool CreateMaterialBuffer();
-    void UpdateMaterialBuffer(const dx::XMFLOAT4& diffuseColor);
-
-    // 更新光源位置
-    void UpdateLightPosition(const dx::XMFLOAT4& position);
-    
-    // 更新光源颜色
-    void UpdateLightColor(const dx::XMFLOAT4& color);
 
     // 获取窗口宽度
     uint32_t GetWidth() const { return m_width; }
 
     // 获取窗口高度
     uint32_t GetHeight() const { return m_height; }
-    
-    // 渲染单个Primitive对象
-    // 参数：
-    //   worldMatrix - 世界矩阵
-    //   diffuseColor - 漫反射颜色
-    //   isCloth - 是否为布料对象（使用布料的PSO）
-    // 注意：视图矩阵和投影矩阵不再作为参数传递，因为它们已经存储在Scene的cameraConstBuffer中
-    void RenderPrimitive(const dx::XMMATRIX& worldMatrix, const dx::XMFLOAT4& diffuseColor, bool isCloth);
-    
-    // 设置根签名
-    void SetRootSignature(TSharePtr<IRALRootSignature> rootSignature);
     
     // 编译顶点着色器
     IRALVertexShader* CompileVertexShader(const char* shaderCode, const char* entryPoint = "main");
@@ -123,9 +86,21 @@ public:
         const std::vector<RALStaticSampler>& staticSamplers = {},
         RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout);
         
+    // 创建图形命令列表
+    IRALGraphicsCommandList* CreateGraphicsCommandList();
+
+    // 创建顶点缓冲区
+    IRALVertexBuffer* CreateVertexBuffer(size_t size, uint32_t stride, bool isStatic = true);
+
+    // 创建索引缓冲区
+    IRALIndexBuffer* CreateIndexBuffer(size_t size, bool is32BitIndex = true, bool isStatic = true);
+
+    // 更新Buffer
+    bool UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size);
+
 private:
     // 通用着色器编译辅助方法
-    Microsoft::WRL::ComPtr<ID3DBlob> CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target);
+    ComPtr<ID3DBlob> CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target);
     
     // 创建设备和交换链
     bool CreateDeviceAndSwapChain();
@@ -142,20 +117,10 @@ private:
     // 创建深度/模板视图
     void CreateDepthStencilView();
 
-    // 创建根签名 (旧方法，已废弃)
-    void CreateRootSignature();
-
-    // 创建管道状态对象
-    void CreatePipelineStateObjects();
-
     // 创建缓冲区
     ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
-                                             D3D12_HEAP_PROPERTIES heapProps,
-                                             D3D12_RESOURCE_STATES initialState);
-
-    // 上传资源数据
-    template<typename T>
-    void UploadBufferData(ComPtr<ID3D12Resource>& buffer, const std::vector<T>& data);
+        D3D12_HEAP_PROPERTIES heapProps,
+        D3D12_RESOURCE_STATES initialState);
 
     // 等待前一帧完成
     void WaitForPreviousFrame();
@@ -198,26 +163,4 @@ private:
     // 资源
     std::vector<ComPtr<ID3D12Resource>> m_backBuffers;       // 后缓冲区
     ComPtr<ID3D12Resource> m_depthStencilBuffer;             // 深度/模板缓冲区
-
-    // 根签名和管道状态
-    ComPtr<ID3D12PipelineState> m_clothPipelineState;        // 布料管道状态
-    ComPtr<ID3D12PipelineState> m_spherePipelineState;       // 球体管道状态
-
-    // 布料和球体资源
-    ComPtr<ID3D12Resource> m_clothVertexBuffer;              // 布料顶点缓冲区
-    ComPtr<ID3D12Resource> m_clothIndexBuffer;               // 布料索引缓冲区
-    ComPtr<ID3D12Resource> m_sphereVertexBuffer;             // 球体顶点缓冲区
-    ComPtr<ID3D12Resource> m_sphereIndexBuffer;              // 球体索引缓冲区
-
-    uint32_t m_clothVertexCount = 0;                                  // 布料顶点数量
-    uint32_t m_clothIndexCount = 0;                                   // 布料索引数量
-    uint32_t m_sphereVertexCount = 0;                                 // 球体顶点数量
-    uint32_t m_sphereIndexCount = 0;                                  // 球体索引数量
-    
-    // 常量缓冲区
-    ComPtr<ID3D12Resource> m_materialBuffer;                 // 材质和光照常量缓冲区
-
-    // 光照参数
-    dx::XMFLOAT4 m_lightPosition = { -10.0f, 30.0f, -10.0f, 1.0f };
-    dx::XMFLOAT4 m_lightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 };

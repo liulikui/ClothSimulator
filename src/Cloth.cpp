@@ -3,6 +3,7 @@
 #include <DirectXMath.h>
 #include <algorithm>
 #include "SphereCollisionConstraint.h"
+#include "DX12RALResource.h"
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -18,7 +19,9 @@ extern int& getCollisionConstraintCount();
 //   size - 布料的实际物理尺寸（以米为单位）
 //   mass - 每个粒子的质量
 Cloth::Cloth(const dx::XMFLOAT3& position, int width, int height, float size, float mass)
-    : Mesh(), width(width), height(height), solver(particles, constraints), useXPBDCollision(true) {
+    : Mesh(), width(width), height(height), solver(particles, constraints), useXPBDCollision(true)
+{
+    // 设置布料的位置
     // 设置布料的位置
     setPosition(position);
     // 创建粒子
@@ -42,7 +45,8 @@ Cloth::Cloth(const dx::XMFLOAT3& position, int width, int height, float size, fl
 }
 
 // 析构函数
-Cloth::~Cloth() {
+Cloth::~Cloth()
+{
     // 清除球体碰撞约束
     clearSphereCollisionConstraints();
     
@@ -53,6 +57,164 @@ Cloth::~Cloth() {
     
     // 清除约束指针数组中的其他约束（如果有）
     constraints.clear();
+    
+    // 释放顶点和索引缓冲区
+    if (m_vertexBuffer) {
+        delete m_vertexBuffer;
+        m_vertexBuffer = nullptr;
+    }
+    
+    if (m_indexBuffer) {
+        delete m_indexBuffer;
+        m_indexBuffer = nullptr;
+    }
+}
+
+// 初始化布料的顶点和索引缓冲区
+bool Cloth::Initialize(DX12Renderer* renderer)
+{
+    // 确保renderer不为空
+    if (!renderer) {
+        std::cerr << "Cloth::Initialize: renderer is null" << std::endl;
+        return false;
+    }
+
+    // 生成布料的顶点和索引数据
+    // 首先生成索引数据（如果尚未生成）
+    if (indices.empty()) {
+        // 生成三角形面的索引数据
+        for (int y = 0; y < height - 1; ++y) {
+            for (int x = 0; x < width - 1; ++x) {
+                // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
+                int i1 = y * width + x;
+                int i2 = y * width + x + 1;
+                int i3 = (y + 1) * width + x + 1;
+
+                indices.push_back(i1);
+                indices.push_back(i2);
+                indices.push_back(i3);
+
+                // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
+                i1 = y * width + x;
+                i2 = (y + 1) * width + x + 1;
+                i3 = (y + 1) * width + x;
+
+                indices.push_back(i1);
+                indices.push_back(i2);
+                indices.push_back(i3);
+            }
+        }
+    }
+
+    // 生成顶点数据（位置和法线）
+    std::vector<float> vertexData;
+
+    // 计算顶点法线
+    std::vector<dx::XMFLOAT3> vertexNormals(particles.size(), dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+
+    for (int y = 0; y < height - 1; ++y) {
+        for (int x = 0; x < width - 1; ++x) {
+            // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
+            int i1 = y * width + x;
+            int i2 = y * width + x + 1;
+            int i3 = (y + 1) * width + x + 1;
+
+            // 计算面法线 - 反转法线方向
+            dx::XMVECTOR v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i2].position), dx::XMLoadFloat3(&particles[i1].position));
+            dx::XMVECTOR v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i3].position), dx::XMLoadFloat3(&particles[i1].position));
+            dx::XMVECTOR crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
+
+            // 检查叉乘结果是否为零向量，避免NaN
+            float lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
+            if (lengthSquared > 0.0001f) {
+                crossProduct = dx::XMVector3Normalize(crossProduct);
+
+                // 将面法线添加到顶点法线
+                dx::XMStoreFloat3(&vertexNormals[i1], dx::XMVectorAdd(dx::XMLoadFloat3(&vertexNormals[i1]), crossProduct));
+                dx::XMStoreFloat3(&vertexNormals[i2], dx::XMVectorAdd(dx::XMLoadFloat3(&vertexNormals[i2]), crossProduct));
+                dx::XMStoreFloat3(&vertexNormals[i3], dx::XMVectorAdd(dx::XMLoadFloat3(&vertexNormals[i3]), crossProduct));
+            }
+
+            // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
+            i1 = y * width + x;
+            i2 = (y + 1) * width + x + 1;
+            i3 = (y + 1) * width + x;
+
+            // 计算面法线 - 反转法线方向
+            v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i2].position), dx::XMLoadFloat3(&particles[i1].position));
+            v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&particles[i3].position), dx::XMLoadFloat3(&particles[i1].position));
+            crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
+
+            // 检查叉乘结果是否为零向量，避免NaN
+            lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
+            if (lengthSquared > 0.0001f) {
+                crossProduct = dx::XMVector3Normalize(crossProduct);
+
+                // 将面法线添加到顶点法线
+                dx::XMStoreFloat3(&vertexNormals[i1], dx::XMVectorAdd(dx::XMLoadFloat3(&vertexNormals[i1]), crossProduct));
+                dx::XMStoreFloat3(&vertexNormals[i2], dx::XMVectorAdd(dx::XMLoadFloat3(&vertexNormals[i2]), crossProduct));
+                dx::XMStoreFloat3(&vertexNormals[i3], dx::XMVectorAdd(dx::XMLoadFloat3(&vertexNormals[i3]), crossProduct));
+            }
+        }
+    }
+
+    // 对顶点法线进行归一化，并构建顶点数据
+    for (size_t i = 0; i < particles.size(); ++i) {
+        // 归一化法线
+        dx::XMVECTOR normalVector = dx::XMLoadFloat3(&vertexNormals[i]);
+        float lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(normalVector));
+        if (lengthSquared > 0.0001f) {
+            normalVector = dx::XMVector3Normalize(normalVector);
+            dx::XMStoreFloat3(&vertexNormals[i], normalVector);
+        }
+
+        // 添加顶点位置
+        vertexData.push_back(particles[i].position.x);
+        vertexData.push_back(particles[i].position.y);
+        vertexData.push_back(particles[i].position.z);
+
+        // 添加顶点法线
+        vertexData.push_back(vertexNormals[i].x);
+        vertexData.push_back(vertexNormals[i].y);
+        vertexData.push_back(vertexNormals[i].z);
+    }
+
+    // 创建顶点缓冲区
+    size_t vertexBufferSize = vertexData.size() * sizeof(float);
+    m_vertexBuffer = renderer->CreateVertexBuffer(
+        vertexBufferSize,
+        6 * sizeof(float) // 顶点 stride（3个位置分量 + 3个法线分量）
+    );
+
+    if (!m_vertexBuffer) {
+        return false;
+    }
+
+    // 创建索引缓冲区
+    size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+    m_indexBuffer = renderer->CreateIndexBuffer(
+        indexBufferSize,
+        true // 32位索引
+    );
+
+    if (!m_indexBuffer) {
+        return false;
+    }
+
+    // 上传顶点数据
+    if (!renderer->UploadBuffer(m_vertexBuffer, (const char*)vertexData.data(), vertexBufferSize)) {
+        std::cerr << "Cloth::Initialize: Failed to upload vertex buffer data" << std::endl;
+        return false;
+    }
+
+    // 上传索引数据
+    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)indices.data(), indexBufferSize)) {
+        std::cerr << "Cloth::Initialize: Failed to upload index buffer data" << std::endl;
+        return false;
+    }
+
+    std::cout << "Cloth::Initialize: Vertex and index buffers created successfully" << std::endl;
+    return true;
 }
 
 // 初始化球体碰撞约束（一次性创建，避免每帧重建）
@@ -75,7 +237,7 @@ void Cloth::initializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCente
 }
 
 // 更新布料状态
-void Cloth::update(float deltaTime) {
+void Cloth::update(IRALGraphicsCommandList* commandList, float deltaTime) {
     // 重置碰撞约束计数
     getCollisionConstraintCount() = 0;
     
@@ -215,15 +377,14 @@ void Cloth::update(float deltaTime) {
         
         this->normals.push_back(normalizedNormal);
     }
-    
-    // 只保留碰撞约束计数逻辑，移除调试输出以提高性能
 }
 
 // 检查布料粒子与球体的碰撞（传统方法）
 // 参数：
 //   sphereCenter - 球体中心位置
 //   sphereRadius - 球体半径
-void Cloth::checkSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereRadius) {
+void Cloth::checkSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereRadius)
+{
     // 将球心转换为XMVECTOR进行计算
     dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
     
@@ -250,7 +411,8 @@ void Cloth::checkSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereR
 }
 
 // 添加基于XPBD约束的球体碰撞检测
-void Cloth::addSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float sphereRadius) {
+void Cloth::addSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float sphereRadius)
+{
     for (auto& particle : particles) {
         if (!particle.isStatic) {
             // 为每个非静态粒子创建一个球体碰撞约束
@@ -264,7 +426,8 @@ void Cloth::addSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float
 }
 
 // 清除所有球体碰撞约束
-void Cloth::clearSphereCollisionConstraints() {
+void Cloth::clearSphereCollisionConstraints()
+{
     // 从总约束列表中移除球体碰撞约束
     auto it = std::remove_if(constraints.begin(), constraints.end(), [this](Constraint* constraint) {
         return std::find(sphereConstraints.begin(), sphereConstraints.end(), constraint) != sphereConstraints.end();
@@ -279,7 +442,8 @@ void Cloth::clearSphereCollisionConstraints() {
 }
 
 // 创建布料的粒子
-void Cloth::createParticles(const dx::XMFLOAT3& position, float size, float mass) {
+void Cloth::createParticles(const dx::XMFLOAT3& position, float size, float mass)
+{
     particles.reserve(width * height);
     
     float stepX = size / (width - 1);
@@ -306,7 +470,8 @@ void Cloth::createParticles(const dx::XMFLOAT3& position, float size, float mass
 }
 
 // 创建布料的约束
-void Cloth::createConstraints(float size) {
+void Cloth::createConstraints(float size)
+{
     distanceConstraints.clear();
     constraints.clear();
     

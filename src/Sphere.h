@@ -2,6 +2,8 @@
 #define SPHERE_H
 
 #include "Mesh.h"
+#include "RALResource.h"
+#include "DX12Renderer.h"
 #include <DirectXMath.h>
 #include <vector>
 #include <cstdint>
@@ -26,7 +28,10 @@ public:
     ~Sphere() override = default;
 
     // 更新球体状态
-    void update(float deltaTime) override;
+    void update(IRALGraphicsCommandList* commandList, float deltaTime) override;
+
+    // 初始化球体
+    bool Initialize(DX12Renderer* renderer);
 
     // 获取球体的顶点位置数据
     const std::vector<dx::XMFLOAT3>& getPositions() const override {
@@ -69,6 +74,11 @@ public:
         return stacks;
     }
 
+    // 获取顶点缓冲区
+    IRALVertexBuffer* getVertexBuffer() const { return m_vertexBuffer; }
+    // 获取索引缓冲区
+    IRALIndexBuffer* getIndexBuffer() const { return m_indexBuffer; }
+
 private:
     // 球体参数
     dx::XMFLOAT3 center; // 球体中心位置
@@ -80,6 +90,10 @@ private:
     std::vector<dx::XMFLOAT3> positions; // 顶点位置数据
     std::vector<dx::XMFLOAT3> normals;   // 顶点法线数据
     std::vector<uint32_t> indices;       // 索引数据
+
+    // 渲染资源
+    IRALVertexBuffer* m_vertexBuffer = nullptr;
+    IRALIndexBuffer* m_indexBuffer = nullptr;
 
     // 生成球体的顶点和索引数据
     void generateSphereData();

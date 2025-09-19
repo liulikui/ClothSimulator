@@ -1,4 +1,4 @@
-﻿#ifndef CONSTRAINT_H
+#ifndef CONSTRAINT_H
 #define CONSTRAINT_H
 
 #include <vector>
@@ -15,7 +15,8 @@ public:
     virtual ~Constraint() = default;
     
     // 构造函数
-    Constraint() : lambda(0.0f), compliance(1e-6f) {}
+    Constraint() : lambda(0.0f), compliance(1e-6f)
+    {}
     
     // 拉格朗日乘子
     float lambda;
@@ -40,7 +41,8 @@ public:
     // 设置约束的柔度
     // 参数：
     //   c - 新的柔度值
-    void setCompliance(float c) {
+    void setCompliance(float c)
+    {
         compliance = c;
     }
     

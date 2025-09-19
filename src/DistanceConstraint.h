@@ -1,4 +1,4 @@
-﻿#ifndef DISTANCE_CONSTRAINT_H
+#ifndef DISTANCE_CONSTRAINT_H
 #define DISTANCE_CONSTRAINT_H
 
 #include "Constraint.h"
@@ -18,7 +18,8 @@ public:
     //   restLength - 约束的静止长度（两个粒子之间的目标距离）
     //   compliance - 约束的柔度（与刚度成反比）
     DistanceConstraint(Particle* p1, Particle* p2, float restLength, float compliance = 1e-6)
-        : particle1(p1), particle2(p2), restLength(restLength) {
+        : particle1(p1), particle2(p2), restLength(restLength)
+    {
         this->compliance = compliance;
     }
     

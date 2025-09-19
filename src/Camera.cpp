@@ -4,7 +4,8 @@ Camera::Camera(uint32_t width, uint32_t height)
     : m_width(width), m_height(height),
       m_fieldOfView(dx::XMConvertToRadians(45.0f)),
       m_nearClipPlane(0.1f),
-      m_farClipPlane(100.0f) {
+      m_farClipPlane(100.0f)
+{
 
     m_cameraPosition = dx::XMVectorSet(10.0f, 10.0f, 10.0f, 1.0f);
     m_cameraTarget = dx::XMVectorZero();
@@ -14,58 +15,69 @@ Camera::Camera(uint32_t width, uint32_t height)
     UpdateProjectionMatrix();
 }
 
-Camera::~Camera() {
+Camera::~Camera()
+{
     // No special cleanup needed
 }
 
-void Camera::UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up) {
+void Camera::UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up)
+{
     m_cameraPosition = position;
     m_cameraTarget = target;
     m_cameraUp = up;
     UpdateViewMatrix();
 }
 
-void Camera::Resize(uint32_t width, uint32_t height) {
+void Camera::Resize(uint32_t width, uint32_t height)
+{
     m_width = width;
     m_height = height;
     UpdateProjectionMatrix();
 }
 
-void Camera::SetPosition(const dx::XMVECTOR& position) {
+void Camera::SetPosition(const dx::XMVECTOR& position)
+{
     m_cameraPosition = position;
     UpdateViewMatrix();
 }
 
-void Camera::SetTarget(const dx::XMVECTOR& target) {
+void Camera::SetTarget(const dx::XMVECTOR& target)
+{
     m_cameraTarget = target;
     UpdateViewMatrix();
 }
 
-void Camera::SetUp(const dx::XMVECTOR& up) {
+void Camera::SetUp(const dx::XMVECTOR& up)
+{
     m_cameraUp = up;
     UpdateViewMatrix();
 }
 
-void Camera::SetFieldOfView(float fov) {
+void Camera::SetFieldOfView(float fov)
+{
     m_fieldOfView = fov;
     UpdateProjectionMatrix();
 }
 
-void Camera::SetNearClipPlane(float nearPlane) {
+void Camera::SetNearClipPlane(float nearPlane)
+{
     m_nearClipPlane = nearPlane;
     UpdateProjectionMatrix();
 }
 
-void Camera::SetFarClipPlane(float farPlane) {
+void Camera::SetFarClipPlane(float farPlane)
+{
     m_farClipPlane = farPlane;
     UpdateProjectionMatrix();
 }
 
-void Camera::UpdateViewMatrix() {
+void Camera::UpdateViewMatrix()
+{
     m_viewMatrix = dx::XMMatrixLookAtLH(m_cameraPosition, m_cameraTarget, m_cameraUp);
 }
 
-void Camera::UpdateProjectionMatrix() {
+void Camera::UpdateProjectionMatrix()
+{
     m_projectionMatrix = dx::XMMatrixPerspectiveFovLH(
         m_fieldOfView,
         static_cast<float>(m_width) / static_cast<float>(m_height),

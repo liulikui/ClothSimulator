@@ -6,7 +6,8 @@
 namespace dx = DirectX;
 
 Sphere::Sphere(const dx::XMFLOAT3& center, float radius, uint32_t sectors, uint32_t stacks)
-    : center(center), radius(radius), sectors(sectors), stacks(stacks) {
+    : center(center), radius(radius), sectors(sectors), stacks(stacks)
+{
     // 设置球体的位置
     setPosition(center);
     
@@ -14,26 +15,79 @@ Sphere::Sphere(const dx::XMFLOAT3& center, float radius, uint32_t sectors, uint3
     generateSphereData();
 }
 
-void Sphere::update(float deltaTime) {
+void Sphere::update(IRALGraphicsCommandList* commandList, float deltaTime)
+{
     // 球体默认不需要复杂的更新逻辑
     // 可以在这里添加动画或其他动态行为
 }
 
-void Sphere::setRadius(float newRadius) {
+bool Sphere::Initialize(DX12Renderer* renderer)
+{
+    if (!renderer || positions.empty() || indices.empty()) {
+        return false;
+    }
+
+    // 创建顶点数据（位置 + 法线）
+    std::vector<uint8_t> vertexData(positions.size() * sizeof(dx::XMFLOAT3) * 2);
+    for (size_t i = 0; i < positions.size(); ++i) {
+        size_t positionOffset = i * sizeof(dx::XMFLOAT3) * 2;
+        size_t normalOffset = positionOffset + sizeof(dx::XMFLOAT3);
+
+        memcpy(&vertexData[positionOffset], &positions[i], sizeof(dx::XMFLOAT3));
+        memcpy(&vertexData[normalOffset], &normals[i], sizeof(dx::XMFLOAT3));
+    }
+
+    // 创建顶点缓冲区
+    m_vertexBuffer = renderer->CreateVertexBuffer(
+        vertexData.size(),
+        6 * sizeof(float) // 顶点 stride（3个位置分量 + 3个法线分量）
+    );
+
+    if (!m_vertexBuffer) {
+        return false;
+    }
+
+    // 创建索引缓冲区
+    m_indexBuffer = renderer->CreateIndexBuffer(
+        indices.size() * sizeof(uint32_t),
+        true // 32位索引
+    );
+
+    if (!m_indexBuffer) {
+        return false;
+    }
+
+    // 上传顶点数据
+    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)vertexData.data(), vertexData.size())) {
+        return false;
+    }
+
+    // 上传索引数据
+    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)indices.data(), indices.size() * sizeof(uint32_t))) {
+        return false;
+    }
+
+    return true;
+}
+
+void Sphere::setRadius(float newRadius)
+{
     if (radius != newRadius) {
         radius = newRadius;
         generateSphereData();
     }
 }
 
-void Sphere::setCenter(const dx::XMFLOAT3& newCenter) {
+void Sphere::setCenter(const dx::XMFLOAT3& newCenter)
+{
     if (center.x != newCenter.x || center.y != newCenter.y || center.z != newCenter.z) {
         center = newCenter;
         setPosition(center);
     }
 }
 
-void Sphere::generateSphereData() {
+void Sphere::generateSphereData()
+{
     // 清空现有数据
     positions.clear();
     normals.clear();

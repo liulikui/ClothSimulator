@@ -9,7 +9,7 @@
 namespace dx = DirectX;
 
 // 前向声明
-class DX12Renderer;
+class IRALGraphicsCommandList;
 
 class Primitive {
 public:
@@ -17,7 +17,7 @@ public:
     virtual ~Primitive() = default;
 
     // 纯虚函数，更新对象状态
-    virtual void update(float deltaTime) = 0;
+    virtual void update(IRALGraphicsCommandList* commandList, float deltaTime) = 0;
 
     // 获取对象的世界变换矩阵
     const dx::XMMATRIX& getWorldMatrix() const {
@@ -25,7 +25,8 @@ public:
     }
 
     // 设置对象的世界变换矩阵
-    void setWorldMatrix(const dx::XMMATRIX& matrix) {
+    void setWorldMatrix(const dx::XMMATRIX& matrix)
+    {
         worldMatrix = matrix;
     }
 
@@ -44,7 +45,8 @@ public:
     }
 
     // 设置可见性
-    void setVisible(bool isVisible) {
+    void setVisible(bool isVisible)
+    {
         visible = isVisible;
     }
 

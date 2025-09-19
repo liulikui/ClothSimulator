@@ -8,6 +8,8 @@
 #include "DistanceConstraint.h"
 #include "XPBDSolver.h"
 #include "Mesh.h"
+#include "RALResource.h"
+#include "DX12Renderer.h"
 #include <cstdint> // For uint32_t
 
 // 前向声明
@@ -31,7 +33,10 @@ public:
     ~Cloth() override;
     
     // 更新布料状态
-    void update(float deltaTime) override;
+    void update(IRALGraphicsCommandList* commandList, float deltaTime) override;
+    
+    // 初始化布料
+    bool Initialize(DX12Renderer* renderer);
     
     // 获取布料的所有粒子
     const std::vector<Particle>& getParticles() const {
@@ -64,7 +69,8 @@ public:
     void clearSphereCollisionConstraints();
     
     // 设置是否使用XPBD碰撞约束
-    void setUseXPBDCollision(bool use) {
+    void setUseXPBDCollision(bool use)
+    {
         if (useXPBDCollision != use) {
             useXPBDCollision = use;
             
@@ -138,6 +144,10 @@ private:
     std::vector<dx::XMFLOAT3> positions; // 布料顶点位置数据
     std::vector<dx::XMFLOAT3> normals; // 布料顶点法线数据
     std::vector<uint32_t> indices; // 布料索引数据
+    
+    // 渲染资源
+    IRALVertexBuffer* m_vertexBuffer = nullptr;
+    IRALIndexBuffer* m_indexBuffer = nullptr;
 };
 
 #endif // CLOTH_H
