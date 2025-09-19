@@ -9,7 +9,7 @@
 namespace dx = DirectX;
 
 // 声明外部函数
-extern int& getCollisionConstraintCount();
+extern int& GetCollisionConstraintCount();
 
 // 构造函数：创建一个布料对象
 // 参数：
@@ -23,32 +23,32 @@ Cloth::Cloth(const dx::XMFLOAT3& position, int width, int height, float size, fl
 {
     // 设置布料的位置
     // 设置布料的位置
-    setPosition(position);
+    SetPosition(position);
     // 创建粒子
-    createParticles(position, size, mass);
+    CreateParticles(position, size, mass);
     
     // 创建布料的约束
-    createConstraints(size);
+    CreateConstraints(size);
     
     // 设置重力为标准地球重力
     gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
-    solver.setGravity(gravity);
+    solver.SetGravity(gravity);
     
     // 设置求解器参数（增加迭代次数以提高约束求解质量）
-    solver.setIterations(80); // 显著增加迭代次数以提高高分辨率布料和碰撞的稳定性
+    solver.SetIterations(80); // 显著增加迭代次数以提高高分辨率布料和碰撞的稳定性
     
     // 初始化球体碰撞约束（一次性创建，避免每帧重建）
     // 默认球体参数：中心在(0,0,0)，半径为2.0
     dx::XMFLOAT3 sphereCenter(0.0f, 0.0f, 0.0f);
     float sphereRadius = 2.0f;
-    initializeSphereCollisionConstraints(sphereCenter, sphereRadius);
+    InitializeSphereCollisionConstraints(sphereCenter, sphereRadius);
 }
 
 // 析构函数
 Cloth::~Cloth()
 {
     // 清除球体碰撞约束
-    clearSphereCollisionConstraints();
+    ClearSphereCollisionConstraints();
     
     // 清除距离约束
     for (auto& constraint : distanceConstraints) {
@@ -60,7 +60,7 @@ Cloth::~Cloth()
 }
 
 // 初始化布料的顶点和索引缓冲区
-bool Cloth::initialize(DX12Renderer* renderer)
+bool Cloth::Initialize(DX12Renderer* renderer)
 {
     // 确保renderer不为空
     if (!renderer)
@@ -218,7 +218,7 @@ bool Cloth::initialize(DX12Renderer* renderer)
 }
 
 // 初始化球体碰撞约束（一次性创建，避免每帧重建）
-void Cloth::initializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius) {
+void Cloth::InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius) {
     // 为每个非静态粒子创建一个球体碰撞约束，并设置更小的柔度值以提高碰撞刚性
     for (auto& particle : particles)
     {
@@ -241,23 +241,23 @@ void Cloth::initializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCente
 }
 
 // 更新布料状态
-void Cloth::update(IRALGraphicsCommandList* commandList, float deltaTime) {
+void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime) {
     // 重置碰撞约束计数
-    getCollisionConstraintCount() = 0;
+    GetCollisionConstraintCount() = 0;
     
     // 添加重力
-    solver.setGravity(gravity);
+    solver.SetGravity(gravity);
     
     // 设置球体参数
     dx::XMFLOAT3 sphereCenter(0.0f, 0.0f, 0.0f); // 与Main.cpp中的注释一致，使布料中心对准球体(0,0,0)
     float sphereRadius = 2.0f;
 
     // 使用XPBD求解器更新布料状态
-    solver.step(deltaTime);
+    solver.Step(deltaTime);
     
     // 无论是否使用XPBD碰撞约束，都执行传统碰撞检测作为后备机制
     // 这可以确保即使XPBD碰撞约束没有正常工作，传统碰撞检测也能防止布料穿透球体
-    checkSphereCollision(sphereCenter, sphereRadius);
+    CheckSphereCollision(sphereCenter, sphereRadius);
     
     // 计算布料的法线数据
     // 清空位置和法线向量（索引只计算一次）
@@ -396,7 +396,7 @@ void Cloth::update(IRALGraphicsCommandList* commandList, float deltaTime) {
 // 参数：
 //   sphereCenter - 球体中心位置
 //   sphereRadius - 球体半径
-void Cloth::checkSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereRadius)
+void Cloth::CheckSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereRadius)
 {
     // 将球心转换为XMVECTOR进行计算
     dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
@@ -427,7 +427,7 @@ void Cloth::checkSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereR
 }
 
 // 添加基于XPBD约束的球体碰撞检测
-void Cloth::addSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float sphereRadius)
+void Cloth::AddSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float sphereRadius)
 {
     for (auto& particle : particles)
     {
@@ -444,7 +444,7 @@ void Cloth::addSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float
 }
 
 // 清除所有球体碰撞约束
-void Cloth::clearSphereCollisionConstraints()
+void Cloth::ClearSphereCollisionConstraints()
 {
     // 从总约束列表中移除球体碰撞约束
     auto it = std::remove_if(constraints.begin(), constraints.end(), [this](Constraint* constraint) {
@@ -461,7 +461,7 @@ void Cloth::clearSphereCollisionConstraints()
 }
 
 // 创建布料的粒子
-void Cloth::createParticles(const dx::XMFLOAT3& position, float size, float mass)
+void Cloth::CreateParticles(const dx::XMFLOAT3& position, float size, float mass)
 {
     particles.reserve(width * height);
     
@@ -491,7 +491,7 @@ void Cloth::createParticles(const dx::XMFLOAT3& position, float size, float mass
 }
 
 // 创建布料的约束
-void Cloth::createConstraints(float size)
+void Cloth::CreateConstraints(float size)
 {
     distanceConstraints.clear();
     constraints.clear();

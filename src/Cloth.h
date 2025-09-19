@@ -34,25 +34,25 @@ public:
     ~Cloth() override;
     
     // 更新布料状态
-    void update(IRALGraphicsCommandList* commandList, float deltaTime) override;
+    void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
     
     // 初始化布料
-    bool initialize(DX12Renderer* renderer);
+    bool Initialize(DX12Renderer* renderer);
     
     // 获取布料的所有粒子
-    const std::vector<Particle>& getParticles() const
+    const std::vector<Particle>& GetParticles() const
     {
         return particles;
     }
     
     // 获取布料的宽度（粒子数）
-    int getWidth() const
+    int GetWidth() const
     {
         return width;
     }
     
     // 获取布料的高度（粒子数）
-    int getHeight() const
+    int GetHeight() const
     {
         return height;
     }
@@ -61,19 +61,19 @@ public:
     // 参数:
     //   sphereCenter - 球体中心位置
     //   sphereRadius - 球体半径
-    void checkSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
+    void CheckSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
     
     // 添加基于XPBD约束的球体碰撞检测
     // 参数:
     //   sphereCenter - 球体中心位置
     //   sphereRadius - 球体半径
-    void addSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
+    void AddSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
     
     // 清除所有球体碰撞约束
-    void clearSphereCollisionConstraints();
+    void ClearSphereCollisionConstraints();
     
     // 设置是否使用XPBD碰撞约束
-    void setUseXPBDCollision(bool use)
+    void SetUseXPBDCollision(bool use)
     {
         if (useXPBDCollision != use)
         {
@@ -116,26 +116,26 @@ public:
     }
     
     // 获取是否使用XPBD碰撞约束
-    bool getUseXPBDCollision() const { return useXPBDCollision; }
+    bool GetUseXPBDCollision() const { return useXPBDCollision; }
 
     // 获取布料的顶点位置数据
-    const std::vector<dx::XMFLOAT3>& getPositions() const override { return positions; }
+    const std::vector<dx::XMFLOAT3>& GetPositions() const override { return positions; }
     
     // 获取布料的顶点法线数据
-    const std::vector<dx::XMFLOAT3>& getNormals() const override { return normals; }
+    const std::vector<dx::XMFLOAT3>& GetNormals() const override { return normals; }
     
     // 获取布料的索引数据
-    const std::vector<uint32_t>& getIndices() const override { return indices; }
+    const std::vector<uint32_t>& GetIndices() const override { return indices; }
 
 private:
     // 创建布料的粒子
-    void createParticles(const dx::XMFLOAT3& position, float size, float mass);
+    void CreateParticles(const dx::XMFLOAT3& position, float size, float mass);
     
     // 创建布料的约束
-    void createConstraints(float size);
+    void CreateConstraints(float size);
     
     // 初始化球体碰撞约束（一次性创建，避免每次重建）
-    void initializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
+    void InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
     
     // 布料的尺寸参数
     int width; // 宽度方向的粒子数

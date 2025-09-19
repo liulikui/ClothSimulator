@@ -261,22 +261,22 @@ bool Scene::Initialize(DX12Renderer* pRender)
 Scene::~Scene()
 {
     // 清空场景中的所有对象
-    clear();
+    Clear();
 }
 
-void Scene::update(IRALGraphicsCommandList* commandList, float deltaTime)
+void Scene::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 {
     // 更新场景中所有可见对象的状态
     for (auto& primitive : m_primitives) 
     {
-        if (primitive && primitive->isVisible())
+        if (primitive && primitive->IsVisible())
         {
-            primitive->update(commandList, deltaTime);
+            primitive->Update(commandList, deltaTime);
         }
      }
 }
 
-void Scene::render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
+void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
     UpdateUniformBuffer(commandList, viewMatrix, projectionMatrix);
 
@@ -286,7 +286,7 @@ void Scene::render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
     // 设置根参数0（变换矩阵常量缓冲区）
     commandList->SetGraphicsRootConstantBuffer(0, m_constBuffer.Get());
 
-    //logDebug("[DEBUG] Scene::render called");
+    //logDebug("[DEBUG] Scene::Render called");
 
     //// 渲染每个可见的Mesh对象
     //logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
@@ -295,7 +295,7 @@ void Scene::render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
     //    auto& mesh = m_primitives[i];
     //    logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
 
-    //    if (mesh && mesh->isVisible())
+    //    if (mesh && mesh->IsVisible())
     //    {
     //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
 
@@ -304,11 +304,11 @@ void Scene::render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
     //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " type: " + typeName);
 
     //        // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
-    //        const dx::XMMATRIX& worldMatrix = mesh->getWorldMatrix();
-    //        const dx::XMFLOAT4& diffuseColor = mesh->getDiffuseColor();
-    //        const std::vector<dx::XMFLOAT3>& positions = mesh->getPositions();
-    //        const std::vector<dx::XMFLOAT3>& normals = mesh->getNormals();
-    //        const std::vector<uint32_t>& indices = mesh->getIndices();
+    //        const dx::XMMATRIX& worldMatrix = mesh->GetWorldMatrix();
+    //        const dx::XMFLOAT4& diffuseColor = mesh->GetDiffuseColor();
+    //        const std::vector<dx::XMFLOAT3>& positions = mesh->GetPositions();
+    //        const std::vector<dx::XMFLOAT3>& normals = mesh->GetNormals();
+    //        const std::vector<uint32_t>& indices = mesh->GetIndices();
 
     //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " +
     //            std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
@@ -341,10 +341,10 @@ void Scene::render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
     //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
     //    }
     //}
-    //logDebug("[DEBUG] Scene::render finished");
+    //logDebug("[DEBUG] Scene::Render finished");
 }
 
-bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
+bool Scene::AddPrimitive(std::shared_ptr<Mesh> mesh) {
     if (!mesh)
     {
         return false;
@@ -364,7 +364,7 @@ bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
     return true;
 }
 
-bool Scene::removePrimitive(std::shared_ptr<Mesh> mesh) {
+bool Scene::RemovePrimitive(std::shared_ptr<Mesh> mesh) {
     if (!mesh)
     {
         return false;
@@ -381,7 +381,7 @@ bool Scene::removePrimitive(std::shared_ptr<Mesh> mesh) {
     return false;
 }
 
-void Scene::clear()
+void Scene::Clear()
 {
     // 清空所有对象
     m_primitives.clear();

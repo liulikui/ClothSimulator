@@ -25,7 +25,7 @@ public:
         compliance = customCompliance;
     }
 
-    float computeConstraintValue() const override {
+    float ComputeConstraintValue() const override {
         if (particle->isStatic) return 0.0f;
         
         dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
@@ -36,7 +36,7 @@ public:
         return distance - sphereRadius;
     }
 
-    void computeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
+    void ComputeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
     {
         gradients.clear();
         if (particle->isStatic) return;
@@ -59,14 +59,14 @@ public:
         }
     }
 
-    std::vector<Particle*> getParticles() override
+    std::vector<Particle*> GetParticles() override
     {
         std::vector<Particle*> result;
         result.push_back(particle);
         return result;
     }
 
-    std::vector<const Particle*> getParticles() const override
+    std::vector<const Particle*> GetParticles() const override
     {
         std::vector<const Particle*> result;
         result.push_back(particle);

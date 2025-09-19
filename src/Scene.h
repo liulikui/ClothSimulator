@@ -30,75 +30,75 @@ public:
     ~Scene();
     
     // 获取场景中Mesh对象的数量
-    size_t getMeshCount() const {
+    size_t GetMeshCount() const {
         return m_primitives.size();
     }
 
     // 更新场景中所有对象的状态
-    void update(IRALGraphicsCommandList* commandList, float deltaTime);
+    void Update(IRALGraphicsCommandList* commandList, float deltaTime);
 
     // 渲染场景
    // 参数：
    //   commandList - 命令队列
    //   viewMatrix - 视图矩阵
    //   projectionMatrix - 投影矩阵
-    void render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    void Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
     // 添加一个Mesh对象到场景中
     // 参数：
     //   mesh - 要添加的Mesh对象指针
     // 返回值：
     //   添加是否成功
-    bool addPrimitive(std::shared_ptr<Mesh> mesh);
+    bool AddPrimitive(std::shared_ptr<Mesh> mesh);
 
     // 从场景中移除一个Mesh对象
     // 参数：
     //   mesh - 要移除的Mesh对象指针
     // 返回值：
     //   移除是否成功
-    bool removePrimitive(std::shared_ptr<Mesh> mesh);
+    bool RemovePrimitive(std::shared_ptr<Mesh> mesh);
 
     // 清空场景中的所有对象
-    void clear();
+    void Clear();
 
     // 获取场景中的所有Mesh对象
-    const std::vector<std::shared_ptr<Mesh>>& getPrimitives() const
+    const std::vector<std::shared_ptr<Mesh>>& GetPrimitives() const
     {
         return m_primitives;
     }
 
     // 设置场景的背景颜色
-    void setBackgroundColor(const dx::XMFLOAT4& color)
+    void SetBackgroundColor(const dx::XMFLOAT4& color)
     {
         m_backgroundColor = color;
     }
 
     // 获取场景的背景颜色
-    const dx::XMFLOAT4& getBackgroundColor() const
+    const dx::XMFLOAT4& GetBackgroundColor() const
     {
         return m_backgroundColor;
     }
 
     // 设置场景的光源位置
-    void setLightPosition(const dx::XMFLOAT3& position)
+    void SetLightPosition(const dx::XMFLOAT3& position)
     {
         m_lightPosition = position;
     }
 
     // 获取场景的光源位置
-    const dx::XMFLOAT3& getLightPosition() const 
+    const dx::XMFLOAT3& GetLightPosition() const 
     {
         return m_lightPosition;
     }
 
     // 设置场景的光源颜色
-    void setLightDiffuseColor(const dx::XMFLOAT4& color)
+    void SetLightDiffuseColor(const dx::XMFLOAT4& color)
     {
         m_lightDiffuseColor = color;
     }
 
     // 获取场景的光源颜色
-    const dx::XMFLOAT4& getLightDiffuseColor() const 
+    const dx::XMFLOAT4& GetLightDiffuseColor() const 
     {
         return m_lightDiffuseColor;
     }

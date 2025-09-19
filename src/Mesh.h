@@ -14,22 +14,22 @@ public:
     virtual ~Mesh() = default;
     
     // 获取顶点位置数据
-    virtual const std::vector<dx::XMFLOAT3>& getPositions() const = 0;
+    virtual const std::vector<dx::XMFLOAT3>& GetPositions() const = 0;
     
     // 获取顶点法线数据
-    virtual const std::vector<dx::XMFLOAT3>& getNormals() const = 0;
+    virtual const std::vector<dx::XMFLOAT3>& GetNormals() const = 0;
     
     // 获取索引数据
-    virtual const std::vector<uint32_t>& getIndices() const = 0;
+    virtual const std::vector<uint32_t>& GetIndices() const = 0;
     
     // 获取对象的材质颜色
-    const dx::XMFLOAT4& getDiffuseColor() const 
+    const dx::XMFLOAT4& GetDiffuseColor() const 
     {
         return diffuseColor;
     }
     
     // 设置对象的材质颜色
-    void setDiffuseColor(const dx::XMFLOAT4& color)
+    void SetDiffuseColor(const dx::XMFLOAT4& color)
     {
         diffuseColor = color;
     }

@@ -28,63 +28,63 @@ public:
     ~Sphere() override = default;
 
     // 更新球体状态
-    void update(IRALGraphicsCommandList* commandList, float deltaTime) override;
+    void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
 
     // 初始化球体
-    bool initialize(DX12Renderer* renderer);
+    bool Initialize(DX12Renderer* renderer);
 
     // 获取球体的顶点位置数据
-    const std::vector<dx::XMFLOAT3>& getPositions() const override
+    const std::vector<dx::XMFLOAT3>& GetPositions() const override
     {
         return positions;
     }
 
     // 获取球体的顶点法线数据
-    const std::vector<dx::XMFLOAT3>& getNormals() const override
+    const std::vector<dx::XMFLOAT3>& GetNormals() const override
     {
         return normals;
     }
 
     // 获取球体的索引数据
-    const std::vector<uint32_t>& getIndices() const override
+    const std::vector<uint32_t>& GetIndices() const override
     {
         return indices;
     }
 
     // 获取球体半径
-    float getRadius() const
+    float GetRadius() const
     {
         return radius;
     }
 
     // 设置球体半径
-    void setRadius(float newRadius);
+    void SetRadius(float newRadius);
 
     // 获取球体中心位置
-    const dx::XMFLOAT3& getCenter() const
+    const dx::XMFLOAT3& GetCenter() const
     {
         return center;
     }
 
     // 设置球体中心位置
-    void setCenter(const dx::XMFLOAT3& newCenter);
+    void SetCenter(const dx::XMFLOAT3& newCenter);
 
     // 获取经度分段数
-    uint32_t getSectors() const
+    uint32_t GetSectors() const
     {
         return sectors;
     }
 
     // 获取纬度分段数
-    uint32_t getStacks() const
+    uint32_t GetStacks() const
     {
         return stacks;
     }
 
     // 获取顶点缓冲区
-    IRALVertexBuffer* getVertexBuffer() const { return m_vertexBuffer.Get(); }
+    IRALVertexBuffer* GetVertexBuffer() const { return m_vertexBuffer.Get(); }
     // 获取索引缓冲区
-    IRALIndexBuffer* getIndexBuffer() const { return m_indexBuffer.Get(); }
+    IRALIndexBuffer* GetIndexBuffer() const { return m_indexBuffer.Get(); }
 
 private:
     // 球体参数
@@ -103,7 +103,7 @@ private:
     TSharePtr<IRALIndexBuffer> m_indexBuffer;
 
     // 生成球体的顶点和索引数据
-    void generateSphereData();
+    void GenerateSphereData();
 };
 
 #endif // SPHERE_H

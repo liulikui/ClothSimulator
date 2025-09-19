@@ -381,9 +381,9 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
         return;
     }
     
-    const std::vector<Particle>& particles = cloth->getParticles();
-    int width = cloth->getWidth();
-    int height = cloth->getHeight();
+    const std::vector<Particle>& particles = cloth->GetParticles();
+    int width = cloth->GetWidth();
+    int height = cloth->GetHeight();
     
     if (debugOutputEnabled)
     {
@@ -415,9 +415,9 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
     }
     
     // 通过getter方法获取渲染数据
-    const std::vector<dx::XMFLOAT3>& positions = cloth->getPositions();
-    const std::vector<dx::XMFLOAT3>& normals = cloth->getNormals();
-    const std::vector<uint32_t>& indices = cloth->getIndices();
+    const std::vector<dx::XMFLOAT3>& positions = cloth->GetPositions();
+    const std::vector<dx::XMFLOAT3>& normals = cloth->GetNormals();
+    const std::vector<uint32_t>& indices = cloth->GetIndices();
     
     // 只有在启用调试输出时才打印详细信息
     if (debugOutputEnabled)
@@ -572,15 +572,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     cloth = std::make_shared<Cloth>(dx::XMFLOAT3(-5.0f, 5.0f, -5.0f), 40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
     
     // 默认启用XPBD碰撞约束
-    cloth->setUseXPBDCollision(true);
+    cloth->SetUseXPBDCollision(true);
     
     // 设置布料的材质颜色（蓝色）
-    cloth->setDiffuseColor(dx::XMFLOAT4(0.3f, 0.5f, 1.0f, 1.0f));
+    cloth->SetDiffuseColor(dx::XMFLOAT4(0.3f, 0.5f, 1.0f, 1.0f));
 
-	cloth->initialize(renderer);
+	cloth->Initialize(renderer);
 
     // 将布料添加到场景中
-    scene->addPrimitive(cloth);
+    scene->AddPrimitive(cloth);
     std::cout << "Sphere object added to scene successfully" << std::endl;
 
     std::cout << "Cloth object created successfully" << std::endl;
@@ -590,22 +590,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     auto sphere = std::make_shared<Sphere>(dx::XMFLOAT3(0.0f, 0.0f, 0.0f), 2.0f, 32, 32);
     
     // 设置球体的材质颜色（红色）
-    sphere->setDiffuseColor(dx::XMFLOAT4(1.0f, 0.3f, 0.3f, 1.0f));
+    sphere->SetDiffuseColor(dx::XMFLOAT4(1.0f, 0.3f, 0.3f, 1.0f));
     
     // 设置球体的世界矩阵
-    sphere->setPosition(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
-    sphere->setScale(dx::XMFLOAT3(1.0f, 1.0f, 1.0f));
-    sphere->setRotation(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    sphere->SetPosition(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    sphere->SetScale(dx::XMFLOAT3(1.0f, 1.0f, 1.0f));
+    sphere->SetRotation(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
     
-    sphere->initialize(renderer);
+    sphere->Initialize(renderer);
 
     // 将球体添加到场景中
-    scene->addPrimitive(sphere);
+    scene->AddPrimitive(sphere);
     std::cout << "Sphere object added to scene successfully" << std::endl;
 
     // 设置场景光源属性
-    scene->setLightPosition(dx::XMFLOAT3(10.0f, 10.0f, 10.0f));
-    scene->setLightDiffuseColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+    scene->SetLightPosition(dx::XMFLOAT3(10.0f, 10.0f, 10.0f));
+    scene->SetLightDiffuseColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
     
     // 初始化时间
     lastFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
@@ -656,15 +656,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         camera->ProcessKeyboardInput(keys, deltaTime);
 
         // 更新场景
-        scene->update(commandList, deltaTime);
+        scene->Update(commandList, deltaTime);
 
         // 渲染场景
         static int renderCount = 0;
         renderCount++;
         logDebug("[DEBUG] Rendering scene, render count: " + std::to_string(renderCount));
-        logDebug("[DEBUG] Scene has " + std::to_string(scene->getMeshCount()) + " meshes");
+        logDebug("[DEBUG] Scene has " + std::to_string(scene->GetMeshCount()) + " meshes");
 
-        scene->render(commandList, camera->GetViewMatrix(), camera->GetProjectionMatrix());
+        scene->Render(commandList, camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
         renderer->EndFrame();
 

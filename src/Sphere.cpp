@@ -9,19 +9,19 @@ Sphere::Sphere(const dx::XMFLOAT3& center, float radius, uint32_t sectors, uint3
     : center(center), radius(radius), sectors(sectors), stacks(stacks)
 {
     // 设置球体的位置
-    setPosition(center);
+    SetPosition(center);
     
     // 生成球体数据
-    generateSphereData();
+    GenerateSphereData();
 }
 
-void Sphere::update(IRALGraphicsCommandList* commandList, float deltaTime)
+void Sphere::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 {
     // 球体默认不需要复杂的更新逻辑
     // 可以在这里添加动画或其他动态行为
 }
 
-bool Sphere::initialize(DX12Renderer* renderer)
+bool Sphere::Initialize(DX12Renderer* renderer)
 {
     if (!renderer || positions.empty() || indices.empty())
     {
@@ -76,25 +76,25 @@ bool Sphere::initialize(DX12Renderer* renderer)
     return true;
 }
 
-void Sphere::setRadius(float newRadius)
+void Sphere::SetRadius(float newRadius)
 {
     if (radius != newRadius)
     {
         radius = newRadius;
-        generateSphereData();
+        GenerateSphereData();
     }
 }
 
-void Sphere::setCenter(const dx::XMFLOAT3& newCenter)
+void Sphere::SetCenter(const dx::XMFLOAT3& newCenter)
 {
     if (center.x != newCenter.x || center.y != newCenter.y || center.z != newCenter.z)
     {
         center = newCenter;
-        setPosition(center);
+        SetPosition(center);
     }
 }
 
-void Sphere::generateSphereData()
+void Sphere::GenerateSphereData()
 {
     // 清空现有数据
     positions.clear();

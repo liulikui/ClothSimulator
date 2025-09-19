@@ -26,7 +26,7 @@ public:
     // 应用力
     // 参数：
     //   f - 要应用的力向量
-    void applyForce(const dx::XMFLOAT3& f)
+    void ApplyForce(const dx::XMFLOAT3& f)
     {
         if (!isStatic) 
         {
@@ -43,7 +43,7 @@ public:
     }
 
     // 重置力
-    void resetForce()
+    void ResetForce()
     {
         force = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
     }

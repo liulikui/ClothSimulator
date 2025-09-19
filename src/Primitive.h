@@ -18,37 +18,37 @@ public:
     virtual ~Primitive() = default;
 
     // 纯虚函数，更新对象状态
-    virtual void update(IRALGraphicsCommandList* commandList, float deltaTime) = 0;
+    virtual void Update(IRALGraphicsCommandList* commandList, float deltaTime) = 0;
 
     // 获取对象的世界变换矩阵
-    const dx::XMMATRIX& getWorldMatrix() const
+    const dx::XMMATRIX& GetWorldMatrix() const
     {
         return worldMatrix;
     }
 
     // 设置对象的世界变换矩阵
-    void setWorldMatrix(const dx::XMMATRIX& matrix)
+    void SetWorldMatrix(const dx::XMMATRIX& matrix)
     {
         worldMatrix = matrix;
     }
 
     // 设置对象的位置
-    void setPosition(const dx::XMFLOAT3& position);
+    void SetPosition(const dx::XMFLOAT3& position);
 
     // 设置对象的旋转（欧拉角，弧度）
-    void setRotation(const dx::XMFLOAT3& rotation);
+    void SetRotation(const dx::XMFLOAT3& rotation);
 
     // 设置对象的缩放
-    void setScale(const dx::XMFLOAT3& scale);
+    void SetScale(const dx::XMFLOAT3& scale);
 
     // 是否可见
-    bool isVisible() const
+    bool IsVisible() const
     {
         return visible;
     }
 
     // 设置可见性
-    void setVisible(bool isVisible)
+    void SetVisible(bool isVisible)
     {
         visible = isVisible;
     }
@@ -69,7 +69,7 @@ protected:
     bool visible = true;
 
     // 更新世界矩阵
-    void updateWorldMatrix();
+    void UpdateWorldMatrix();
 };
 
 #endif // PRIMITIVE_H

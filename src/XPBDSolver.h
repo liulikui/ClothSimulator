@@ -11,7 +11,7 @@
 #include <iomanip>
 
 // 使用inline函数来跟踪碰撞约束的应用次数，避免多重定义问题
-inline int& getCollisionConstraintCount() {
+inline int& GetCollisionConstraintCount() {
     static int count = 0;
     return count;
 }
@@ -47,7 +47,7 @@ public:
     }
     
     // 调试信息输出（已禁用）
-    void logDebugInfo(float timeStep, size_t iteration, size_t constraintIndex, const std::vector<Particle*>& constraintParticles, float C, float deltaLambda)
+    void LogDebugInfo(float timeStep, size_t iteration, size_t constraintIndex, const std::vector<Particle*>& constraintParticles, float C, float deltaLambda)
     {
         // 调试输出已禁用
     }
@@ -55,7 +55,7 @@ public:
     // 设置时间步长
     // 参数
     //   dt - 新的时间步长
-    void setTimeStep(float dt)
+    void SetTimeStep(float dt)
     {
         timeStep = dt;
     }
@@ -63,7 +63,7 @@ public:
     // 设置约束求解的迭代次数
     // 参数
     //   its - 新的迭代次数
-    void setIterations(int its)
+    void SetIterations(int its)
     {
         iterations = its;
     }
@@ -71,34 +71,34 @@ public:
     // 设置重力
     // 参数
     //   g - 新的重力向量
-    void setGravity(const dx::XMFLOAT3& g)
+    void SetGravity(const dx::XMFLOAT3& g)
     {
         gravity = g;
     }
     
     // 模拟一步
     // 执行一次完整的XPBD模拟步骤，包括预测、约束求解和位置校正
-    void step(float deltaTime)
+    void Step(float deltaTime)
     {
         // 1. 预测粒子的位置，考虑外力
-        predictPositions(deltaTime);
+        PredictPositions(deltaTime);
         
         // 2. 求解约束多次以获得更准确的结果
         for (int i = 0; i < iterations; ++i)
         {
-            solveConstraints(deltaTime);
+            SolveConstraints(deltaTime);
         }
         
         // 3. 更新速度和位置
-        updateVelocities(deltaTime);
+        UpdateVelocities(deltaTime);
         
         // 4. 应用阻尼（可选）
-        applyDamping();
+        ApplyDamping();
     }
     
 private:
     // 预测粒子的位置（考虑外力）
-    void predictPositions(float deltaTime)
+    void PredictPositions(float deltaTime)
     {
         // 将重力转换为XMVECTOR进行计算
         dx::XMVECTOR gravityVector = dx::XMLoadFloat3(&gravity);
@@ -111,7 +111,7 @@ private:
                 particle.oldPosition = particle.position;
                 
                 // 应用重力：重力本身就是力，不需要再乘以质量
-                particle.applyForce(gravity);
+                particle.ApplyForce(gravity);
                 
                 // 将粒子的位置和速度转换为XMVECTOR进行计算
                 dx::XMVECTOR pos = dx::XMLoadFloat3(&particle.position);
@@ -129,12 +129,12 @@ private:
     }
     
     // 求解所有约束
-    void solveConstraints(float deltaTime)
+    void SolveConstraints(float deltaTime)
     {
         for (auto& constraint : constraints)
         {
             // 计算约束值
-            float C = constraint->computeConstraintValue();
+            float C = constraint->ComputeConstraintValue();
             
             // 检查约束值是否有效
             if (isnan(C) || isinf(C))
@@ -144,12 +144,12 @@ private:
             
             // 判断是否为碰撞约束（单粒子约束且C < 0表示粒子在球内）
             bool isCollisionConstraint = false;
-            std::vector<Particle*> constraintParticles = constraint->getParticles();
+            std::vector<Particle*> constraintParticles = constraint->GetParticles();
             
             if (constraintParticles.size() == 1 && C < 0)
             {
                 isCollisionConstraint = true;
-                getCollisionConstraintCount()++;
+                GetCollisionConstraintCount()++;
                 
                 // 对于碰撞约束，我们只在粒子在球内时应用约束
                 // C < 0表示粒子在球内，需要被推回球外
@@ -181,7 +181,7 @@ private:
             }
             
             std::vector<dx::XMFLOAT3> gradients;
-            constraint->computeGradient(gradients);
+            constraint->ComputeGradient(gradients);
             
             // 计算分母项
             float sum = 0.0f;
@@ -200,7 +200,7 @@ private:
             }
             
             // 添加柔度项
-            float alpha = constraint->getCompliance() / (deltaTime * deltaTime);
+            float alpha = constraint->GetCompliance() / (deltaTime * deltaTime);
             sum += alpha;
             
             // 防止除零
@@ -273,7 +273,7 @@ private:
     }
     
     // 更新粒子的速度
-    void updateVelocities(float deltaTime)
+    void UpdateVelocities(float deltaTime)
     {
         // 临时存储碰撞粒子的梯度信息，用于后续速度反弹
         std::unordered_map<Particle*, dx::XMVECTOR> collisionGradients;
@@ -281,14 +281,14 @@ private:
         // 首先收集所有碰撞约束的梯度信息
         for (auto& constraint : constraints)
         {
-            float C = constraint->computeConstraintValue();
-            std::vector<Particle*> constraintParticles = constraint->getParticles();
+            float C = constraint->ComputeConstraintValue();
+            std::vector<Particle*> constraintParticles = constraint->GetParticles();
             
             // 只处理碰撞约束（单粒子约束且C < 0表示粒子在球内）
             if (constraintParticles.size() == 1 && C < 0)
             {
                 std::vector<dx::XMFLOAT3> gradients;
-                constraint->computeGradient(gradients);
+                constraint->ComputeGradient(gradients);
                 
                 if (!gradients.empty() && !constraintParticles[0]->isStatic)
                 {
@@ -360,7 +360,7 @@ private:
     }
     
     // 应用阻尼
-    void applyDamping()
+    void ApplyDamping()
     {
         const float velocityThreshold = 2.0f;
         const float defaultDampingFactor = 0.97f;

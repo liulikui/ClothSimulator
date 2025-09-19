@@ -26,7 +26,7 @@ public:
     
     // 计算约束偏差
     // 返回：约束偏差值C(x) = |x1 - x2| - restLength
-    float computeConstraintValue() const override 
+    float ComputeConstraintValue() const override 
     {
         // 将XMFLOAT3转换为XMVECTOR进行计算
         dx::XMVECTOR pos1 = dx::XMLoadFloat3(&particle1->position);
@@ -44,7 +44,7 @@ public:
     // 计算约束梯度
     // 参数：
     //   gradients - 存储每个受约束粒子的梯度向量的向量
-    void computeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
+    void ComputeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
     {
         gradients.clear();
         gradients.reserve(2);
@@ -85,7 +85,7 @@ public:
     
     // 获取受此约束影响的所有粒子
     // 返回：包含两个粒子指针的向量
-    std::vector<Particle*> getParticles() override
+    std::vector<Particle*> GetParticles() override
     {
         std::vector<Particle*> result;
         result.reserve(2);
@@ -96,7 +96,7 @@ public:
     
     // 获取受此约束影响的所有粒子（const版本）
     // 返回：包含两个const粒子指针的向量
-    std::vector<const Particle*> getParticles() const override
+    std::vector<const Particle*> GetParticles() const override
     {
         std::vector<const Particle*> result;
         result.reserve(2);
@@ -108,14 +108,14 @@ public:
     // 设置约束的静止长度
     // 参数：
     //   length - 新的静止长度
-    void setRestLength(float length)
+    void SetRestLength(float length)
     {
         restLength = length;
     }
     
     // 获取约束的静止长度
     // 返回：静止长度值
-    float getRestLength() const
+    float GetRestLength() const
     {
         return restLength;
     }
