@@ -31,7 +31,7 @@ public:
     
     // 获取场景中Mesh对象的数量
     size_t getMeshCount() const {
-        return primitives.size();
+        return m_primitives.size();
     }
 
     // 更新场景中所有对象的状态
@@ -56,37 +56,37 @@ public:
 
     // 获取场景中的所有Mesh对象
     const std::vector<std::shared_ptr<Mesh>>& getPrimitives() const {
-        return primitives;
+        return m_primitives;
     }
 
     // 设置场景的背景颜色
     void setBackgroundColor(const dx::XMFLOAT4& color) {
-        backgroundColor = color;
+        m_backgroundColor = color;
     }
 
     // 获取场景的背景颜色
     const dx::XMFLOAT4& getBackgroundColor() const {
-        return backgroundColor;
+        return m_backgroundColor;
     }
 
     // 设置场景的光源位置
     void setLightPosition(const dx::XMFLOAT4& position) {
-        lightPosition = position;
+        m_lightPosition = position;
     }
 
     // 获取场景的光源位置
     const dx::XMFLOAT4& getLightPosition() const {
-        return lightPosition;
+        return m_lightPosition;
     }
 
     // 设置场景的光源颜色
     void setLightColor(const dx::XMFLOAT4& color) {
-        lightColor = color;
+        m_lightColor = color;
     }
 
     // 获取场景的光源颜色
     const dx::XMFLOAT4& getLightColor() const {
-        return lightColor;
+        return m_lightColor;
     }
     
     // 渲染场景
@@ -98,14 +98,14 @@ public:
 
 private:
     // 场景中的所有Mesh对象
-    std::vector<std::shared_ptr<Mesh>> primitives;
+    std::vector<std::shared_ptr<Mesh>> m_primitives;
 
     // 场景的背景颜色
-    dx::XMFLOAT4 backgroundColor = {0.9f, 0.9f, 0.9f, 1.0f}; // 默认浅灰色背景
+    dx::XMFLOAT4 m_backgroundColor = {0.9f, 0.9f, 0.9f, 1.0f}; // 默认浅灰色背景
 
     // 光源属性
-    dx::XMFLOAT4 lightPosition = {10.0f, 10.0f, 10.0f, 1.0f}; // 默认光源位置
-    dx::XMFLOAT4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
+    dx::XMFLOAT4 m_lightPosition = {10.0f, 10.0f, 10.0f, 1.0f}; // 默认光源位置
+    dx::XMFLOAT4 m_lightColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
 
     // 根签名对象
     TSharePtr<IRALRootSignature> m_rootSignature;

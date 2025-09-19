@@ -234,11 +234,11 @@ Scene::~Scene() {
 
 void Scene::update(float deltaTime) {
     // 更新场景中所有可见对象的状态
-    for (auto& primitive : primitives) {
-        if (primitive && primitive->isVisible()) {
-            primitive->update(deltaTime);
+    for (auto& primitive : m_primitives) {
+            if (primitive && primitive->isVisible()) {
+                primitive->update(deltaTime);
+            }
         }
-    }
 }
 
 bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
@@ -247,13 +247,13 @@ bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
     }
 
     // 检查对象是否已经在场景中
-    auto it = std::find(primitives.begin(), primitives.end(), mesh);
-    if (it != primitives.end()) {
-        return false;
-    }
+    auto it = std::find(m_primitives.begin(), m_primitives.end(), mesh);
+        if (it != m_primitives.end()) {
+            return false;
+        }
 
-    // 添加对象到场景中
-    primitives.push_back(mesh);
+        // 添加对象到场景中
+        m_primitives.push_back(mesh);
     return true;
 }
 
@@ -263,18 +263,18 @@ bool Scene::removePrimitive(std::shared_ptr<Mesh> mesh) {
     }
 
     // 查找并移除对象
-    auto it = std::find(primitives.begin(), primitives.end(), mesh);
-    if (it != primitives.end()) {
-        primitives.erase(it);
-        return true;
-    }
+    auto it = std::find(m_primitives.begin(), m_primitives.end(), mesh);
+        if (it != m_primitives.end()) {
+            m_primitives.erase(it);
+            return true;
+        }
 
     return false;
 }
 
 void Scene::clear() {
     // 清空所有对象
-    primitives.clear();
+    m_primitives.clear();
 }
 
 void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix) {
@@ -286,13 +286,13 @@ void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const
 
     // 设置光源位置和颜色
     logDebug("[DEBUG] Setting light position and color");
-    renderer->UpdateLightPosition(lightPosition);
-    renderer->UpdateLightColor(lightColor);
+    renderer->UpdateLightPosition(m_lightPosition);
+    renderer->UpdateLightColor(m_lightColor);
 
     // 渲染每个可见的Mesh对象
-    logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(primitives.size()));
-    for (size_t i = 0; i < primitives.size(); ++i) {
-        auto& mesh = primitives[i];
+    logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
+    for (size_t i = 0; i < m_primitives.size(); ++i) {
+        auto& mesh = m_primitives[i];
         logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
         if (mesh && mesh->isVisible()) {
             logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
