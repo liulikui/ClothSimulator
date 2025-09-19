@@ -184,7 +184,13 @@ bool DX12Renderer::CreateDeviceAndSwapChain()
     }
 
     // 提升到IDXGISwapChain4
-    hr = swapChain1.As(m_swapChain);
+    IDXGISwapChain4* swapChain4 = nullptr;
+    hr = swapChain1.Get()->QueryInterface(IID_PPV_ARGS(&swapChain4));
+    if (SUCCEEDED(hr))
+    {
+        m_swapChain = swapChain4;
+    }
+    
     if (FAILED(hr))
     {
         std::cerr << "Failed to upgrade swap chain to IDXGISwapChain4." << std::endl;

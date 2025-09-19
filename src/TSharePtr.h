@@ -124,29 +124,13 @@ public:
         std::swap(m_ptr, other.m_ptr);
     }
     
-    // 释放当前指针并返回指向指针的指针（用于D3D12 API调用）
+    // 释放当前指针并返回指向指针的指针
     T** ReleaseAndGetAddressOf() {
         if (m_ptr) {
             m_ptr->Release();
             m_ptr = nullptr;
         }
         return &m_ptr;
-    }
-    
-    // 接口转换方法（用于D3D12接口转换）
-    template <typename U>
-    HRESULT As(TSharePtr<U>& result) const {
-        if (!m_ptr) {
-            result = nullptr;
-            return S_OK;
-        }
-        
-        U* p = nullptr;
-        HRESULT hr = m_ptr->QueryInterface(IID_PPV_ARGS(&p));
-        if (SUCCEEDED(hr)) {
-            result = TSharePtr<U>(p);
-        }
-        return hr;
     }
     
 private:
