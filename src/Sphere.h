@@ -31,7 +31,7 @@ public:
     void update(IRALGraphicsCommandList* commandList, float deltaTime) override;
 
     // 初始化球体
-    bool Initialize(DX12Renderer* renderer);
+    bool initialize(DX12Renderer* renderer);
 
     // 获取球体的顶点位置数据
     const std::vector<dx::XMFLOAT3>& getPositions() const override

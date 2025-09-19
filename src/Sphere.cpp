@@ -21,7 +21,7 @@ void Sphere::update(IRALGraphicsCommandList* commandList, float deltaTime)
     // 可以在这里添加动画或其他动态行为
 }
 
-bool Sphere::Initialize(DX12Renderer* renderer)
+bool Sphere::initialize(DX12Renderer* renderer)
 {
     if (!renderer || positions.empty() || indices.empty())
     {

@@ -576,6 +576,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 设置布料的材质颜色（蓝色）
     cloth->setDiffuseColor(dx::XMFLOAT4(0.3f, 0.5f, 1.0f, 1.0f));
+
+	cloth->initialize(renderer);
+
     // 将布料添加到场景中
     scene->addPrimitive(cloth);
     std::cout << "Sphere object added to scene successfully" << std::endl;
@@ -594,6 +597,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     sphere->setScale(dx::XMFLOAT3(1.0f, 1.0f, 1.0f));
     sphere->setRotation(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
     
+    sphere->initialize(renderer);
+
     // 将球体添加到场景中
     scene->addPrimitive(sphere);
     std::cout << "Sphere object added to scene successfully" << std::endl;

@@ -37,7 +37,7 @@ public:
     void update(IRALGraphicsCommandList* commandList, float deltaTime) override;
     
     // 初始化布料
-    bool Initialize(DX12Renderer* renderer);
+    bool initialize(DX12Renderer* renderer);
     
     // 获取布料的所有粒子
     const std::vector<Particle>& getParticles() const

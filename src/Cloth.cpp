@@ -60,7 +60,7 @@ Cloth::~Cloth()
 }
 
 // 初始化布料的顶点和索引缓冲区
-bool Cloth::Initialize(DX12Renderer* renderer)
+bool Cloth::initialize(DX12Renderer* renderer)
 {
     // 确保renderer不为空
     if (!renderer)
