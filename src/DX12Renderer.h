@@ -83,43 +83,43 @@ public:
     void RenderPrimitive(const dx::XMMATRIX& worldMatrix, const dx::XMFLOAT4& diffuseColor, bool isCloth);
     
     // 设置根签名
-    void SetRootSignature(std::unique_ptr<IRALRootSignature> rootSignature);
+    void SetRootSignature(TSharePtr<IRALRootSignature> rootSignature);
     
     // 创建并获取根签名
-    std::unique_ptr<IRALRootSignature> CreateAndGetRootSignature();
+    TSharePtr<IRALRootSignature> CreateAndGetRootSignature();
     
     // 编译顶点着色器
-    std::unique_ptr<IRALVertexShader> CompileVertexShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALVertexShader* CompileVertexShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译像素着色器
-    std::unique_ptr<IRALPixelShader> CompilePixelShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALPixelShader* CompilePixelShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译几何着色器
-    std::unique_ptr<IRALGeometryShader> CompileGeometryShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALGeometryShader* CompileGeometryShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译计算着色器
-    std::unique_ptr<IRALComputeShader> CompileComputeShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALComputeShader* CompileComputeShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译网格着色器
-    std::unique_ptr<IRALMeshShader> CompileMeshShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALMeshShader* CompileMeshShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译放大着色器
-    std::unique_ptr<IRALAmplificationShader> CompileAmplificationShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALAmplificationShader* CompileAmplificationShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译光线生成着色器
-    std::unique_ptr<IRALRayGenShader> CompileRayGenShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALRayGenShader* CompileRayGenShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译光线未命中着色器
-    std::unique_ptr<IRALRayMissShader> CompileRayMissShader(const char* shaderCode, const char* entryPoint = "main");
+    IRALRayMissShader* CompileRayMissShader(const char* shaderCode, const char* entryPoint = "main");
     
     // 编译光线命中组着色器
-	std::unique_ptr<IRALRayHitGroupShader> CompileRayHitGroupShader(const char* shaderCode, const char* entryPoint = "main");
+	IRALRayHitGroupShader* CompileRayHitGroupShader(const char* shaderCode, const char* entryPoint = "main");
 	
 	// 编译光线可调用着色器
-	std::unique_ptr<IRALRayCallableShader> CompileRayCallableShader(const char* shaderCode, const char* entryPoint = "main");
+	IRALRayCallableShader* CompileRayCallableShader(const char* shaderCode, const char* entryPoint = "main");
 	
 	// 创建图形管线状态
-	std::unique_ptr<IRALGraphicsPipelineState> CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
+	TSharePtr<IRALGraphicsPipelineState> CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
 
 private:
     // 通用着色器编译辅助方法
@@ -168,7 +168,7 @@ private:
     TSharePtr<ID3D12Device> m_device;                    // D3D12设备
     
     // 根签名
-    std::unique_ptr<IRALRootSignature> m_rootSignature;
+    TSharePtr<IRALRootSignature> m_rootSignature;
     TSharePtr<IDXGIFactory6> m_factory;                  // DXGI工厂
     TSharePtr<IDXGISwapChain4> m_swapChain;              // 交换链
     uint32_t m_backBufferCount = 2;                            // 后缓冲区数量

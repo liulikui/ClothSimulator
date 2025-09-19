@@ -43,7 +43,7 @@ bool Scene::Initialize(DX12Renderer* pRender) {
     logDebug("[DEBUG] Scene::Initialize succeeded: root signature created");
     
     // 将根签名设置回渲染器
-    pRender->SetRootSignature(std::move(rootSignature));
+    pRender->SetRootSignature(rootSignature);
     logDebug("[DEBUG] Scene::Initialize: root signature set to renderer");
     
     return true;

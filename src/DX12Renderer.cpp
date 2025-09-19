@@ -371,9 +371,9 @@ void DX12Renderer::CreateDepthStencilView()
 }
 
 // 设置根签名
-void DX12Renderer::SetRootSignature(std::unique_ptr<IRALRootSignature> rootSignature)
+void DX12Renderer::SetRootSignature(TSharePtr<IRALRootSignature> rootSignature)
 {
-    m_rootSignature = std::move(rootSignature);
+    m_rootSignature = rootSignature;
     logDebug("[DEBUG] DX12Renderer::SetRootSignature called and stored");
 }
 
@@ -418,7 +418,7 @@ ComPtr<ID3DBlob> DX12Renderer::CompileShaderBlob(const char* shaderCode, const c
 }
 
 // 编译顶点着色器
-std::unique_ptr<IRALVertexShader> DX12Renderer::CompileVertexShader(const char* shaderCode, const char* entryPoint)
+IRALVertexShader* DX12Renderer::CompileVertexShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "vs_5_0");
     if (!shaderBlob)
@@ -426,13 +426,13 @@ std::unique_ptr<IRALVertexShader> DX12Renderer::CompileVertexShader(const char* 
         return nullptr;
     }
 
-    auto vertexShader = std::make_unique<DX12RALVertexShader>();
+    auto vertexShader = new DX12RALVertexShader();
     vertexShader->SetNativeShader(shaderBlob.Get());
     return vertexShader;
 }
 
 // 编译像素着色器
-std::unique_ptr<IRALPixelShader> DX12Renderer::CompilePixelShader(const char* shaderCode, const char* entryPoint)
+IRALPixelShader* DX12Renderer::CompilePixelShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "ps_5_0");
     if (!shaderBlob)
@@ -440,13 +440,13 @@ std::unique_ptr<IRALPixelShader> DX12Renderer::CompilePixelShader(const char* sh
         return nullptr;
     }
 
-    auto pixelShader = std::make_unique<DX12RALPixelShader>();
+    auto pixelShader = new DX12RALPixelShader();
     pixelShader->SetNativeShader(shaderBlob.Get());
     return pixelShader;
 }
 
 // 编译几何着色器
-std::unique_ptr<IRALGeometryShader> DX12Renderer::CompileGeometryShader(const char* shaderCode, const char* entryPoint)
+IRALGeometryShader* DX12Renderer::CompileGeometryShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "gs_5_0");
     if (!shaderBlob)
@@ -454,13 +454,13 @@ std::unique_ptr<IRALGeometryShader> DX12Renderer::CompileGeometryShader(const ch
         return nullptr;
     }
 
-    auto geometryShader = std::make_unique<DX12RALGeometryShader>();
+    auto geometryShader = new DX12RALGeometryShader();
     geometryShader->SetNativeShader(shaderBlob.Get());
     return geometryShader;
 }
 
 // 编译计算着色器
-std::unique_ptr<IRALComputeShader> DX12Renderer::CompileComputeShader(const char* shaderCode, const char* entryPoint)
+IRALComputeShader* DX12Renderer::CompileComputeShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "cs_5_0");
     if (!shaderBlob)
@@ -468,13 +468,13 @@ std::unique_ptr<IRALComputeShader> DX12Renderer::CompileComputeShader(const char
         return nullptr;
     }
 
-    auto computeShader = std::make_unique<DX12RALComputeShader>();
+    auto computeShader = new DX12RALComputeShader();
     computeShader->SetNativeShader(shaderBlob.Get());
     return computeShader;
 }
 
 // 编译网格着色器
-std::unique_ptr<IRALMeshShader> DX12Renderer::CompileMeshShader(const char* shaderCode, const char* entryPoint)
+IRALMeshShader* DX12Renderer::CompileMeshShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "ms_6_5");
     if (!shaderBlob)
@@ -482,13 +482,13 @@ std::unique_ptr<IRALMeshShader> DX12Renderer::CompileMeshShader(const char* shad
         return nullptr;
     }
 
-    auto meshShader = std::make_unique<DX12RALMeshShader>();
+    auto meshShader = new DX12RALMeshShader();
     meshShader->SetNativeShader(shaderBlob.Get());
     return meshShader;
 }
 
 // 编译放大着色器
-std::unique_ptr<IRALAmplificationShader> DX12Renderer::CompileAmplificationShader(const char* shaderCode, const char* entryPoint)
+IRALAmplificationShader* DX12Renderer::CompileAmplificationShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "as_6_5");
     if (!shaderBlob)
@@ -496,13 +496,13 @@ std::unique_ptr<IRALAmplificationShader> DX12Renderer::CompileAmplificationShade
         return nullptr;
     }
 
-    auto amplificationShader = std::make_unique<DX12RALAmplificationShader>();
+    auto amplificationShader = new DX12RALAmplificationShader();
     amplificationShader->SetNativeShader(shaderBlob.Get());
     return amplificationShader;
 }
 
 // 编译光线生成着色器
-std::unique_ptr<IRALRayGenShader> DX12Renderer::CompileRayGenShader(const char* shaderCode, const char* entryPoint)
+IRALRayGenShader* DX12Renderer::CompileRayGenShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
     if (!shaderBlob)
@@ -510,13 +510,13 @@ std::unique_ptr<IRALRayGenShader> DX12Renderer::CompileRayGenShader(const char* 
         return nullptr;
     }
 
-    auto rayGenShader = std::make_unique<DX12RALRayGenShader>();
+    auto rayGenShader = new DX12RALRayGenShader();
     rayGenShader->SetNativeShader(shaderBlob.Get());
     return rayGenShader;
 }
 
 // 编译光线未命中着色器
-std::unique_ptr<IRALRayMissShader> DX12Renderer::CompileRayMissShader(const char* shaderCode, const char* entryPoint)
+IRALRayMissShader* DX12Renderer::CompileRayMissShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
     if (!shaderBlob)
@@ -524,13 +524,13 @@ std::unique_ptr<IRALRayMissShader> DX12Renderer::CompileRayMissShader(const char
         return nullptr;
     }
 
-    auto rayMissShader = std::make_unique<DX12RALRayMissShader>();
+    auto rayMissShader = new DX12RALRayMissShader();
     rayMissShader->SetNativeShader(shaderBlob.Get());
     return rayMissShader;
 }
 
 // 编译光线命中组着色器
-std::unique_ptr<IRALRayHitGroupShader> DX12Renderer::CompileRayHitGroupShader(const char* shaderCode, const char* entryPoint)
+IRALRayHitGroupShader* DX12Renderer::CompileRayHitGroupShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
     if (!shaderBlob)
@@ -538,13 +538,13 @@ std::unique_ptr<IRALRayHitGroupShader> DX12Renderer::CompileRayHitGroupShader(co
         return nullptr;
     }
 
-    auto rayHitGroupShader = std::make_unique<DX12RALRayHitGroupShader>();
+    auto rayHitGroupShader = new DX12RALRayHitGroupShader();
     rayHitGroupShader->SetNativeShader(shaderBlob.Get());
     return rayHitGroupShader;
 }
 
 // 编译光线可调用着色器
-std::unique_ptr<IRALRayCallableShader> DX12Renderer::CompileRayCallableShader(const char* shaderCode, const char* entryPoint)
+IRALRayCallableShader* DX12Renderer::CompileRayCallableShader(const char* shaderCode, const char* entryPoint)
 {
     ComPtr<ID3DBlob> shaderBlob = CompileShaderBlob(shaderCode, entryPoint, "lib_6_3");
     if (!shaderBlob)
@@ -552,13 +552,13 @@ std::unique_ptr<IRALRayCallableShader> DX12Renderer::CompileRayCallableShader(co
         return nullptr;
     }
 
-    auto rayCallableShader = std::make_unique<DX12RALRayCallableShader>();
+    auto rayCallableShader = new DX12RALRayCallableShader();
     rayCallableShader->SetNativeShader(shaderBlob.Get());
     return rayCallableShader;
 }
 
 // 创建并获取根签名
-std::unique_ptr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
+TSharePtr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
 {
     logDebug("[DEBUG] DX12Renderer::CreateAndGetRootSignature called");
     
@@ -620,7 +620,7 @@ std::unique_ptr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
             std::cerr << errorMsg << std::endl;
         }
         logDebug("[DEBUG] Failed to serialize root signature");
-        return nullptr;
+        return TSharePtr<IRALRootSignature>();
     }
 
     // 创建根签名
@@ -636,16 +636,16 @@ std::unique_ptr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
     {
         std::cerr << "Failed to create root signature. HRESULT: " << hr << std::endl;
         logDebug("[DEBUG] Failed to create root signature");
-        return nullptr;
+        return TSharePtr<IRALRootSignature>();
     }
     
     logDebug("[DEBUG] Root signature created successfully");
     
     // 创建并返回IRALRootSignature对象
-    auto ralRootSignature = std::make_unique<DX12RALRootSignature>();
-    static_cast<DX12RALRootSignature*>(ralRootSignature.get())->SetNativeRootSignature(d3d12RootSignature.Get());
+    auto ralRootSignature = new DX12RALRootSignature();
+    static_cast<DX12RALRootSignature*>(ralRootSignature)->SetNativeRootSignature(d3d12RootSignature.Get());
     
-    return ralRootSignature;
+    return TSharePtr<IRALRootSignature>(ralRootSignature);
 }
 
 // 创建根签名（旧方法，保持兼容性，但现在会调用新方法）
@@ -737,9 +737,9 @@ void DX12Renderer::CreateRootSignature()
     logDebug("[DEBUG] Root signature created in CreateRootSignature");
     
     // 创建并设置IRALRootSignature对象
-    auto ralRootSignature = std::make_unique<DX12RALRootSignature>();
-    static_cast<DX12RALRootSignature*>(ralRootSignature.get())->SetNativeRootSignature(d3d12RootSignature.Get());
-    SetRootSignature(std::move(ralRootSignature));
+    auto ralRootSignature = new DX12RALRootSignature();
+    static_cast<DX12RALRootSignature*>(ralRootSignature)->SetNativeRootSignature(d3d12RootSignature.Get());
+    SetRootSignature(TSharePtr<IRALRootSignature>(ralRootSignature));
 }
 
 // 创建管道状态对象
@@ -1504,7 +1504,7 @@ void DX12Renderer::Cleanup()
 }
 
 // 创建图形管线状态
-std::unique_ptr<IRALGraphicsPipelineState> DX12Renderer::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc)
+TSharePtr<IRALGraphicsPipelineState> DX12Renderer::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc)
 {
     // 创建D3D12图形管线状态描述
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -2125,8 +2125,8 @@ std::unique_ptr<IRALGraphicsPipelineState> DX12Renderer::CreateGraphicsPipelineS
     }
     
     // 创建并返回RAL图形管线状态对象
-    auto ralPipelineState = std::make_unique<DX12RALGraphicsPipelineState>();
+    auto ralPipelineState = new DX12RALGraphicsPipelineState();
     ralPipelineState->SetNativePipelineState(pipelineState.Get());
     
-    return ralPipelineState;
+    return TSharePtr<IRALGraphicsPipelineState>(ralPipelineState);
 }
