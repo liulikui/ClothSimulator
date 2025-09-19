@@ -65,9 +65,6 @@ public:
     virtual void ResourceBarrier(const RALResourceBarrier& barrier) = 0;
     virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) = 0;
 
-    // 内存屏障 - 重命名以避免Windows宏替换
-    virtual void MemoryBarriers() = 0;
-
     // 关闭命令列表（准备执行）
     virtual void Close() = 0;
 

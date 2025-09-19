@@ -17,11 +17,14 @@ public:
     // 从IRALCommandList继承的方法
     virtual void ResourceBarrier(const RALResourceBarrier& barrier) override;
     virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) override;
-    virtual void MemoryBarriers() override;
     
-    // 其他方法
+    // 关闭命令列表（准备执行）
     virtual void Close() override;
+
+    // 重置命令列表（重新开始录制）
     virtual void Reset() override;
+
+    // 获取原生命令列表指针
     virtual void* GetNativeCommandList() override;
 
 protected:
@@ -41,7 +44,6 @@ public:
     // 从IRALCommandList继承的方法
     virtual void ResourceBarrier(const RALResourceBarrier& barrier) override;
     virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) override;
-    virtual void MemoryBarriers() override;
     virtual void Close() override;
     virtual void Reset() override;
     virtual void* GetNativeCommandList() override;

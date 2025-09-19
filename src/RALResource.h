@@ -755,15 +755,15 @@ public:
 };
 
 // Graphics Pipeline State接口
-class IGraphicsPipelineState : public IRALResource
+class IRALGraphicsPipelineState : public IRALResource
 {
 public:
-	IGraphicsPipelineState()
+	IRALGraphicsPipelineState()
 		: IRALResource(RALResourceType::GraphicsPipelineState)
 	{
 	}
 
-	virtual ~IGraphicsPipelineState() = default;
+	virtual ~IRALGraphicsPipelineState() = default;
 };
 
 // RenderTarget基类

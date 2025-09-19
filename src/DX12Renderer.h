@@ -119,7 +119,7 @@ public:
 	std::unique_ptr<IRALRayCallableShader> CompileRayCallableShader(const char* shaderCode, const char* entryPoint = "main");
 	
 	// 创建图形管线状态
-	std::unique_ptr<IGraphicsPipelineState> CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
+	std::unique_ptr<IRALGraphicsPipelineState> CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
 
 private:
     // 通用着色器编译辅助方法

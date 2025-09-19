@@ -1139,11 +1139,11 @@ protected:
 };
 
 // DX12实现的图形管线状态
-class DX12RALGraphicsPipelineState : public IGraphicsPipelineState
+class DX12RALGraphicsPipelineState : public IRALGraphicsPipelineState
 {
 public:
 	DX12RALGraphicsPipelineState()
-		: IGraphicsPipelineState()
+		: IRALGraphicsPipelineState()
 	{
 	}
 

@@ -67,15 +67,6 @@ void DX12RALGraphicsCommandList::ResourceBarriers(const RALResourceBarrier* barr
     m_commandList->ResourceBarrier(dxBarriers.size(), dxBarriers.data());
 }
 
-// 内存屏障
-void DX12RALGraphicsCommandList::MemoryBarriers()
-{
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-    barrier.UAV.pResource = nullptr;
-    m_commandList->ResourceBarrier(1, &barrier);
-}
-
 // 关闭命令列表（准备执行）
 void DX12RALGraphicsCommandList::Close()
 {

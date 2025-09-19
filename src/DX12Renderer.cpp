@@ -1504,7 +1504,7 @@ void DX12Renderer::Cleanup()
 }
 
 // 创建图形管线状态
-std::unique_ptr<IGraphicsPipelineState> DX12Renderer::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc)
+std::unique_ptr<IRALGraphicsPipelineState> DX12Renderer::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc)
 {
     // 创建D3D12图形管线状态描述
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
