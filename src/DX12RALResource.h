@@ -832,21 +832,15 @@ protected:
 };
 
 // DX12实现的常量缓冲区
-class DX12RALUniformBuffer : public IRALUniformBuffer
+class DX12RALConstBuffer : public IRALConstBuffer
 {
 public:
-	DX12RALUniformBuffer(uint64_t size)
-		: IRALUniformBuffer(size)
+	DX12RALConstBuffer(uint64_t size)
+		: IRALConstBuffer(size)
 	{
 	}
 
-	virtual ~DX12RALUniformBuffer() = default;
-
-	// 创建常量缓冲区视图
-	virtual IRALUniformBufferView* CreateUniformBufferView(uint32_t sizeInBytes) override;
-
-	// 更新常量缓冲区数据
-	virtual void Update(const void* data, uint32_t sizeInBytes) override;
+	virtual ~DX12RALConstBuffer() = default;
 
 	// 获取原生资源指针
 	virtual void* GetNativeResource() const override
@@ -858,6 +852,32 @@ public:
 	void SetNativeResource(ID3D12Resource* resource)
 	{
 		m_nativeResource = resource;
+	}
+
+	virtual bool Map(void** ppData) override
+	{
+		D3D12_RANGE range;
+		range.Begin = 0;
+		range.End = GetSize();
+
+		HRESULT hr = m_nativeResource->Map(0, &range, ppData);
+
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	virtual void Unmap()
+	{
+		m_nativeResource->Unmap(0, nullptr);
+	}
+
+	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress()
+	{
+		return m_nativeResource->GetGPUVirtualAddress();
 	}
 
 protected:

@@ -18,7 +18,8 @@ namespace dx = DirectX;
 // 前向声明
 class Scene;
 
-class DX12Renderer {
+class DX12Renderer
+{
 public:
     // 构造函数和析构函数
     DX12Renderer(uint32_t width, uint32_t height, const std::wstring& windowName, HWND hWnd);
@@ -28,7 +29,7 @@ public:
     bool Initialize();
 
     // 开始一帧
-    void BeginFrame();
+    void BeginFrame(IRALGraphicsCommandList* commandList);
 
     // 提交CommandLists
     void ExecuteCommandLists(uint32_t count, IRALCommandList** ppCommandList);
@@ -90,10 +91,13 @@ public:
     IRALGraphicsCommandList* CreateGraphicsCommandList();
 
     // 创建顶点缓冲区
-    IRALVertexBuffer* CreateVertexBuffer(size_t size, uint32_t stride, bool isStatic = true);
+    IRALVertexBuffer* CreateVertexBuffer(uint64_t size, uint32_t stride, bool isStatic = true);
 
     // 创建索引缓冲区
-    IRALIndexBuffer* CreateIndexBuffer(size_t size, bool is32BitIndex = true, bool isStatic = true);
+    IRALIndexBuffer* CreateIndexBuffer(uint64_t size, bool is32BitIndex = true, bool isStatic = true);
+
+    // 创建常量缓冲区
+    IRALConstBuffer* CreateConstBuffer(uint64_t size);
 
     // 更新Buffer
     bool UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size);

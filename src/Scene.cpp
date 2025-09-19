@@ -11,6 +11,16 @@
 // 日志函数声明
 extern void logDebug(const std::string& message);
 
+struct SceneConstBuffer 
+{
+    dx::XMFLOAT4X4 View;            // 世界矩阵
+    dx::XMFLOAT4X4 Proj;            // 投影矩阵
+    dx::XMFLOAT4X4 ViewProj;        // 视图-投影矩阵
+    dx::XMFLOAT4 lightDiffuseColor; // 光源漫反射颜色
+    dx::XMFLOAT3 lightPos;          // 光源位置
+    float padding1;                 // 4字节对齐填充
+};
+
 Scene::Scene()
 {
     // 初始化场景
@@ -230,6 +240,13 @@ bool Scene::Initialize(DX12Renderer* pRender)
     
     logDebug("[DEBUG] Scene::Initialize succeeded: graphics pipeline state created and stored");
     
+    m_constBuffer = pRender->CreateConstBuffer(sizeof(SceneConstBuffer));
+    if (!m_constBuffer.Get())
+    {
+        logDebug("[DEBUG] Scene::Initialize failed: failed to create const buffer");
+        return false;
+    }
+
     return true;
 }
 
@@ -251,69 +268,72 @@ void Scene::update(IRALGraphicsCommandList* commandList, float deltaTime)
      }
 }
 
-void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix) {
-    logDebug("[DEBUG] Scene::render called");
+void Scene::render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
+{
+    UpdateUniformBuffer(commandList, viewMatrix, projectionMatrix);
 
-    if (!renderer)
-    {
-        logDebug("[DEBUG] renderer is null");
-        return;
-    }
+    // 设置管道签名
+    commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-    // 渲染每个可见的Mesh对象
-    logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
-    for (size_t i = 0; i < m_primitives.size(); ++i)
-    {
-        auto& mesh = m_primitives[i];
-        logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
+    // 设置根参数0（变换矩阵常量缓冲区）
+    commandList->SetGraphicsRootConstantBuffer(0, m_constBuffer.Get());
 
-        if (mesh && mesh->isVisible())
-        {
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
+    //logDebug("[DEBUG] Scene::render called");
 
-            // 获取对象类型
-            std::string typeName = typeid(*mesh).name();
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " type: " + typeName);
+    //// 渲染每个可见的Mesh对象
+    //logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
+    //for (size_t i = 0; i < m_primitives.size(); ++i)
+    //{
+    //    auto& mesh = m_primitives[i];
+    //    logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
 
-            // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
-            const dx::XMMATRIX& worldMatrix = mesh->getWorldMatrix();
-            const dx::XMFLOAT4& diffuseColor = mesh->getDiffuseColor();
-            const std::vector<dx::XMFLOAT3>& positions = mesh->getPositions();
-            const std::vector<dx::XMFLOAT3>& normals = mesh->getNormals();
-            const std::vector<uint32_t>& indices = mesh->getIndices();
+    //    if (mesh && mesh->isVisible())
+    //    {
+    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
 
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " +
-                std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
+    //        // 获取对象类型
+    //        std::string typeName = typeid(*mesh).name();
+    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " type: " + typeName);
 
-            // 检查是否有有效数据
-            if (positions.empty() || normals.empty() || indices.empty())
-            {
-                logDebug("[DEBUG] Mesh " + std::to_string(i) + " has empty data, skipping");
-                continue;
-            }
+    //        // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
+    //        const dx::XMMATRIX& worldMatrix = mesh->getWorldMatrix();
+    //        const dx::XMFLOAT4& diffuseColor = mesh->getDiffuseColor();
+    //        const std::vector<dx::XMFLOAT3>& positions = mesh->getPositions();
+    //        const std::vector<dx::XMFLOAT3>& normals = mesh->getNormals();
+    //        const std::vector<uint32_t>& indices = mesh->getIndices();
 
-            // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
-            if (typeid(*mesh) == typeid(Cloth))
-            {
-                logDebug("[DEBUG] Rendering cloth mesh");
-                //renderer->SetClothVertices(positions, normals, indices);
-            }
-            else if (typeid(*mesh) == typeid(Sphere))
-            {
-                logDebug("[DEBUG] Rendering sphere mesh");
-                //renderer->SetSphereVertices(positions, normals, indices);
-            }
-            else
-            {
-                logDebug("[DEBUG] Unknown mesh type, skipping");
-            }
-        }
-        else
-        {
-            logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
-        }
-    }
-    logDebug("[DEBUG] Scene::render finished");
+    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " +
+    //            std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
+
+    //        // 检查是否有有效数据
+    //        if (positions.empty() || normals.empty() || indices.empty())
+    //        {
+    //            logDebug("[DEBUG] Mesh " + std::to_string(i) + " has empty data, skipping");
+    //            continue;
+    //        }
+
+    //        // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
+    //        if (typeid(*mesh) == typeid(Cloth))
+    //        {
+    //            logDebug("[DEBUG] Rendering cloth mesh");
+    //            //renderer->SetClothVertices(positions, normals, indices);
+    //        }
+    //        else if (typeid(*mesh) == typeid(Sphere))
+    //        {
+    //            logDebug("[DEBUG] Rendering sphere mesh");
+    //            //renderer->SetSphereVertices(positions, normals, indices);
+    //        }
+    //        else
+    //        {
+    //            logDebug("[DEBUG] Unknown mesh type, skipping");
+    //        }
+    //    }
+    //    else
+    //    {
+    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
+    //    }
+    //}
+    //logDebug("[DEBUG] Scene::render finished");
 }
 
 bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
@@ -357,4 +377,25 @@ void Scene::clear()
 {
     // 清空所有对象
     m_primitives.clear();
+}
+
+void Scene::UpdateUniformBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
+{
+    // 计算视图-投影矩阵
+    dx::XMMATRIX viewProjMatrix = viewMatrix * projectionMatrix;
+
+    SceneConstBuffer data;
+    dx::XMStoreFloat4x4(&data.View, dx::XMMatrixTranspose(viewMatrix));
+    dx::XMStoreFloat4x4(&data.Proj, dx::XMMatrixTranspose(projectionMatrix));
+    dx::XMStoreFloat4x4(&data.ViewProj, dx::XMMatrixTranspose(viewProjMatrix));
+    data.lightDiffuseColor = m_lightDiffuseColor;
+    data.lightPos = m_lightPosition;
+    data.padding1 = 0.0f;
+
+    // 映射并更新缓冲区
+    void* mappedData = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    m_constBuffer->Map(&mappedData);
+    memcpy(mappedData, &data, sizeof(SceneConstBuffer));
+    m_constBuffer->Unmap();
 }

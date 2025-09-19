@@ -65,8 +65,10 @@ bool DX12Renderer::Initialize()
     return true;
 }
 
-void DX12Renderer::BeginFrame()
+void DX12Renderer::BeginFrame(IRALGraphicsCommandList* commandList)
 {
+    ID3D12GraphicsCommandList* dx12CommandList = (ID3D12GraphicsCommandList*)commandList->GetNativeCommandList();
+
     // 获取当前后台缓冲区
     m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -78,6 +80,47 @@ void DX12Renderer::BeginFrame()
     {
         throw std::runtime_error("Failed to reset command allocator.");
     }
+
+    // 资源转换：设置渲染目标为渲染状态
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = m_backBuffers[m_currentBackBufferIndex].Get();
+    barrier.Transition.Subresource = 0;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    dx12CommandList->ResourceBarrier(1, &barrier);
+
+    // 清除渲染目标和深度缓冲区 - 浅灰色背景
+    const float clearColor[] = { 0.9f, 0.9f, 0.9f, 1.0f };
+    dx12CommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    dx12CommandList->ClearDepthStencilView(
+        m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
+        D3D12_CLEAR_FLAG_DEPTH,
+        1.0f,
+        0,
+        0,
+        nullptr
+    );
+
+    // 设置渲染目标和深度/模板视图
+    dx12CommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    // 设置视口和裁剪矩形
+    D3D12_VIEWPORT viewport = {};
+    viewport.TopLeftX = 0.0f;
+    viewport.TopLeftY = 0.0f;
+    viewport.Width = static_cast<float>(m_width);
+    viewport.Height = static_cast<float>(m_height);
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    dx12CommandList->RSSetViewports(1, &viewport);
+
+    D3D12_RECT scissorRect = {};
+    scissorRect.left = 0;
+    scissorRect.top = 0;
+    scissorRect.right = static_cast<LONG>(m_width);
+    scissorRect.bottom = static_cast<LONG>(m_height);
+    dx12CommandList->RSSetScissorRects(1, &scissorRect);
 }
 
 void DX12Renderer::ExecuteCommandLists(uint32_t count, IRALCommandList** ppCommandList)
@@ -1664,7 +1707,7 @@ IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList()
 }
 
 // 创建顶点缓冲区
-IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(size_t size, uint32_t stride, bool isStatic) {
+IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint64_t size, uint32_t stride, bool isStatic) {
     // 创建DX12RALVertexBuffer对象
     DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size);
 
@@ -1707,7 +1750,7 @@ IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(size_t size, uint32_t stride,
 }
 
 // 创建索引缓冲区
-IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(size_t size, bool is32BitIndex, bool isStatic) {
+IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint64_t size, bool is32BitIndex, bool isStatic) {
     // 创建DX12RALIndexBuffer对象
     DX12RALIndexBuffer* indexBuffer = new DX12RALIndexBuffer(size, is32BitIndex);
 
@@ -1747,6 +1790,53 @@ IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(size_t size, bool is32BitIndex,
     indexBuffer->SetNativeResource(d3d12Resource.Get());
 
     return indexBuffer;
+}
+
+IRALConstBuffer* DX12Renderer::CreateConstBuffer(uint64_t size)
+{
+    // 创建DX12RALConstBuffer对象
+    DX12RALConstBuffer* constBuffer = new DX12RALConstBuffer(size);
+
+    // 创建变换矩阵常量缓冲区
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    desc.Alignment = 0;
+    desc.Width = size;
+    desc.Height = 1;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = DXGI_FORMAT_UNKNOWN;
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    ComPtr<ID3D12Resource> d3d12Resource;
+
+    HRESULT hr = m_device->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
+    );
+
+    if (FAILED(hr))
+    {
+        return nullptr;
+    }
+
+    constBuffer->SetNativeResource(d3d12Resource.Get());
+
+    return constBuffer;
 }
 
 bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size)

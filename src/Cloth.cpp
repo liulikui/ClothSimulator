@@ -57,19 +57,6 @@ Cloth::~Cloth()
     
     // 清除约束指针数组中的其他约束（如果有）
     constraints.clear();
-    
-    // 释放顶点和索引缓冲区
-    if (m_vertexBuffer)
-    {
-        delete m_vertexBuffer;
-        m_vertexBuffer = nullptr;
-    }
-    
-    if (m_indexBuffer)
-    {
-        delete m_indexBuffer;
-        m_indexBuffer = nullptr;
-    }
 }
 
 // 初始化布料的顶点和索引缓冲区
@@ -213,14 +200,14 @@ bool Cloth::Initialize(DX12Renderer* renderer)
     }
 
     // 上传顶点数据
-    if (!renderer->UploadBuffer(m_vertexBuffer, (const char*)vertexData.data(), vertexBufferSize))
+    if (!renderer->UploadBuffer(m_vertexBuffer.Get(), (const char*)vertexData.data(), vertexBufferSize))
     {
         std::cerr << "Cloth::Initialize: Failed to upload vertex buffer data" << std::endl;
         return false;
     }
 
     // 上传索引数据
-    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)indices.data(), indexBufferSize))
+    if (!renderer->UploadBuffer(m_indexBuffer.Get(), (const char*)indices.data(), indexBufferSize))
     {
         std::cerr << "Cloth::Initialize: Failed to upload index buffer data" << std::endl;
         return false;

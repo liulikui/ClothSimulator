@@ -82,9 +82,9 @@ public:
     }
 
     // 获取顶点缓冲区
-    IRALVertexBuffer* getVertexBuffer() const { return m_vertexBuffer; }
+    IRALVertexBuffer* getVertexBuffer() const { return m_vertexBuffer.Get(); }
     // 获取索引缓冲区
-    IRALIndexBuffer* getIndexBuffer() const { return m_indexBuffer; }
+    IRALIndexBuffer* getIndexBuffer() const { return m_indexBuffer.Get(); }
 
 private:
     // 球体参数
@@ -99,8 +99,8 @@ private:
     std::vector<uint32_t> indices;       // 索引数据
 
     // 渲染资源
-    IRALVertexBuffer* m_vertexBuffer = nullptr;
-    IRALIndexBuffer* m_indexBuffer = nullptr;
+    TSharePtr<IRALVertexBuffer> m_vertexBuffer;
+    TSharePtr<IRALIndexBuffer> m_indexBuffer;
 
     // 生成球体的顶点和索引数据
     void generateSphereData();

@@ -1,4 +1,5 @@
 #include "DX12RALCommandList.h"
+#include "DX12RALResource.h"
 #include <vector>
 
 // DX12RALGraphicsCommandList构造函数
@@ -184,7 +185,7 @@ void DX12RALGraphicsCommandList::SetIndexBuffer(IRALIndexBufferView* indexBuffer
 }
 
 // 绑定根签名
-void DX12RALGraphicsCommandList::SetRootSignature(IRALRootSignature* rootSignature)
+void DX12RALGraphicsCommandList::SetGraphicsRootSignature(IRALRootSignature* rootSignature)
 {
     if (rootSignature)
     {
@@ -194,18 +195,18 @@ void DX12RALGraphicsCommandList::SetRootSignature(IRALRootSignature* rootSignatu
 }
 
 // 绑定根常量
-void DX12RALGraphicsCommandList::SetRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value)
+void DX12RALGraphicsCommandList::SetGraphicsRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value)
 {
     m_commandList->SetGraphicsRoot32BitConstant(rootParameterIndex, value, shaderRegister);
 }
 
-void DX12RALGraphicsCommandList::SetRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values)
+void DX12RALGraphicsCommandList::SetGraphicsRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values)
 {
     m_commandList->SetGraphicsRoot32BitConstants(rootParameterIndex, count, values, shaderRegister);
 }
 
 // 绑定根描述符表
-void DX12RALGraphicsCommandList::SetRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable)
+void DX12RALGraphicsCommandList::SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable)
 {
     if (descriptorTable)
     {
@@ -216,38 +217,24 @@ void DX12RALGraphicsCommandList::SetRootDescriptorTable(uint32_t rootParameterIn
 }
 
 // 绑定根常量缓冲区视图
-void DX12RALGraphicsCommandList::SetRootConstantBufferView(uint32_t rootParameterIndex, uint64_t bufferLocation)
+void DX12RALGraphicsCommandList::SetGraphicsRootConstantBuffer(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
 {
-    m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, bufferLocation);
+    DX12RALConstBuffer* dx12ConstBuffer = (DX12RALConstBuffer*)constBuffer;
+    m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, dx12ConstBuffer->GetGPUVirtualAddress());
 }
 
 // 绑定根着色器资源视图
-void DX12RALGraphicsCommandList::SetRootShaderResourceView(uint32_t rootParameterIndex, uint64_t bufferLocation)
+void DX12RALGraphicsCommandList::SetGraphicsRootShaderResource(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
 {
-    m_commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, bufferLocation);
+    DX12RALConstBuffer* dx12ConstBuffer = (DX12RALConstBuffer*)constBuffer;
+    m_commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, dx12ConstBuffer->GetGPUVirtualAddress());
 }
 
 // 绑定根无序访问视图
-void DX12RALGraphicsCommandList::SetRootUnorderedAccessView(uint32_t rootParameterIndex, uint64_t bufferLocation)
+void DX12RALGraphicsCommandList::SetGraphicsRootUnorderedAccess(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
 {
-    m_commandList->SetGraphicsRootUnorderedAccessView(rootParameterIndex, bufferLocation);
-}
-
-// 创建UniformBuffer
-IRALUniformBuffer* DX12RALGraphicsCommandList::CreateUniformBuffer(uint32_t sizeInBytes)
-{
-    // 注意：这个函数在实际项目中需要实现，创建一个DX12RALUniformBuffer对象
-    // 这里返回nullptr是为了编译通过，实际实现需要完成
-    return nullptr;
-}
-
-// 更新UniformBuffer数据
-void DX12RALGraphicsCommandList::UpdateUniformBuffer(IRALUniformBuffer* buffer, const void* data, uint32_t sizeInBytes)
-{
-    if (buffer)
-    {
-        buffer->Update(data, sizeInBytes);
-    }
+    DX12RALConstBuffer* dx12ConstBuffer = (DX12RALConstBuffer*)constBuffer;
+    m_commandList->SetGraphicsRootUnorderedAccessView(rootParameterIndex, dx12ConstBuffer->GetGPUVirtualAddress());
 }
 
 // 绘制调用（无索引）

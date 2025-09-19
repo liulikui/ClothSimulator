@@ -62,13 +62,13 @@ bool Sphere::Initialize(DX12Renderer* renderer)
     }
 
     // 上传顶点数据
-    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)vertexData.data(), vertexData.size()))
+    if (!renderer->UploadBuffer(m_indexBuffer.Get(), (const char*)vertexData.data(), vertexData.size()))
     {
         return false;
     }
 
     // 上传索引数据
-    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)indices.data(), indices.size() * sizeof(uint32_t)))
+    if (!renderer->UploadBuffer(m_indexBuffer.Get(), (const char*)indices.data(), indices.size() * sizeof(uint32_t)))
     {
         return false;
     }

@@ -2,6 +2,7 @@
 #define RALCOMMANDLIST_H
 
 #include "RALResource.h"
+#include <atomic>
 
 // 命令列表类型枚举
 enum class RALCommandListType
@@ -58,6 +59,21 @@ public:
 
     virtual ~IRALCommandList() = default;
 
+    // 增加引用计数
+    void AddRef()
+    {
+        m_refCount.fetch_add(1, std::memory_order_acquire);
+    }
+
+    // 减少引用计数
+    void Release()
+    {
+        if (m_refCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+        {
+            delete this;
+        }
+    }
+
     // 获取命令列表类型
     RALCommandListType GetType() const { return m_type; }
 
@@ -76,6 +92,7 @@ public:
 
 protected:
     RALCommandListType m_type;
+    std::atomic<int32_t> m_refCount;
 };
 
 // 图形命令列表接口
@@ -111,29 +128,23 @@ public:
     virtual void SetIndexBuffer(IRALIndexBufferView* indexBufferView) = 0;
 
     // 绑定根签名
-    virtual void SetRootSignature(IRALRootSignature* rootSignature) = 0;
+    virtual void SetGraphicsRootSignature(IRALRootSignature* rootSignature) = 0;
 
     // 绑定根常量
-    virtual void SetRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value) = 0;
-    virtual void SetRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values) = 0;
+    virtual void SetGraphicsRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value) = 0;
+    virtual void SetGraphicsRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values) = 0;
 
     // 绑定根描述符表
-    virtual void SetRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable) = 0;
+    virtual void SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable) = 0;
 
     // 绑定根常量缓冲区视图
-    virtual void SetRootConstantBufferView(uint32_t rootParameterIndex, uint64_t bufferLocation) = 0;
+    virtual void SetGraphicsRootConstantBuffer(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) = 0;
 
     // 绑定根着色器资源视图
-    virtual void SetRootShaderResourceView(uint32_t rootParameterIndex, uint64_t bufferLocation) = 0;
+    virtual void SetGraphicsRootShaderResource(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) = 0;
 
     // 绑定根无序访问视图
-    virtual void SetRootUnorderedAccessView(uint32_t rootParameterIndex, uint64_t bufferLocation) = 0;
-
-    // 创建UniformBuffer
-    virtual IRALUniformBuffer* CreateUniformBuffer(uint32_t sizeInBytes) = 0;
-
-    // 更新UniformBuffer数据
-    virtual void UpdateUniformBuffer(IRALUniformBuffer* buffer, const void* data, uint32_t sizeInBytes) = 0;
+    virtual void SetGraphicsRootUnorderedAccess(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) = 0;
 
     // 绘制调用（无索引）
     virtual void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0) = 0;

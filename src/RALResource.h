@@ -25,7 +25,7 @@ class IRALRenderTarget;
 class IRALDepthStencilView;
 class IRALVertexBuffer;
 class IRALIndexBuffer;
-class IRALUniformBuffer;
+class IRALConstBuffer;
 class IRALCommandList;
 class IRALViewport;
 
@@ -300,8 +300,8 @@ struct RALGraphicsPipelineStateDesc
 enum class RALResourceType
 {
 	NONE,
-	UniformBuffer,
-	UniformBufferLayout,
+	ConstBuffer,
+	ConstBufferLayout,
 	VertexBuffer,
 	IndexBuffer,
 	Shader,
@@ -655,6 +655,12 @@ public:
 	virtual void* GetNativeView() = 0;
 };
 
+struct RALRange
+{
+	uint64_t begin;
+	uint64_t end;
+};
+
 class IRALBuffer : public IRALResource
 {
 public:
@@ -662,7 +668,6 @@ public:
 		: IRALResource(type)
 		, m_size(size)
 	{
-
 	}
 
 	uint64_t GetSize() const
@@ -755,22 +760,20 @@ public:
 	virtual void* GetNativeDepthStencilView() const = 0;
 };
 
-// UniformBuffer接口
-class IRALUniformBuffer : public IRALBuffer
+// ConstBuffer接口
+class IRALConstBuffer : public IRALBuffer
 {
 public:
-	IRALUniformBuffer(uint64_t size)
-		: IRALBuffer(RALResourceType::UniformBuffer, size)
+	IRALConstBuffer(uint64_t size)
+		: IRALBuffer(RALResourceType::ConstBuffer, size)
 	{
 	}
 
-	virtual ~IRALUniformBuffer() = default;
-	
-	// 创建UniformBuffer视图
-	virtual IRALUniformBufferView* CreateUniformBufferView(uint32_t sizeInBytes) = 0;
+	virtual ~IRALConstBuffer() = default;
 
-	// 更新UniformBuffer数据
-	virtual void Update(const void* data, uint32_t sizeInBytes) = 0;
+	virtual bool Map(void** ppData) = 0;
+
+	virtual void Unmap() = 0;
 };
 
 // RootSignature参数类型枚举

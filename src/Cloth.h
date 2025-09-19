@@ -160,8 +160,8 @@ private:
     std::vector<uint32_t> indices; // 布料索引数据
     
     // 渲染资源
-    IRALVertexBuffer* m_vertexBuffer = nullptr;
-    IRALIndexBuffer* m_indexBuffer = nullptr;
+    TSharePtr<IRALVertexBuffer> m_vertexBuffer;
+    TSharePtr<IRALIndexBuffer> m_indexBuffer;
 };
 
 #endif // CLOTH_H

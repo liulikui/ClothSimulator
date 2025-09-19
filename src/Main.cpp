@@ -599,8 +599,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::cout << "Sphere object added to scene successfully" << std::endl;
 
     // 设置场景光源属性
-    scene->setLightPosition(dx::XMFLOAT4(10.0f, 10.0f, 10.0f, 1.0f));
-    scene->setLightColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+    scene->setLightPosition(dx::XMFLOAT3(10.0f, 10.0f, 10.0f));
+    scene->setLightDiffuseColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
     
     // 初始化时间
     lastFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
@@ -643,9 +643,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
         }
         
-        renderer->BeginFrame();
-
         IRALGraphicsCommandList* commandList = renderer->CreateGraphicsCommandList();
+
+        renderer->BeginFrame(commandList);
 
         // 处理键盘输入
         camera->ProcessKeyboardInput(keys, deltaTime);
@@ -659,9 +659,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         logDebug("[DEBUG] Rendering scene, render count: " + std::to_string(renderCount));
         logDebug("[DEBUG] Scene has " + std::to_string(scene->getMeshCount()) + " meshes");
 
-        //renderer->Render(scene, camera->GetViewMatrix(), camera->GetProjectionMatrix());
+        scene->render(commandList, camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
         renderer->EndFrame();
+
+        commandList->Release();
     }
     
     logDebug("Exiting main loop");
