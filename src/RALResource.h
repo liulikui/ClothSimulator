@@ -742,6 +742,112 @@ public:
 	virtual void Update(const void* data, uint32_t sizeInBytes) = 0;
 };
 
+// RootSignature参数类型枚举
+enum class RALRootParameterType
+{
+	Constant,
+	ConstantBufferView,
+	ShaderResourceView,
+	UnorderedAccessView,
+	DescriptorTable,
+	Invalid
+};
+
+// 根描述符（用于根CBV/SRV/UAV）
+struct RALRootDescriptor
+{
+	uint32_t ShaderRegister;
+	uint32_t RegisterSpace;
+};
+
+// 根描述符表范围
+struct RALRootDescriptorTableRange
+{
+	uint32_t NumDescriptors;
+	uint32_t BaseShaderRegister;
+	uint32_t RegisterSpace;
+};
+
+// 根描述符表
+struct RALRootDescriptorTable
+{
+	std::vector<RALRootDescriptorTableRange> Ranges;
+};
+
+// 着色器可见性枚举
+enum class RALShaderVisibility
+{
+	All,
+	Vertex,
+	Hull,
+	Domain,
+	Geometry,
+	Pixel,
+	Amplification,
+	Mesh
+};
+
+// 根签名参数结构体
+struct RALRootParameter
+{
+	RALRootParameterType Type;
+	
+	// 使用结构体替代union，避免隐式删除析构函数的警告
+	struct
+	{
+		uint32_t Constants[3]; // ShaderRegister, RegisterSpace, Num32BitValues
+		RALRootDescriptor Descriptor;
+		RALRootDescriptorTable DescriptorTable;
+	} Data;
+	
+	RALShaderVisibility ShaderVisibility;
+};
+
+// 初始化常量根参数
+static inline void InitAsConstants(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, uint32_t num32BitValues, RALShaderVisibility visibility)
+{
+	param.Type = RALRootParameterType::Constant;
+	param.Data.Constants[0] = shaderRegister;
+	param.Data.Constants[1] = registerSpace;
+	param.Data.Constants[2] = num32BitValues;
+	param.ShaderVisibility = visibility;
+}
+
+// 初始化CBV根参数
+static inline void InitAsConstantBufferView(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
+{
+	param.Type = RALRootParameterType::ConstantBufferView;
+	param.Data.Descriptor.ShaderRegister = shaderRegister;
+	param.Data.Descriptor.RegisterSpace = registerSpace;
+	param.ShaderVisibility = visibility;
+}
+
+// 初始化SRV根参数
+static inline void InitAsShaderResourceView(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
+{
+	param.Type = RALRootParameterType::ShaderResourceView;
+	param.Data.Descriptor.ShaderRegister = shaderRegister;
+	param.Data.Descriptor.RegisterSpace = registerSpace;
+	param.ShaderVisibility = visibility;
+}
+
+// 初始化UAV根参数
+static inline void InitAsUnorderedAccessView(RALRootParameter& param, uint32_t shaderRegister, uint32_t registerSpace, RALShaderVisibility visibility)
+{
+	param.Type = RALRootParameterType::UnorderedAccessView;
+	param.Data.Descriptor.ShaderRegister = shaderRegister;
+	param.Data.Descriptor.RegisterSpace = registerSpace;
+	param.ShaderVisibility = visibility;
+}
+
+// 初始化描述符表根参数
+static inline void InitAsDescriptorTable(RALRootParameter& param, const std::vector<RALRootDescriptorTableRange>& ranges, RALShaderVisibility visibility)
+{
+	param.Type = RALRootParameterType::DescriptorTable;
+	param.Data.DescriptorTable.Ranges = ranges;
+	param.ShaderVisibility = visibility;
+}
+
 // RootSignature接口
 class IRALRootSignature : public IRALResource
 {
