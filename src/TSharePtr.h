@@ -138,7 +138,8 @@ public:
     // 重置指针
     void Reset()
     {
-        if (m_ptr) {
+        if (m_ptr)
+        {
             m_ptr->Release();
             m_ptr = nullptr;
         }

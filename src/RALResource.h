@@ -617,44 +617,6 @@ protected:
 	ETextureType m_textureType;
 };
 
-// 顶点缓冲区视图接口
-class IRALVertexBufferView
-{
-public:
-	virtual ~IRALVertexBufferView() = default;
-	
-	// 获取缓冲区起始地址
-	virtual uint64_t GetBufferLocation() const = 0;
-	
-	// 获取缓冲区大小
-	virtual uint32_t GetSizeInBytes() const = 0;
-	
-	// 获取顶点步长
-	virtual uint32_t GetStrideInBytes() const = 0;
-	
-	// 获取原生视图指针
-	virtual void* GetNativeView() = 0;
-};
-
-// 索引缓冲区视图接口
-class IRALIndexBufferView
-{
-public:
-	virtual ~IRALIndexBufferView() = default;
-	
-	// 获取缓冲区起始地址
-	virtual uint64_t GetBufferLocation() const = 0;
-	
-	// 获取缓冲区大小
-	virtual uint32_t GetSizeInBytes() const = 0;
-	
-	// 获取索引格式（32位或16位）
-	virtual bool Is32Bit() const = 0;
-	
-	// 获取原生视图指针
-	virtual void* GetNativeView() = 0;
-};
-
 struct RALRange
 {
 	uint64_t begin;
@@ -664,26 +626,26 @@ struct RALRange
 class IRALBuffer : public IRALResource
 {
 public:
-	IRALBuffer(RALResourceType type, uint64_t size)
+	IRALBuffer(RALResourceType type, uint32_t size)
 		: IRALResource(type)
 		, m_size(size)
 	{
 	}
 
-	uint64_t GetSize() const
+	uint32_t GetSize() const
 	{
 		return m_size;
 	}
 
 protected:
-	uint64_t m_size;
+	uint32_t m_size;
 };
 
 // 顶点缓冲区接口
 class IRALVertexBuffer : public IRALBuffer
 {
 public:
-	IRALVertexBuffer(uint64_t size)
+	IRALVertexBuffer(uint32_t size)
 		: IRALBuffer(RALResourceType::VertexBuffer, size)
 	{
 	}
@@ -695,7 +657,7 @@ public:
 class IRALIndexBuffer : public IRALBuffer
 {
 public:
-	IRALIndexBuffer(uint64_t size, bool is32BitIndex)
+	IRALIndexBuffer(uint32_t size, bool is32BitIndex)
 		: IRALBuffer(RALResourceType::IndexBuffer, size)
 		, m_is32BitIndex(is32BitIndex)
 	{
@@ -764,7 +726,7 @@ public:
 class IRALConstBuffer : public IRALBuffer
 {
 public:
-	IRALConstBuffer(uint64_t size)
+	IRALConstBuffer(uint32_t size)
 		: IRALBuffer(RALResourceType::ConstBuffer, size)
 	{
 	}

@@ -38,13 +38,15 @@ bool Scene::Initialize(DX12Renderer* pRender)
     logDebug("[DEBUG] Scene::Initialize called");
     
     // 定义根参数
-    std::vector<RALRootParameter> rootParameters(2);
+    std::vector<RALRootParameter> rootParameters(3);
 
     // 根参数0: 常量缓冲区视图（变换矩阵）
-    InitAsConstantBufferView(rootParameters[0], 1, 0, RALShaderVisibility::Vertex);
+    InitAsConstantBufferView(rootParameters[0], 0, 0, RALShaderVisibility::Vertex);
+    // 根参数1: 常量缓冲区视图（变换矩阵）
+    InitAsConstantBufferView(rootParameters[1], 1, 0, RALShaderVisibility::Vertex);
 
-    // 根参数1: 常量缓冲区视图（材质和光照）
-    InitAsConstantBufferView(rootParameters[1], 0, 0, RALShaderVisibility::Pixel);
+    // 根参数2: 常量缓冲区视图（材质和光照）
+    InitAsConstantBufferView(rootParameters[2], 0, 0, RALShaderVisibility::Pixel);
 
     // 定义静态采样器
     RALStaticSampler staticSampler;

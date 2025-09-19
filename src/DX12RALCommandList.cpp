@@ -16,8 +16,14 @@ DX12RALGraphicsCommandList::DX12RALGraphicsCommandList(ComPtr<ID3D12Device> devi
         nullptr,                        // 初始管道状态对象
         IID_PPV_ARGS(&m_commandList)
     );
-    if (FAILED(hr)) {
+
+    if (FAILED(hr))
+    {
         // 处理错误，实际项目中应添加适当的错误处理
+    }
+    else
+    {
+        m_commandList->Close();
     }
 }
 
@@ -147,35 +153,26 @@ void DX12RALGraphicsCommandList::SetPipelineState(IRALResource* pipelineState)
 }
 
 // 绑定顶点缓冲区
-void DX12RALGraphicsCommandList::SetVertexBuffers(uint32_t startSlot, uint32_t count, IRALVertexBufferView** vertexBufferViews)
+void DX12RALGraphicsCommandList::SetVertexBuffers(uint32_t startSlot, uint32_t count, IRALVertexBuffer** ppVertexBuffers)
 {
     std::vector<D3D12_VERTEX_BUFFER_VIEW> bufferViews;
     bufferViews.reserve(count);
 
     for (uint32_t i = 0; i < count; ++i)
     {
-        if (vertexBufferViews[i])
-        {
-            D3D12_VERTEX_BUFFER_VIEW view = {};
-            view.BufferLocation = vertexBufferViews[i]->GetBufferLocation();
-            view.SizeInBytes = vertexBufferViews[i]->GetSizeInBytes();
-            view.StrideInBytes = 0; // 需要从某个地方获取步长，这里暂时设为0
-            bufferViews.push_back(view);
-        }
+        D3D12_VERTEX_BUFFER_VIEW view = (static_cast<DX12RALVertexBuffer*>(ppVertexBuffers[i]))->GetVertexBufferView();
+        bufferViews.push_back(view);
     }
     
     m_commandList->IASetVertexBuffers(startSlot, bufferViews.size(), bufferViews.data());
 }
 
 // 绑定索引缓冲区
-void DX12RALGraphicsCommandList::SetIndexBuffer(IRALIndexBufferView* indexBufferView)
+void DX12RALGraphicsCommandList::SetIndexBuffer(IRALIndexBuffer* indexBuffer)
 {
-    if (indexBufferView)
+    if (indexBuffer)
     {
-        D3D12_INDEX_BUFFER_VIEW view = {};
-        view.BufferLocation = indexBufferView->GetBufferLocation();
-        view.SizeInBytes = indexBufferView->GetSizeInBytes();
-        view.Format = indexBufferView->Is32Bit() ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+        D3D12_INDEX_BUFFER_VIEW view = (static_cast<DX12RALIndexBuffer*>(indexBuffer))->GetIndexBufferView();
         m_commandList->IASetIndexBuffer(&view);
     }
     else

@@ -556,170 +556,13 @@ protected:
 	void* m_nativeDepthStencilView;     // ID3D12DescriptorHeap中的DSV
 };
 
-// DX12实现的顶点缓冲区视图
-class DX12VertexBufferView : public IRALVertexBufferView
-{
-public:
-	DX12VertexBufferView()
-		: m_bufferLocation(0)
-		, m_sizeInBytes(0)
-		, m_strideInBytes(0)
-	{
-	}
-
-	virtual ~DX12VertexBufferView() = default;
-
-	// 设置缓冲区起始地址
-	void SetBufferLocation(uint64_t location)
-	{
-		m_bufferLocation = location;
-	}
-
-	// 获取缓冲区起始地址
-	virtual uint64_t GetBufferLocation() const override
-	{
-		return m_bufferLocation;
-	}
-
-	// 设置缓冲区大小
-	void SetSizeInBytes(uint32_t size)
-	{
-		m_sizeInBytes = size;
-	}
-
-	// 获取缓冲区大小
-	virtual uint32_t GetSizeInBytes() const override
-	{
-		return m_sizeInBytes;
-	}
-
-	// 设置顶点步长
-	void SetStrideInBytes(uint32_t stride)
-	{
-		m_strideInBytes = stride;
-	}
-
-	// 获取顶点步长
-	virtual uint32_t GetStrideInBytes() const override
-	{
-		return m_strideInBytes;
-	}
-
-	// 设置原生视图
-	void SetNativeView(D3D12_VERTEX_BUFFER_VIEW* view)
-	{
-		if (view)
-		{
-			m_nativeView = *view;
-			// 更新成员变量以保持一致性
-			m_bufferLocation = view->BufferLocation;
-			m_sizeInBytes = view->SizeInBytes;
-			m_strideInBytes = view->StrideInBytes;
-		}
-	}
-
-	// 获取原生视图
-	virtual void* GetNativeView() override
-	{
-		// 确保结构体内容与成员变量同步
-		m_nativeView.BufferLocation = m_bufferLocation;
-		m_nativeView.SizeInBytes = m_sizeInBytes;
-		m_nativeView.StrideInBytes = m_strideInBytes;
-		return &m_nativeView;
-	}
-
-protected:
-	uint64_t m_bufferLocation;  // 缓冲区起始地址
-	uint32_t m_sizeInBytes;     // 缓冲区大小
-	uint32_t m_strideInBytes;   // 顶点步长
-	D3D12_VERTEX_BUFFER_VIEW m_nativeView; // D3D12_VERTEX_BUFFER_VIEW结构体
-};
-
-// DX12实现的索引缓冲区视图
-class DX12IndexBufferView : public IRALIndexBufferView
-{
-public:
-	DX12IndexBufferView()
-		: m_bufferLocation(0)
-		, m_sizeInBytes(0)
-		, m_is32Bit(false)
-	{
-	}
-
-	virtual ~DX12IndexBufferView() = default;
-
-	// 设置缓冲区起始地址
-	void SetBufferLocation(uint64_t location)
-	{
-		m_bufferLocation = location;
-	}
-
-	// 获取缓冲区起始地址
-	virtual uint64_t GetBufferLocation() const override
-	{
-		return m_bufferLocation;
-	}
-
-	// 设置缓冲区大小
-	void SetSizeInBytes(uint32_t size)
-	{
-		m_sizeInBytes = size;
-	}
-
-	// 获取缓冲区大小
-	virtual uint32_t GetSizeInBytes() const override
-	{
-		return m_sizeInBytes;
-	}
-
-	// 设置索引类型
-	void SetIs32Bit(bool is32Bit)
-	{
-		m_is32Bit = is32Bit;
-	}
-
-	// 获取索引格式（32位或16位）
-	virtual bool Is32Bit() const override
-	{
-		return m_is32Bit;
-	}
-
-	// 设置原生视图
-	void SetNativeView(D3D12_INDEX_BUFFER_VIEW* view)
-	{
-		if (view)
-		{
-			m_nativeView = *view;
-			// 更新成员变量以保持一致性
-			m_bufferLocation = view->BufferLocation;
-			m_sizeInBytes = view->SizeInBytes;
-			m_is32Bit = (view->Format == DXGI_FORMAT_R32_UINT);
-		}
-	}
-
-	// 获取原生视图
-	virtual void* GetNativeView() override
-	{
-		// 确保结构体内容与成员变量同步
-		m_nativeView.BufferLocation = m_bufferLocation;
-		m_nativeView.SizeInBytes = m_sizeInBytes;
-		m_nativeView.Format = m_is32Bit ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
-		return &m_nativeView;
-	}
-
-protected:
-	uint64_t m_bufferLocation;  // 缓冲区起始地址
-	uint32_t m_sizeInBytes;     // 缓冲区大小
-	bool m_is32Bit;             // 是否为32位索引
-	D3D12_INDEX_BUFFER_VIEW m_nativeView; // D3D12_INDEX_BUFFER_VIEW结构体
-};
-
 // DX12实现的顶点缓冲区
 class DX12RALVertexBuffer : public IRALVertexBuffer
 {
 public:
-	DX12RALVertexBuffer(uint64_t size)
+	DX12RALVertexBuffer(uint32_t size, uint32_t stride)
 		: IRALVertexBuffer(size)
+		, m_stride(stride)
 	{
 	}
 
@@ -737,8 +580,22 @@ public:
 		return m_nativeResource.Get();
 	}
 
+	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
+	{
+		D3D12_VERTEX_BUFFER_VIEW vbView = {};
+
+		if (m_nativeResource)
+		{
+			vbView.BufferLocation = m_nativeResource->GetGPUVirtualAddress();
+			vbView.SizeInBytes = static_cast<UINT>(GetSize());
+			vbView.StrideInBytes = m_stride;
+		}
+		return vbView;
+	}
+
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;     // ID3D12Resource*
+	uint32_t m_stride;                          // 顶点步长
 };
 
 // DX12实现的索引缓冲区
@@ -764,6 +621,17 @@ public:
 		return m_nativeResource.Get();
 	}
 
+	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const
+	{
+		D3D12_INDEX_BUFFER_VIEW ibView = {};
+		if (m_nativeResource)
+		{
+			ibView.BufferLocation = m_nativeResource->GetGPUVirtualAddress();
+			ibView.SizeInBytes = static_cast<UINT>(GetSize());
+			ibView.Format = Is32BitIndex() ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+		}
+		return ibView;
+	}
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;     // ID3D12Resource*
 };
@@ -835,7 +703,7 @@ protected:
 class DX12RALConstBuffer : public IRALConstBuffer
 {
 public:
-	DX12RALConstBuffer(uint64_t size)
+	DX12RALConstBuffer(uint32_t size)
 		: IRALConstBuffer(size)
 	{
 	}

@@ -91,13 +91,13 @@ public:
     IRALGraphicsCommandList* CreateGraphicsCommandList();
 
     // 创建顶点缓冲区
-    IRALVertexBuffer* CreateVertexBuffer(uint64_t size, uint32_t stride, bool isStatic = true);
+    IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic = true);
 
     // 创建索引缓冲区
-    IRALIndexBuffer* CreateIndexBuffer(uint64_t size, bool is32BitIndex = true, bool isStatic = true);
+    IRALIndexBuffer* CreateIndexBuffer(uint32_t size, bool is32BitIndex = true, bool isStatic = true);
 
     // 创建常量缓冲区
-    IRALConstBuffer* CreateConstBuffer(uint64_t size);
+    IRALConstBuffer* CreateConstBuffer(uint32_t size);
 
     // 更新Buffer
     bool UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size);

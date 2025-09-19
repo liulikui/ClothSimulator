@@ -81,6 +81,13 @@ void DX12Renderer::BeginFrame(IRALGraphicsCommandList* commandList)
         throw std::runtime_error("Failed to reset command allocator.");
     }
 
+    // 重置当前帧的命令分配器
+    hr = dx12CommandList->Reset(m_commandAllocators[m_currentFrameIndex].Get(), nullptr);
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to reset command list.");
+    }
+
     // 资源转换：设置渲染目标为渲染状态
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -1231,10 +1238,10 @@ IRALGraphicsPipelineState* DX12Renderer::CreateGraphicsPipelineState(const RALGr
     psoDesc.NumRenderTargets = desc.numRenderTargets;
 
     for (uint32_t i = 0; i < desc.numRenderTargets && i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT; ++i) {
-        psoDesc.RTVFormats[i] = static_cast<DXGI_FORMAT>(desc.renderTargetFormats[i]);
+        psoDesc.RTVFormats[i] = toDXGIFormat(desc.renderTargetFormats[i]);
     }
 
-    psoDesc.DSVFormat = static_cast<DXGI_FORMAT>(desc.depthStencilFormat);
+    psoDesc.DSVFormat = toDXGIFormat(desc.depthStencilFormat);
 
     // 设置采样描述
     psoDesc.SampleDesc.Count = desc.sampleDesc.Count;
@@ -1244,7 +1251,7 @@ IRALGraphicsPipelineState* DX12Renderer::CreateGraphicsPipelineState(const RALGr
     ComPtr<ID3D12PipelineState> pipelineState;
     HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf()));
     if (FAILED(hr)) {
-        throw std::runtime_error("Failed to create graphics pipeline state object.");
+        return nullptr;
     }
 
     // 创建并返回RAL图形管线状态对象
@@ -1707,9 +1714,9 @@ IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList()
 }
 
 // 创建顶点缓冲区
-IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint64_t size, uint32_t stride, bool isStatic) {
+IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic) {
     // 创建DX12RALVertexBuffer对象
-    DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size);
+    DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size, stride);
 
     // 设置堆属性
     D3D12_HEAP_PROPERTIES heapProps = {};
@@ -1750,7 +1757,7 @@ IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint64_t size, uint32_t strid
 }
 
 // 创建索引缓冲区
-IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint64_t size, bool is32BitIndex, bool isStatic) {
+IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint32_t size, bool is32BitIndex, bool isStatic) {
     // 创建DX12RALIndexBuffer对象
     DX12RALIndexBuffer* indexBuffer = new DX12RALIndexBuffer(size, is32BitIndex);
 
@@ -1792,7 +1799,7 @@ IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint64_t size, bool is32BitInde
     return indexBuffer;
 }
 
-IRALConstBuffer* DX12Renderer::CreateConstBuffer(uint64_t size)
+IRALConstBuffer* DX12Renderer::CreateConstBuffer(uint32_t size)
 {
     // 创建DX12RALConstBuffer对象
     DX12RALConstBuffer* constBuffer = new DX12RALConstBuffer(size);

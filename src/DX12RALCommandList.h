@@ -54,8 +54,8 @@ public:
     virtual void SetViewport(float x, float y, float width, float height, float minDepth, float maxDepth) override;
     virtual void SetScissorRect(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
     virtual void SetPipelineState(IRALResource* pipelineState) override;
-    virtual void SetVertexBuffers(uint32_t startSlot, uint32_t count, IRALVertexBufferView** vertexBufferViews) override;
-    virtual void SetIndexBuffer(IRALIndexBufferView* indexBufferView) override;
+    virtual void SetVertexBuffers(uint32_t startSlot, uint32_t count, IRALVertexBuffer** ppVertexBuffers) override;
+    virtual void SetIndexBuffer(IRALIndexBuffer* indexBuffer) override;
     virtual void SetGraphicsRootSignature(IRALRootSignature* rootSignature) override;
     virtual void SetGraphicsRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value) override;
     virtual void SetGraphicsRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values) override;
