@@ -89,7 +89,8 @@ enum class DataFormat : uint32_t
 // 计算单个数据元素的字节大小（如顶点属性、纹理像素）
 inline uint32_t getFormatSize(DataFormat format) 
 {
-    switch (format) {
+    switch (format) 
+    {
         // 单通道8位格式（1字节）
     case DataFormat::R8_UInt:
     case DataFormat::R8_SInt:

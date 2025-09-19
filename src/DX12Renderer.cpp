@@ -1657,103 +1657,96 @@ void DX12Renderer::Resize(uint32_t width, uint32_t height)
 }
 
 // 创建图形命令列表
-IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList() {
+IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList()
+{
     // 使用当前帧的命令分配器创建图形命令列表
     return new DX12RALGraphicsCommandList(m_device, m_commandAllocators[m_currentFrameIndex]);
 }
 
 // 创建顶点缓冲区
 IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(size_t size, uint32_t stride, bool isStatic) {
-    try {
-        // 创建DX12RALVertexBuffer对象
-        DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size);
+    // 创建DX12RALVertexBuffer对象
+    DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size);
 
-        // 设置堆属性
-        D3D12_HEAP_PROPERTIES heapProps = {};
-        if (isStatic) {
-            // 静态缓冲区使用DEFAULT堆，适合GPU读取
-            heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-            heapProps.CreationNodeMask = 1;
-            heapProps.VisibleNodeMask = 1;
-        }
-        else {
-            // 动态缓冲区使用UPLOAD堆，适合CPU写入GPU读取
-            heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-            heapProps.CreationNodeMask = 1;
-            heapProps.VisibleNodeMask = 1;
-        }
-
-        // 设置初始状态
-        D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
-
-        // 创建底层D3D12资源
-        ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
-            size,
-            D3D12_RESOURCE_FLAG_NONE,
-            heapProps,
-            initialState
-        );
-
-        // 设置原生资源
-        vertexBuffer->SetNativeResource(d3d12Resource.Get());
-
-        return vertexBuffer;
+    // 设置堆属性
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    if (isStatic)
+    {
+        // 静态缓冲区使用DEFAULT堆，适合GPU读取
+        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        heapProps.CreationNodeMask = 1;
+        heapProps.VisibleNodeMask = 1;
     }
-    catch (const std::exception& e) {
-        std::cerr << "Failed to create vertex buffer: " << e.what() << std::endl;
-        return nullptr;
+    else 
+    {
+        // 动态缓冲区使用UPLOAD堆，适合CPU写入GPU读取
+        heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        heapProps.CreationNodeMask = 1;
+        heapProps.VisibleNodeMask = 1;
     }
+
+    // 设置初始状态
+    D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+
+    // 创建底层D3D12资源
+    ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
+        size,
+        D3D12_RESOURCE_FLAG_NONE,
+        heapProps,
+        initialState
+    );
+
+    // 设置原生资源
+    vertexBuffer->SetNativeResource(d3d12Resource.Get());
+
+    return vertexBuffer;
 }
 
 // 创建索引缓冲区
 IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(size_t size, bool is32BitIndex, bool isStatic) {
-    try {
-        // 创建DX12RALIndexBuffer对象
-        DX12RALIndexBuffer* indexBuffer = new DX12RALIndexBuffer(size, is32BitIndex);
+    // 创建DX12RALIndexBuffer对象
+    DX12RALIndexBuffer* indexBuffer = new DX12RALIndexBuffer(size, is32BitIndex);
 
-        // 设置堆属性
-        D3D12_HEAP_PROPERTIES heapProps = {};
-        if (isStatic) {
-            // 静态缓冲区使用DEFAULT堆，适合GPU读取
-            heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-            heapProps.CreationNodeMask = 1;
-            heapProps.VisibleNodeMask = 1;
-        }
-        else {
-            // 动态缓冲区使用UPLOAD堆，适合CPU写入GPU读取
-            heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-            heapProps.CreationNodeMask = 1;
-            heapProps.VisibleNodeMask = 1;
-        }
-
-        // 设置初始状态
-        D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
-
-        // 创建底层D3D12资源
-        ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
-            size,
-            D3D12_RESOURCE_FLAG_NONE,
-            heapProps,
-            initialState
-        );
-
-        // 设置原生资源
-        indexBuffer->SetNativeResource(d3d12Resource.Get());
-
-        return indexBuffer;
+    // 设置堆属性
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    if (isStatic) 
+    {
+        // 静态缓冲区使用DEFAULT堆，适合GPU读取
+        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        heapProps.CreationNodeMask = 1;
+        heapProps.VisibleNodeMask = 1;
     }
-    catch (const std::exception& e) {
-        std::cerr << "Failed to create index buffer: " << e.what() << std::endl;
-        return nullptr;
+    else
+    {
+        // 动态缓冲区使用UPLOAD堆，适合CPU写入GPU读取
+        heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        heapProps.CreationNodeMask = 1;
+        heapProps.VisibleNodeMask = 1;
     }
+
+    // 设置初始状态
+    D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+
+    // 创建底层D3D12资源
+    ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
+        size,
+        D3D12_RESOURCE_FLAG_NONE,
+        heapProps,
+        initialState
+    );
+
+    // 设置原生资源
+    indexBuffer->SetNativeResource(d3d12Resource.Get());
+
+    return indexBuffer;
 }
 
 bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size)

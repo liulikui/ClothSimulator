@@ -6,7 +6,8 @@
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-class Particle {
+class Particle
+{
 public:
     // 构造函数
     // 参数：
@@ -27,7 +28,8 @@ public:
     //   f - 要应用的力向量
     void applyForce(const dx::XMFLOAT3& f)
     {
-        if (!isStatic) {
+        if (!isStatic) 
+        {
             // 将力转换为XMVECTOR进行计算
             dx::XMVECTOR forceVector = dx::XMLoadFloat3(&force);
             dx::XMVECTOR appliedForce = dx::XMLoadFloat3(&f);

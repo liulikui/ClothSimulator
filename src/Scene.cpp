@@ -11,13 +11,15 @@
 // 日志函数声明
 extern void logDebug(const std::string& message);
 
-Scene::Scene() {
+Scene::Scene()
+{
     // 初始化场景
     // cameraConstBuffer将在渲染器中创建并传入
     logDebug("[DEBUG] Scene constructor called");
 }
 
-bool Scene::Initialize(DX12Renderer* pRender) {
+bool Scene::Initialize(DX12Renderer* pRender)
+{
     if (!pRender) {
         logDebug("[DEBUG] Scene::Initialize failed: renderer is null");
         return false;
@@ -62,7 +64,8 @@ bool Scene::Initialize(DX12Renderer* pRender) {
         RALRootSignatureFlags::AllowInputAssemblerInputLayout
     );
     
-    if (!rootSignaturePtr) {
+    if (!rootSignaturePtr)
+    {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create root signature");
         return false;
     }
@@ -127,13 +130,15 @@ bool Scene::Initialize(DX12Renderer* pRender) {
 
     // 编译着色器
     m_vertexShader = pRender->CompileVertexShader(vertexShaderCode, "main");
-    if (!m_vertexShader.Get()) {
+    if (!m_vertexShader.Get())
+    {
         logDebug("[DEBUG] Scene::Initialize failed: failed to compile vertex shader");
         return false;
     }
 
     m_pixelShader = pRender->CompilePixelShader(pixelShaderCode, "main");
-    if (!m_pixelShader.Get()) {
+    if (!m_pixelShader.Get())
+    {
         logDebug("[DEBUG] Scene::Initialize failed: failed to compile pixel shader");
         return false;
     }
@@ -214,7 +219,8 @@ bool Scene::Initialize(DX12Renderer* pRender) {
     
     // 创建图形管道状态
     IRALGraphicsPipelineState* pipelineStatePtr = pRender->CreateGraphicsPipelineState(pipelineDesc);
-    if (!pipelineStatePtr) {
+    if (!pipelineStatePtr)
+    {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create graphics pipeline state");
         return false;
     }
@@ -227,33 +233,42 @@ bool Scene::Initialize(DX12Renderer* pRender) {
     return true;
 }
 
-Scene::~Scene() {
+Scene::~Scene()
+{
     // 清空场景中的所有对象
     clear();
 }
 
-void Scene::update(IRALGraphicsCommandList* commandList, float deltaTime) {
+void Scene::update(IRALGraphicsCommandList* commandList, float deltaTime)
+{
     // 更新场景中所有可见对象的状态
-    for (auto& primitive : m_primitives) {
-            if (primitive && primitive->isVisible()) {
-                primitive->update(commandList, deltaTime);
-            }
+    for (auto& primitive : m_primitives) 
+    {
+        if (primitive && primitive->isVisible())
+        {
+            primitive->update(commandList, deltaTime);
         }
+     }
 }
 
 void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix) {
     logDebug("[DEBUG] Scene::render called");
-    if (!renderer) {
+
+    if (!renderer)
+    {
         logDebug("[DEBUG] renderer is null");
         return;
     }
 
     // 渲染每个可见的Mesh对象
     logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
-    for (size_t i = 0; i < m_primitives.size(); ++i) {
+    for (size_t i = 0; i < m_primitives.size(); ++i)
+    {
         auto& mesh = m_primitives[i];
         logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
-        if (mesh && mesh->isVisible()) {
+
+        if (mesh && mesh->isVisible())
+        {
             logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
 
             // 获取对象类型
@@ -271,25 +286,30 @@ void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const
                 std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
 
             // 检查是否有有效数据
-            if (positions.empty() || normals.empty() || indices.empty()) {
+            if (positions.empty() || normals.empty() || indices.empty())
+            {
                 logDebug("[DEBUG] Mesh " + std::to_string(i) + " has empty data, skipping");
                 continue;
             }
 
             // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
-            if (typeid(*mesh) == typeid(Cloth)) {
+            if (typeid(*mesh) == typeid(Cloth))
+            {
                 logDebug("[DEBUG] Rendering cloth mesh");
                 //renderer->SetClothVertices(positions, normals, indices);
             }
-            else if (typeid(*mesh) == typeid(Sphere)) {
+            else if (typeid(*mesh) == typeid(Sphere))
+            {
                 logDebug("[DEBUG] Rendering sphere mesh");
                 //renderer->SetSphereVertices(positions, normals, indices);
             }
-            else {
+            else
+            {
                 logDebug("[DEBUG] Unknown mesh type, skipping");
             }
         }
-        else {
+        else
+        {
             logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
         }
     }
@@ -297,13 +317,16 @@ void Scene::render(DX12Renderer* renderer, const dx::XMMATRIX& viewMatrix, const
 }
 
 bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
-    if (!mesh) {
+    if (!mesh)
+    {
         return false;
     }
 
     // 检查对象是否已经在场景中
     auto it = std::find(m_primitives.begin(), m_primitives.end(), mesh);
-    if (it != m_primitives.end()) {
+
+    if (it != m_primitives.end())
+    {
         return false;
     }
 
@@ -314,21 +337,24 @@ bool Scene::addPrimitive(std::shared_ptr<Mesh> mesh) {
 }
 
 bool Scene::removePrimitive(std::shared_ptr<Mesh> mesh) {
-    if (!mesh) {
+    if (!mesh)
+    {
         return false;
     }
 
     // 查找并移除对象
     auto it = std::find(m_primitives.begin(), m_primitives.end(), mesh);
-        if (it != m_primitives.end()) {
-            m_primitives.erase(it);
-            return true;
-        }
+
+    if (it != m_primitives.end()) {
+        m_primitives.erase(it);
+        return true;
+    }
 
     return false;
 }
 
-void Scene::clear() {
+void Scene::clear()
+{
     // 清空所有对象
     m_primitives.clear();
 }

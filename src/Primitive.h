@@ -11,7 +11,8 @@ namespace dx = DirectX;
 // 前向声明
 class IRALGraphicsCommandList;
 
-class Primitive {
+class Primitive
+{
 public:
     // 虚析构函数，确保派生类能够正确析构
     virtual ~Primitive() = default;
@@ -20,7 +21,8 @@ public:
     virtual void update(IRALGraphicsCommandList* commandList, float deltaTime) = 0;
 
     // 获取对象的世界变换矩阵
-    const dx::XMMATRIX& getWorldMatrix() const {
+    const dx::XMMATRIX& getWorldMatrix() const
+    {
         return worldMatrix;
     }
 
@@ -40,7 +42,8 @@ public:
     void setScale(const dx::XMFLOAT3& scale);
 
     // 是否可见
-    bool isVisible() const {
+    bool isVisible() const
+    {
         return visible;
     }
 

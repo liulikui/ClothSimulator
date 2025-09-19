@@ -38,8 +38,6 @@ public:
     {
         // 初始化重力
         gravity = dx::XMFLOAT3(0.0f, -9.81f, 0.0f);
-        
-        // 调试输出已禁用
     }
     
     // 析构函数
@@ -86,7 +84,8 @@ public:
         predictPositions(deltaTime);
         
         // 2. 求解约束多次以获得更准确的结果
-        for (int i = 0; i < iterations; ++i) {
+        for (int i = 0; i < iterations; ++i)
+        {
             solveConstraints(deltaTime);
         }
         
@@ -104,8 +103,10 @@ private:
         // 将重力转换为XMVECTOR进行计算
         dx::XMVECTOR gravityVector = dx::XMLoadFloat3(&gravity);
         
-        for (auto& particle : particles) {
-            if (!particle.isStatic) {
+        for (auto& particle : particles)
+        {
+            if (!particle.isStatic)
+            {
                 // 保存当前位置作为旧位置
                 particle.oldPosition = particle.position;
                 
@@ -128,13 +129,16 @@ private:
     }
     
     // 求解所有约束
-    void solveConstraints(float deltaTime) {
-        for (auto& constraint : constraints) {
+    void solveConstraints(float deltaTime)
+    {
+        for (auto& constraint : constraints)
+        {
             // 计算约束值
             float C = constraint->computeConstraintValue();
             
             // 检查约束值是否有效
-            if (isnan(C) || isinf(C)) {
+            if (isnan(C) || isinf(C))
+            {
                 continue;
             }
             
@@ -142,29 +146,37 @@ private:
             bool isCollisionConstraint = false;
             std::vector<Particle*> constraintParticles = constraint->getParticles();
             
-            if (constraintParticles.size() == 1 && C < 0) {
+            if (constraintParticles.size() == 1 && C < 0)
+            {
                 isCollisionConstraint = true;
                 getCollisionConstraintCount()++;
                 
                 // 对于碰撞约束，我们只在粒子在球内时应用约束
                 // C < 0表示粒子在球内，需要被推回球外
-            } else if (constraintParticles.size() == 1) {
+            }
+            else if (constraintParticles.size() == 1) 
+            {
                 // 碰撞约束但粒子在球外，不需要处理
                 continue;
-            } else if (std::abs(C) < 1e-9f) {
+            }
+            else if (std::abs(C) < 1e-9f)
+            {
                 // 其他约束，如果约束值很小，可以忽略
                 continue;
             }
             
             // 检查粒子位置是否有效
             bool hasInvalidParticle = false;
-            for (auto* particle : constraintParticles) {
-                if (isnan(particle->position.x) || isnan(particle->position.y) || isnan(particle->position.z)) {
+            for (auto* particle : constraintParticles)
+            {
+                if (isnan(particle->position.x) || isnan(particle->position.y) || isnan(particle->position.z))
+                {
                     hasInvalidParticle = true;
                     break;
                 }
             }
-            if (hasInvalidParticle) {
+            if (hasInvalidParticle)
+            {
                 continue;
             }
             
@@ -173,8 +185,10 @@ private:
             
             // 计算分母项
             float sum = 0.0f;
-            for (size_t i = 0; i < constraintParticles.size(); ++i) {
-                if (!constraintParticles[i]->isStatic) {
+            for (size_t i = 0; i < constraintParticles.size(); ++i)
+            {
+                if (!constraintParticles[i]->isStatic)
+                {
                     // 将梯度转换为XMVECTOR进行点积计算
                     dx::XMVECTOR gradient = dx::XMLoadFloat3(&gradients[i]);
                     
@@ -190,7 +204,8 @@ private:
             sum += alpha;
             
             // 防止除零
-            if (sum < 1e-9f) {
+            if (sum < 1e-9f)
+            {
                 sum = 1e-9f;
             }
             
@@ -202,17 +217,22 @@ private:
             // logDebugInfo(deltaTime, 0, constraintCounter++, constraintParticles, C, deltaLambda);
             
             // 对于碰撞约束，确保deltaLambda是非正的（只推粒子向外，不向内拉）
-            if (isCollisionConstraint) {
-                if (deltaLambda > 0.0f) {
+            if (isCollisionConstraint)
+            {
+                if (deltaLambda > 0.0f)
+                {
                     deltaLambda = 0.0f;
                 }
             }
             
             // 为提高稳定性，添加deltaLambda的上限限制
             float lambdaLimit = 100.0f; // 可以根据需要调整
-            if (deltaLambda > lambdaLimit) {
+            if (deltaLambda > lambdaLimit)
+            {
                 deltaLambda = lambdaLimit;
-            } else if (deltaLambda < -lambdaLimit) {
+            }
+            else if(deltaLambda < -lambdaLimit)
+            {
                 deltaLambda = -lambdaLimit;
             }
             
@@ -220,8 +240,10 @@ private:
             constraint->lambda += deltaLambda;
             
             // 应用位置校正
-            for (size_t i = 0; i < constraintParticles.size(); ++i) {
-                if (!constraintParticles[i]->isStatic) {
+            for (size_t i = 0; i < constraintParticles.size(); ++i)
+            {
+                if (!constraintParticles[i]->isStatic)
+                {
                     // 将粒子的位置和梯度转换为XMVECTOR进行计算
                     dx::XMVECTOR pos = dx::XMLoadFloat3(&constraintParticles[i]->position);
                     dx::XMVECTOR gradient = dx::XMLoadFloat3(&gradients[i]);
@@ -232,7 +254,8 @@ private:
                     // 为了提高稳定性，限制单次校正量的大小
                     float maxCorrection = 1.0f;  // 增加最大校正量，对于碰撞约束允许更大的校正
                     dx::XMVECTOR correctionLength = dx::XMVector3Length(correction);
-                    if (dx::XMVectorGetX(correctionLength) > maxCorrection) {
+                    if (dx::XMVectorGetX(correctionLength) > maxCorrection)
+                    {
                         correction = dx::XMVectorScale(correction, maxCorrection / dx::XMVectorGetX(correctionLength));
                     }
                     
@@ -240,7 +263,8 @@ private:
                     dx::XMVECTOR newPos = dx::XMVectorAdd(pos, correction);
                     
                     // 确保新位置有效
-                    if (!dx::XMVector3IsNaN(newPos)) {
+                    if (!dx::XMVector3IsNaN(newPos))
+                    {
                         dx::XMStoreFloat3(&constraintParticles[i]->position, newPos);
                     }
                 }
@@ -255,30 +279,36 @@ private:
         std::unordered_map<Particle*, dx::XMVECTOR> collisionGradients;
         
         // 首先收集所有碰撞约束的梯度信息
-        for (auto& constraint : constraints) {
+        for (auto& constraint : constraints)
+        {
             float C = constraint->computeConstraintValue();
             std::vector<Particle*> constraintParticles = constraint->getParticles();
             
             // 只处理碰撞约束（单粒子约束且C < 0表示粒子在球内）
-            if (constraintParticles.size() == 1 && C < 0) {
+            if (constraintParticles.size() == 1 && C < 0)
+            {
                 std::vector<dx::XMFLOAT3> gradients;
                 constraint->computeGradient(gradients);
                 
-                if (!gradients.empty() && !constraintParticles[0]->isStatic) {
+                if (!gradients.empty() && !constraintParticles[0]->isStatic)
+                {
                     collisionGradients[constraintParticles[0]] = dx::XMLoadFloat3(&gradients[0]);
                 }
             }
         }
         const float maxVelocity = 100.0f; // 降低最大速度限制，提高稳定性
         
-        for (auto& particle : particles) {
-            if (!particle.isStatic) {
+        for (auto& particle : particles)
+        {
+            if (!particle.isStatic)
+            {
                 // 将粒子的位置和旧位置转换为XMVECTOR进行计算
                 dx::XMVECTOR pos = dx::XMLoadFloat3(&particle.position);
                 dx::XMVECTOR oldPos = dx::XMLoadFloat3(&particle.oldPosition);
                 
                 // 检查位置是否有效
-                if (dx::XMVector3IsNaN(pos) || dx::XMVector3IsNaN(oldPos)) {
+                if (dx::XMVector3IsNaN(pos) || dx::XMVector3IsNaN(oldPos))
+                {
                     // 位置无效，保留当前速度不变
                     continue;
                 }
@@ -287,27 +317,33 @@ private:
                 dx::XMVECTOR vel = dx::XMVectorScale(dx::XMVectorSubtract(pos, oldPos), 1.0f / deltaTime);
                 
                 // 检查速度是否有效
-                if (dx::XMVector3IsNaN(vel)) {
+                if (dx::XMVector3IsNaN(vel))
+                {
                     // 速度无效，设置为零
                     vel = dx::XMVectorZero();
-                } else {
+                } 
+                else
+                {
                     // 限制速度大小，防止速度过大
                     float speed = dx::XMVectorGetX(dx::XMVector3Length(vel));
-                    if (speed > maxVelocity) {
+                    if (speed > maxVelocity)
+                    {
                         vel = dx::XMVectorScale(vel, maxVelocity / speed);
                     }
                 }
                 
                 // 检查是否有碰撞发生，如果有，应用速度反弹
                 auto it = collisionGradients.find(&particle);
-                if (it != collisionGradients.end()) {
+                if (it != collisionGradients.end())
+                {
                     dx::XMVECTOR normal = it->second;
                     
                     // 计算速度在法线上的投影
                     float velocityAlongNormal = dx::XMVectorGetX(dx::XMVector3Dot(vel, normal));
                     
                     // 如果粒子向球体内部移动（法向速度分量为负），则应用反弹
-                    if (velocityAlongNormal < 0) {
+                    if (velocityAlongNormal < 0)
+                    {
                         float restitution = 0.4f;  // 弹性系数，控制反弹强度
                         dx::XMVECTOR reflection = dx::XMVectorScale(normal, (1.0f + restitution) * velocityAlongNormal);
                         vel = dx::XMVectorSubtract(vel, reflection);
@@ -330,8 +366,10 @@ private:
         const float defaultDampingFactor = 0.97f;
         const float highDampingFactor = 0.85f;
         
-        for (auto& particle : particles) {
-            if (!particle.isStatic) {
+        for (auto& particle : particles)
+        {
+            if (!particle.isStatic)
+            {
                 // 将粒子的速度转换为XMVECTOR进行计算
                 dx::XMVECTOR vel = dx::XMLoadFloat3(&particle.velocity);
                 

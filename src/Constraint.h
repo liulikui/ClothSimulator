@@ -48,7 +48,8 @@ public:
     
     // 获取约束的柔度
     // 返回：柔度值
-    float getCompliance() const {
+    float getCompliance() const
+    {
         return compliance;
     }
     

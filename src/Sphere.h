@@ -34,22 +34,26 @@ public:
     bool Initialize(DX12Renderer* renderer);
 
     // 获取球体的顶点位置数据
-    const std::vector<dx::XMFLOAT3>& getPositions() const override {
+    const std::vector<dx::XMFLOAT3>& getPositions() const override
+    {
         return positions;
     }
 
     // 获取球体的顶点法线数据
-    const std::vector<dx::XMFLOAT3>& getNormals() const override {
+    const std::vector<dx::XMFLOAT3>& getNormals() const override
+    {
         return normals;
     }
 
     // 获取球体的索引数据
-    const std::vector<uint32_t>& getIndices() const override {
+    const std::vector<uint32_t>& getIndices() const override
+    {
         return indices;
     }
 
     // 获取球体半径
-    float getRadius() const {
+    float getRadius() const
+    {
         return radius;
     }
 
@@ -57,7 +61,8 @@ public:
     void setRadius(float newRadius);
 
     // 获取球体中心位置
-    const dx::XMFLOAT3& getCenter() const {
+    const dx::XMFLOAT3& getCenter() const
+    {
         return center;
     }
 
@@ -65,12 +70,14 @@ public:
     void setCenter(const dx::XMFLOAT3& newCenter);
 
     // 获取经度分段数
-    uint32_t getSectors() const {
+    uint32_t getSectors() const
+    {
         return sectors;
     }
 
     // 获取纬度分段数
-    uint32_t getStacks() const {
+    uint32_t getStacks() const
+    {
         return stacks;
     }
 

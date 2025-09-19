@@ -18,7 +18,8 @@ class SphereCollisionConstraint;
 // 为了方便使用，创建一个命名空间别名
 namespace dx = DirectX;
 
-class Cloth : public Mesh {
+class Cloth : public Mesh 
+{
 public:
     // 构造函数：创建一个布料对象
     // 参数：
@@ -39,17 +40,20 @@ public:
     bool Initialize(DX12Renderer* renderer);
     
     // 获取布料的所有粒子
-    const std::vector<Particle>& getParticles() const {
+    const std::vector<Particle>& getParticles() const
+    {
         return particles;
     }
     
     // 获取布料的宽度（粒子数）
-    int getWidth() const {
+    int getWidth() const
+    {
         return width;
     }
     
     // 获取布料的高度（粒子数）
-    int getHeight() const {
+    int getHeight() const
+    {
         return height;
     }
     
@@ -71,30 +75,40 @@ public:
     // 设置是否使用XPBD碰撞约束
     void setUseXPBDCollision(bool use)
     {
-        if (useXPBDCollision != use) {
+        if (useXPBDCollision != use)
+        {
             useXPBDCollision = use;
             
             // 如果启用XPBD碰撞，将所有球体碰撞约束添加到总约束列表
             // 如果禁用XPBD碰撞，从总约束列表中删除所有球体碰撞约束
             // 注意：使用直接比较而非std::find，避免类型转换问题
             auto it = constraints.begin();
-            while (it != constraints.end()) {
+            while (it != constraints.end())
+            {
                 bool isSphereConstraint = false;
-                for (auto sphereConstraint : sphereConstraints) {
-                    if (*it == reinterpret_cast<Constraint*>(sphereConstraint)) {
+                for (auto sphereConstraint : sphereConstraints)
+                {
+                    if (*it == reinterpret_cast<Constraint*>(sphereConstraint))
+                    {
                         isSphereConstraint = true;
                         break;
                     }
                 }
-                if (isSphereConstraint) {
+
+                if (isSphereConstraint)
+                {
                     it = constraints.erase(it);
-                } else {
+                } 
+                else 
+                {
                     ++it;
                 }
             }
             
-            if (useXPBDCollision) {
-                for (auto constraint : sphereConstraints) {
+            if (useXPBDCollision)
+            {
+                for (auto constraint : sphereConstraints)
+                {
                     constraints.push_back(reinterpret_cast<Constraint*>(constraint));
                 }
             }

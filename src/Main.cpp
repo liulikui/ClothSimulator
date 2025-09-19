@@ -19,7 +19,8 @@ std::ofstream logFile;
 void logDebug(const std::string& message)
 {
     std::cout << message << std::endl;
-    if (logFile.is_open()) {
+    if (logFile.is_open())
+    {
         logFile << message << std::endl;
         logFile.flush();
     }
@@ -29,7 +30,8 @@ void logDebug(const std::string& message)
 void initLogFile()
 {
     logFile.open("debug_log.txt", std::ios::out | std::ios::trunc);
-    if (logFile.is_open()) {
+    if (logFile.is_open())
+    {
         logFile << "[LOG] Debug log started." << std::endl;
     } else {
         std::cerr << "Failed to open log file!" << std::endl;
@@ -39,7 +41,8 @@ void initLogFile()
 // 关闭日志文件
 void closeLogFile()
 {
-    if (logFile.is_open()) {
+    if (logFile.is_open())
+    {
         logFile << "[LOG] Debug log ended." << std::endl;
         logFile.close();
     }
@@ -90,15 +93,18 @@ Scene* scene = nullptr;
 // 窗口过程函数
 LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message) {
+    switch (message)
+    {
     case WM_SIZE:
-        if (wParam != SIZE_MINIMIZED && renderer) {
+        if (wParam != SIZE_MINIMIZED && renderer)
+        {
             uint32_t width = LOWORD(lParam);
             uint32_t height = HIWORD(lParam);
             renderer->Resize(width, height);
             
             // 同时更新相机的尺寸
-            if (camera) {
+            if (camera)
+            {
                 camera->Resize(width, height);
             }
         }
@@ -108,12 +114,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         keys[wParam] = true;
         
         // 处理一次性按键事件（如ESC）
-        switch (wParam) {
+        switch (wParam)
+        {
         case VK_ESCAPE:
             running = false;
             break;
         case VK_F9:
-            if (!f9Pressed) {  // 只在按键状态变化时处理
+            if (!f9Pressed)
+            {  // 只在按键状态变化时处理
                 debugOutputEnabled = !debugOutputEnabled;
                 f9Pressed = true;
                 
@@ -131,7 +139,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         keys[wParam] = false;
         
         // 重置F9键按下标志
-        if (wParam == VK_F9) {
+        if (wParam == VK_F9)
+        {
             f9Pressed = false;
         }
         break;
@@ -152,7 +161,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         mouseCaptured = false;
         break;
     case WM_MOUSEMOVE:
-        if (mouseCaptured) {
+        if (mouseCaptured)
+        {
             int xPos = GET_X_LPARAM(lParam);
             int yPos = GET_Y_LPARAM(lParam);
 
@@ -251,7 +261,8 @@ BOOL RegisterWindowClass(HINSTANCE hInstance)
 BOOL CreateWindowApp(HINSTANCE hInstance)
 {
     // 注册窗口类
-    if (!RegisterWindowClass(hInstance)) {
+    if (!RegisterWindowClass(hInstance))
+    {
         MessageBox(NULL, TEXT("RegisterWindowClass failed!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
     }
@@ -273,7 +284,8 @@ BOOL CreateWindowApp(HINSTANCE hInstance)
         NULL                         // 附加数据
     );
 
-    if (!hWnd) {
+    if (!hWnd)
+    {
         MessageBox(NULL, TEXT("CreateWindow failed!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
     }
@@ -289,7 +301,8 @@ BOOL CreateWindowApp(HINSTANCE hInstance)
 void ProcessMessages()
 {
     MSG msg;
-    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+    {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
@@ -323,7 +336,8 @@ BOOL InitializeRenderer()
 
     std::cout << "  - Calling renderer->Initialize()..." << std::endl;
     // 初始化渲染器
-    if (!renderer->Initialize()) {
+    if (!renderer->Initialize())
+    {
         std::cerr << "  - renderer->Initialize() failed!" << std::endl;
         MessageBox(NULL, TEXT("Failed to initialize DirectX 12 renderer!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
@@ -353,12 +367,15 @@ int globalRenderFrameCount = 0;
 // 更新布料渲染数据
 void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
 {
-    if (debugOutputEnabled) {
+    if (debugOutputEnabled)
+    {
         globalRenderFrameCount++;
     }
     
-    if (!cloth || !renderer) {
-        if (debugOutputEnabled) {
+    if (!cloth || !renderer)
+    {
+        if (debugOutputEnabled)
+        {
             std::cout << "UpdateClothRenderData: cloth or renderer is null" << std::endl;
         }
         return;
@@ -368,7 +385,8 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
     int width = cloth->getWidth();
     int height = cloth->getHeight();
     
-    if (debugOutputEnabled) {
+    if (debugOutputEnabled)
+    {
         std::cout << "UpdateClothRenderData: Frame " << globalRenderFrameCount << ", particles count = " << particles.size() << ", width = " << width << ", height = " << height << std::endl;
         
         // 调试输出第一个粒子的位置和状态
@@ -402,9 +420,11 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
     const std::vector<uint32_t>& indices = cloth->getIndices();
     
     // 只有在启用调试输出时才打印详细信息
-    if (debugOutputEnabled) {
+    if (debugOutputEnabled)
+    {
         // 每10帧输出一次部分顶点和法线数据进行验证
-        if (globalRenderFrameCount % 10 == 0) {
+        if (globalRenderFrameCount % 10 == 0)
+        {
             std::cout << "\n--- Frame " << globalRenderFrameCount << " Selected Vertex Data ---" << std::endl;
             // 输出前5个顶点的位置和法线
             int outputCount = (positions.size() < 5) ? static_cast<int>(positions.size()) : 5;
@@ -421,7 +441,8 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
         std::cout << "UpdateClothRenderData: Calling SetClothVertices with " << positions.size() << " positions" << std::endl;
     }
     
-    if (debugOutputEnabled) {
+    if (debugOutputEnabled)
+    {
         std::cout << "UpdateClothRenderData: SetClothVertices called" << std::endl;
     }
 }
@@ -429,7 +450,8 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
 // 更新相机的辅助函数
 void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up)
 {
-    if (camera) {
+    if (camera)
+    {
         camera->UpdateCamera(position, target, up);
     }
 }
@@ -438,25 +460,29 @@ void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, cons
 void Cleanup()
 {
     // 清理场景对象
-    if (scene) {
+    if (scene)
+    {
         delete scene;
         scene = nullptr;
     }
     
     // 清理布料对象
-    if (cloth) {
+    if (cloth)
+    {
         cloth = nullptr;
     }
     
     // 清理渲染器
-    if (renderer) {
+    if (renderer)
+    {
         renderer->Cleanup();
         delete renderer;
         renderer = nullptr;
     }
     
     // 清理相机对象
-    if (camera) {
+    if (camera)
+    {
         delete camera;
         camera = nullptr;
     }
@@ -484,8 +510,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 简单解析命令行参数，寻找 -maxFrames:xxx 格式的参数
     size_t maxFramesPos = cmdLine.find("-maxFrames:");
-    if (maxFramesPos != std::string::npos) {
-        try {
+    if (maxFramesPos != std::string::npos)
+    {
+        try
+        {
             size_t start = maxFramesPos + 11; // "-maxFrames:" 长度为11
             size_t end = cmdLine.find(' ', start);
             if (end == std::string::npos) {
@@ -494,17 +522,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::string maxFramesStr = cmdLine.substr(start, end - start);
             maxFrames = std::stoi(maxFramesStr);
             logDebug("Max frames set to: " + std::to_string(maxFrames));
-        } catch (const std::exception& e) {
+        } 
+        catch (const std::exception& e) 
+        {
             std::cerr << "Error parsing maxFrames parameter: " << e.what() << std::endl;
             std::cerr << "Using default maxFrames value (-1 = unlimited)" << std::endl;
             maxFrames = -1; // 恢复为默认值
         }
     }
     
-    if (cmdLine.find("--debug") != std::string::npos || cmdLine.find("-d") != std::string::npos) {
+    if (cmdLine.find("--debug") != std::string::npos || cmdLine.find("-d") != std::string::npos)
+    {
         debugOutputEnabled = true;
         std::cout << "[DEBUG] Debug output enabled via command line parameter: " << cmdLine << std::endl;
-    } else {
+    }
+    else
+    {
         std::cout << "[INFO] Running in normal mode (debug output disabled)" << std::endl;
     }
     
@@ -514,7 +547,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 创建窗口
     std::cout << "Creating window..." << std::endl;
-    if (!CreateWindowApp(hInstance)) {
+    if (!CreateWindowApp(hInstance))
+    {
         std::cerr << "Failed to create window" << std::endl;
         return -1;
     }
@@ -523,7 +557,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 初始化DirectX 12渲染器
     std::cout << "Initializing renderer..." << std::endl;
     std::cout << "  - Creating DX12Renderer instance..." << std::endl;
-    if (!InitializeRenderer()) {
+    if (!InitializeRenderer())
+    {
         std::cerr << "Failed to initialize renderer" << std::endl;
         MessageBox(hWnd, L"Failed to initialize DirectX 12 renderer", L"Error", MB_OK | MB_ICONERROR);
         Cleanup();
@@ -572,7 +607,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     std::cout << "Entering main loop..." << std::endl;
     // 主循环
-    while (running) {
+    while (running)
+    {
         // 处理Windows消息
         ProcessMessages();
         
@@ -582,7 +618,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         lastFrame = currentFrame;
         
         // 限制最大帧率以避免CPU过载
-        if (deltaTime < 1.0f / 60.0f) {
+        if (deltaTime < 1.0f / 60.0f)
+        {
             Sleep(static_cast<DWORD>((1.0f / 60.0f - deltaTime) * 1000.0f));
             currentFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
             deltaTime = currentFrame - lastFrame;
@@ -593,14 +630,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         frameCount++;
 
         // 如果设置了最大帧数限制且已达到，则退出程序
-        if (maxFrames > 0 && frameCount >= maxFrames) {
+        if (maxFrames > 0 && frameCount >= maxFrames)
+        {
             std::cout << "Reached maximum frames (" << maxFrames << "), exiting..." << std::endl;
             running = false;
             continue;
         }
 
         // 定期输出当前帧数
-        if (debugOutputEnabled && frameCount % 30 == 0) {
+        if (debugOutputEnabled && frameCount % 30 == 0)
+        {
             std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
         }
         

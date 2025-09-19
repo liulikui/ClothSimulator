@@ -11,31 +11,34 @@ public:
     TSharePtr() : m_ptr(nullptr) {}
     
     // 从原始指针构造
-explicit TSharePtr(T* ptr) : m_ptr(ptr)
-{
-        if (m_ptr) {
+    explicit TSharePtr(T* ptr) : m_ptr(ptr)
+    {
+        if (m_ptr) 
+        {
             m_ptr->AddRef();
         }
     }
     
     // 拷贝构造函数
-TSharePtr(const TSharePtr<T>& other) : m_ptr(other.m_ptr)
-{
-        if (m_ptr) {
+    TSharePtr(const TSharePtr<T>& other) : m_ptr(other.m_ptr)
+    {
+        if (m_ptr) 
+        {
             m_ptr->AddRef();
         }
     }
     
     // 移动构造函数
-TSharePtr(TSharePtr<T>&& other) noexcept : m_ptr(other.m_ptr)
-{
-        other.m_ptr = nullptr;
-    }
+    TSharePtr(TSharePtr<T>&& other) noexcept : m_ptr(other.m_ptr)
+    {
+            other.m_ptr = nullptr;
+        }
     
-    // 析构函数
-~TSharePtr()
-{
-        if (m_ptr) {
+        // 析构函数
+    ~TSharePtr()
+    {
+        if (m_ptr) 
+        {
             m_ptr->Release();
         }
     }
@@ -43,15 +46,18 @@ TSharePtr(TSharePtr<T>&& other) noexcept : m_ptr(other.m_ptr)
     // 拷贝赋值运算符
     TSharePtr<T>& operator=(const TSharePtr<T>& other)
     {
-        if (this != &other) {
+        if (this != &other) 
+        {
             // 先增加新指针的引用计数，避免自赋值导致对象被提前释放
             T* temp = other.m_ptr;
-            if (temp) {
+            if (temp) 
+            {
                 temp->AddRef();
             }
             
             // 释放旧指针
-            if (m_ptr) {
+            if (m_ptr) 
+            {
                 m_ptr->Release();
             }
             
@@ -63,9 +69,11 @@ TSharePtr(TSharePtr<T>&& other) noexcept : m_ptr(other.m_ptr)
     // 移动赋值运算符
     TSharePtr<T>& operator=(TSharePtr<T>&& other) noexcept
     {
-        if (this != &other) {
+        if (this != &other) 
+        {
             // 释放旧指针
-            if (m_ptr) {
+            if (m_ptr) 
+            {
                 m_ptr->Release();
             }
             
@@ -78,14 +86,17 @@ TSharePtr(TSharePtr<T>&& other) noexcept : m_ptr(other.m_ptr)
     // 原始指针赋值运算符
     TSharePtr<T>& operator=(T* ptr)
     {
-        if (m_ptr != ptr) {
+        if (m_ptr != ptr) 
+        {
             // 先增加新指针的引用计数
-            if (ptr) {
+            if (ptr)
+            {
                 ptr->AddRef();
             }
             
             // 释放旧指针
-            if (m_ptr) {
+            if (m_ptr)
+            {
                 m_ptr->Release();
             }
             
@@ -119,7 +130,7 @@ TSharePtr(TSharePtr<T>&& other) noexcept : m_ptr(other.m_ptr)
     }
     
     // 显式转换为bool
-explicit operator bool() const
+    explicit operator bool() const
     {
         return m_ptr != nullptr;
     }
@@ -164,6 +175,7 @@ bool operator<(const TSharePtr<T>& lhs, const TSharePtr<T>& rhs)
 
 // 辅助函数：创建TSharePtr对象
 template <typename T, typename... Args>
-TSharePtr<T> MakeSharePtr(Args&&... args) {
+TSharePtr<T> MakeSharePtr(Args&&... args) 
+{
     return TSharePtr<T>(new T(std::forward<Args>(args)...));
 }

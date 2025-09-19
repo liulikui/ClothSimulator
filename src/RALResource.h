@@ -333,8 +333,6 @@ enum class RALShaderType
 	Count,
 };
 
-
-
 // 顶点缓冲区绑定描述（每个缓冲区单独配置）
 struct RALVertexBufferBinding
 {
@@ -527,8 +525,6 @@ public:
 	virtual ~IRALRayCallableShader() = default;
 };
 
-
-
 // 颜色通道掩码（控制哪些通道允许写入）
 struct RALColorWriteMask {
 	bool red = true;
@@ -641,7 +637,8 @@ public:
 };
 
 // 索引缓冲区视图接口
-class IRALIndexBufferView {
+class IRALIndexBufferView
+{
 public:
 	virtual ~IRALIndexBufferView() = default;
 	
@@ -685,7 +682,7 @@ public:
 		: IRALBuffer(RALResourceType::VertexBuffer, size)
 	{
 	}
-public:
+
 	virtual ~IRALVertexBuffer() = default;
 };
 
@@ -727,7 +724,8 @@ public:
 };
 
 // 渲染目标视图接口
-class IRALRenderTargetView {
+class IRALRenderTargetView
+{
 public:
 	virtual ~IRALRenderTargetView() = default;
 	
@@ -736,7 +734,8 @@ public:
 };
 
 // 深度模板视图接口
-class IRALDepthStencilView {
+class IRALDepthStencilView
+{
 public:
 	virtual ~IRALDepthStencilView() = default;
 	
@@ -757,7 +756,8 @@ public:
 };
 
 // UniformBuffer接口
-class IRALUniformBuffer : public IRALBuffer{
+class IRALUniformBuffer : public IRALBuffer
+{
 public:
 	IRALUniformBuffer(uint64_t size)
 		: IRALBuffer(RALResourceType::UniformBuffer, size)

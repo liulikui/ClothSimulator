@@ -86,28 +86,34 @@ void Camera::UpdateProjectionMatrix()
     );
 }
 
-const dx::XMMATRIX& Camera::GetViewMatrix() const {
+const dx::XMMATRIX& Camera::GetViewMatrix() const
+{
     return m_viewMatrix;
 }
 
-const dx::XMMATRIX& Camera::GetProjectionMatrix() const {
+const dx::XMMATRIX& Camera::GetProjectionMatrix() const
+{
     return m_projectionMatrix;
 }
 
-const dx::XMVECTOR& Camera::GetPosition() const {
+const dx::XMVECTOR& Camera::GetPosition() const
+{
     return m_cameraPosition;
 }
 
-const dx::XMVECTOR& Camera::GetTarget() const {
+const dx::XMVECTOR& Camera::GetTarget() const
+{
     return m_cameraTarget;
 }
 
-const dx::XMVECTOR& Camera::GetUp() const {
+const dx::XMVECTOR& Camera::GetUp() const
+{
     return m_cameraUp;
 }
 
 // 实现键盘输入处理方法
-void Camera::ProcessKeyboardInput(const bool keys[], float deltaTime) {
+void Camera::ProcessKeyboardInput(const bool keys[], float deltaTime)
+{
     // 计算相机方向向量
     dx::XMVECTOR front = dx::XMVector3Normalize(dx::XMVectorSubtract(m_cameraTarget, m_cameraPosition));
     dx::XMVECTOR up = m_cameraUp;
@@ -117,25 +123,29 @@ void Camera::ProcessKeyboardInput(const bool keys[], float deltaTime) {
     float moveSpeed = 2.5f * deltaTime;
     
     // 向前移动 (W键)
-    if (keys['W']) {
+    if (keys['W'])
+    {
         m_cameraPosition = dx::XMVectorAdd(m_cameraPosition, dx::XMVectorScale(front, moveSpeed));
         m_cameraTarget = dx::XMVectorAdd(m_cameraTarget, dx::XMVectorScale(front, moveSpeed));
     }
     
     // 向后移动 (S键)
-    if (keys['S']) {
+    if (keys['S'])
+    {
         m_cameraPosition = dx::XMVectorSubtract(m_cameraPosition, dx::XMVectorScale(front, moveSpeed));
         m_cameraTarget = dx::XMVectorSubtract(m_cameraTarget, dx::XMVectorScale(front, moveSpeed));
     }
     
     // 向左移动 (A键)
-    if (keys['A']) {
+    if (keys['A'])
+    {
         m_cameraPosition = dx::XMVectorAdd(m_cameraPosition, dx::XMVectorScale(right, moveSpeed));
         m_cameraTarget = dx::XMVectorAdd(m_cameraTarget, dx::XMVectorScale(right, moveSpeed));
     }
     
     // 向右移动 (D键)
-    if (keys['D']) {
+    if (keys['D'])
+    {
         m_cameraPosition = dx::XMVectorSubtract(m_cameraPosition, dx::XMVectorScale(right, moveSpeed));
         m_cameraTarget = dx::XMVectorSubtract(m_cameraTarget, dx::XMVectorScale(right, moveSpeed));
     }

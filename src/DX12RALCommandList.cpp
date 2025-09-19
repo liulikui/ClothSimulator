@@ -38,11 +38,13 @@ void DX12RALGraphicsCommandList::ResourceBarriers(const RALResourceBarrier* barr
     std::vector<D3D12_RESOURCE_BARRIER> dxBarriers;
     dxBarriers.reserve(count);
 
-    for (uint32_t i = 0; i < count; ++i) {
+    for (uint32_t i = 0; i < count; ++i)
+    {
         const RALResourceBarrier& barrier = barriers[i];
         D3D12_RESOURCE_BARRIER dxBarrier = {};
         
-        switch (barrier.type) {
+        switch (barrier.type)
+        {
         case RALResourceBarrierType::Transition:
             dxBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             dxBarrier.Transition.pResource = static_cast<ID3D12Resource*>(barrier.resource->GetNativeResource());
@@ -90,7 +92,8 @@ void* DX12RALGraphicsCommandList::GetNativeCommandList()
 // 清除渲染目标
 void DX12RALGraphicsCommandList::ClearRenderTargetView(IRALRenderTargetView* renderTargetView, const float color[4])
 {
-    if (renderTargetView) {
+    if (renderTargetView)
+    {
         D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = {};
         rtvHandle.ptr = reinterpret_cast<uint64_t>(renderTargetView->GetNativeRenderTargetView());
         m_commandList->ClearRenderTargetView(rtvHandle, color, 0, nullptr);
@@ -100,7 +103,8 @@ void DX12RALGraphicsCommandList::ClearRenderTargetView(IRALRenderTargetView* ren
 // 清除深度/模板视图
 void DX12RALGraphicsCommandList::ClearDepthStencilView(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil)
 {
-    if (depthStencilView) {
+    if (depthStencilView)
+    {
         D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
         dsvHandle.ptr = reinterpret_cast<uint64_t>(depthStencilView->GetNativeDepthStencilView());
         m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, depth, stencil, 0, nullptr);
@@ -134,7 +138,8 @@ void DX12RALGraphicsCommandList::SetScissorRect(int32_t left, int32_t top, int32
 // 设置管线状态
 void DX12RALGraphicsCommandList::SetPipelineState(IRALResource* pipelineState)
 {
-    if (pipelineState) {
+    if (pipelineState)
+    {
         ID3D12PipelineState* dxPipelineState = static_cast<ID3D12PipelineState*>(pipelineState->GetNativeResource());
         m_commandList->SetPipelineState(dxPipelineState);
     }
@@ -146,8 +151,10 @@ void DX12RALGraphicsCommandList::SetVertexBuffers(uint32_t startSlot, uint32_t c
     std::vector<D3D12_VERTEX_BUFFER_VIEW> bufferViews;
     bufferViews.reserve(count);
 
-    for (uint32_t i = 0; i < count; ++i) {
-        if (vertexBufferViews[i]) {
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        if (vertexBufferViews[i])
+        {
             D3D12_VERTEX_BUFFER_VIEW view = {};
             view.BufferLocation = vertexBufferViews[i]->GetBufferLocation();
             view.SizeInBytes = vertexBufferViews[i]->GetSizeInBytes();
@@ -162,14 +169,16 @@ void DX12RALGraphicsCommandList::SetVertexBuffers(uint32_t startSlot, uint32_t c
 // 绑定索引缓冲区
 void DX12RALGraphicsCommandList::SetIndexBuffer(IRALIndexBufferView* indexBufferView)
 {
-    if (indexBufferView) {
+    if (indexBufferView)
+    {
         D3D12_INDEX_BUFFER_VIEW view = {};
         view.BufferLocation = indexBufferView->GetBufferLocation();
         view.SizeInBytes = indexBufferView->GetSizeInBytes();
         view.Format = indexBufferView->Is32Bit() ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
         m_commandList->IASetIndexBuffer(&view);
     }
-    else {
+    else
+    {
         m_commandList->IASetIndexBuffer(nullptr);
     }
 }
@@ -177,7 +186,8 @@ void DX12RALGraphicsCommandList::SetIndexBuffer(IRALIndexBufferView* indexBuffer
 // 绑定根签名
 void DX12RALGraphicsCommandList::SetRootSignature(IRALRootSignature* rootSignature)
 {
-    if (rootSignature) {
+    if (rootSignature)
+    {
         ID3D12RootSignature* dxRootSignature = static_cast<ID3D12RootSignature*>(rootSignature->GetNativeResource());
         m_commandList->SetGraphicsRootSignature(dxRootSignature);
     }
@@ -197,7 +207,8 @@ void DX12RALGraphicsCommandList::SetRootConstants(uint32_t rootParameterIndex, u
 // 绑定根描述符表
 void DX12RALGraphicsCommandList::SetRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable)
 {
-    if (descriptorTable) {
+    if (descriptorTable)
+    {
         D3D12_GPU_DESCRIPTOR_HANDLE handle = {};
         handle.ptr = reinterpret_cast<uint64_t>(descriptorTable);
         m_commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, handle);
@@ -233,7 +244,8 @@ IRALUniformBuffer* DX12RALGraphicsCommandList::CreateUniformBuffer(uint32_t size
 // 更新UniformBuffer数据
 void DX12RALGraphicsCommandList::UpdateUniformBuffer(IRALUniformBuffer* buffer, const void* data, uint32_t sizeInBytes)
 {
-    if (buffer) {
+    if (buffer)
+    {
         buffer->Update(data, sizeInBytes);
     }
 }
@@ -256,7 +268,8 @@ void DX12RALGraphicsCommandList::DrawIndirect(void* bufferLocation, uint32_t dra
     // DirectX 12中没有直接的DrawIndirect方法，需要使用ExecuteIndirect
     // 这里简化处理，实际项目中需要创建命令签名
     // 注意：这个实现是简化版本，实际项目中需要完整实现ExecuteIndirect的逻辑
-    if (bufferLocation) {
+    if (bufferLocation)
+    {
         // 暂时不实现，返回警告或错误
         // 实际实现需要：
         // 1. 创建命令签名 (ID3D12CommandSignature)
@@ -271,7 +284,8 @@ void DX12RALGraphicsCommandList::DrawIndexedIndirect(void* bufferLocation, uint3
     // DirectX 12中没有直接的DrawIndexedIndirect方法，需要使用ExecuteIndirect
     // 这里简化处理，实际项目中需要创建命令签名
     // 注意：这个实现是简化版本，实际项目中需要完整实现ExecuteIndirect的逻辑
-    if (bufferLocation) {
+    if (bufferLocation)
+    {
         // 暂时不实现，返回警告或错误
         // 实际实现需要：
         // 1. 创建命令签名 (ID3D12CommandSignature)
@@ -297,10 +311,12 @@ void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IR
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
     dsvHandle.ptr = depthStencilView ? reinterpret_cast<uint64_t>(depthStencilView->GetNativeDepthStencilView()) : 0;
     
-    if (rtvHandles.empty()) {
+    if (rtvHandles.empty())
+    {
         m_commandList->OMSetRenderTargets(0, nullptr, FALSE, dsvHandle.ptr ? &dsvHandle : nullptr);
     }
-    else {
+    else
+    {
         m_commandList->OMSetRenderTargets(rtvHandles.size(), rtvHandles.data(), FALSE, dsvHandle.ptr ? &dsvHandle : nullptr);
     }
 }
@@ -315,7 +331,8 @@ void DX12RALGraphicsCommandList::ExecuteRenderPass(const void* renderPass, const
 // 将RAL资源状态转换为DX12资源状态
 D3D12_RESOURCE_STATES DX12RALGraphicsCommandList::ConvertToDX12ResourceState(RALResourceState state)
 {
-    switch (state) {
+    switch (state)
+    {
     case RALResourceState::Common:
         return D3D12_RESOURCE_STATE_COMMON;
     case RALResourceState::VertexAndConstantBuffer:

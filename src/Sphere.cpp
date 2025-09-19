@@ -23,13 +23,15 @@ void Sphere::update(IRALGraphicsCommandList* commandList, float deltaTime)
 
 bool Sphere::Initialize(DX12Renderer* renderer)
 {
-    if (!renderer || positions.empty() || indices.empty()) {
+    if (!renderer || positions.empty() || indices.empty())
+    {
         return false;
     }
 
     // 创建顶点数据（位置 + 法线）
     std::vector<uint8_t> vertexData(positions.size() * sizeof(dx::XMFLOAT3) * 2);
-    for (size_t i = 0; i < positions.size(); ++i) {
+    for (size_t i = 0; i < positions.size(); ++i)
+    {
         size_t positionOffset = i * sizeof(dx::XMFLOAT3) * 2;
         size_t normalOffset = positionOffset + sizeof(dx::XMFLOAT3);
 
@@ -43,7 +45,8 @@ bool Sphere::Initialize(DX12Renderer* renderer)
         6 * sizeof(float) // 顶点 stride（3个位置分量 + 3个法线分量）
     );
 
-    if (!m_vertexBuffer) {
+    if (!m_vertexBuffer)
+    {
         return false;
     }
 
@@ -53,17 +56,20 @@ bool Sphere::Initialize(DX12Renderer* renderer)
         true // 32位索引
     );
 
-    if (!m_indexBuffer) {
+    if (!m_indexBuffer)
+    {
         return false;
     }
 
     // 上传顶点数据
-    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)vertexData.data(), vertexData.size())) {
+    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)vertexData.data(), vertexData.size()))
+    {
         return false;
     }
 
     // 上传索引数据
-    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)indices.data(), indices.size() * sizeof(uint32_t))) {
+    if (!renderer->UploadBuffer(m_indexBuffer, (const char*)indices.data(), indices.size() * sizeof(uint32_t)))
+    {
         return false;
     }
 
@@ -72,7 +78,8 @@ bool Sphere::Initialize(DX12Renderer* renderer)
 
 void Sphere::setRadius(float newRadius)
 {
-    if (radius != newRadius) {
+    if (radius != newRadius)
+    {
         radius = newRadius;
         generateSphereData();
     }
@@ -80,7 +87,8 @@ void Sphere::setRadius(float newRadius)
 
 void Sphere::setCenter(const dx::XMFLOAT3& newCenter)
 {
-    if (center.x != newCenter.x || center.y != newCenter.y || center.z != newCenter.z) {
+    if (center.x != newCenter.x || center.y != newCenter.y || center.z != newCenter.z)
+    {
         center = newCenter;
         setPosition(center);
     }
@@ -94,12 +102,14 @@ void Sphere::generateSphereData()
     indices.clear();
 
     // 生成顶点和法线
-    for (uint32_t i = 0; i <= stacks; ++i) {
+    for (uint32_t i = 0; i <= stacks; ++i)
+    {
         float phi = dx::XMConvertToRadians(180.0f * static_cast<float>(i) / stacks); // 极角
         float sinPhi = sin(phi);
         float cosPhi = cos(phi);
 
-        for (uint32_t j = 0; j <= sectors; ++j) {
+        for (uint32_t j = 0; j <= sectors; ++j)
+        {
             float theta = dx::XMConvertToRadians(360.0f * static_cast<float>(j) / sectors); // 方位角
             float sinTheta = sin(theta);
             float cosTheta = cos(theta);
@@ -121,11 +131,13 @@ void Sphere::generateSphereData()
     }
 
     // 生成索引
-    for (uint32_t i = 0; i < stacks; ++i) {
+    for (uint32_t i = 0; i < stacks; ++i)
+    {
         uint32_t row1 = i * (sectors + 1);
         uint32_t row2 = (i + 1) * (sectors + 1);
 
-        for (uint32_t j = 0; j < sectors; ++j) {
+        for (uint32_t j = 0; j < sectors; ++j)
+        {
             // 第一个三角形
             indices.push_back(row1 + j);
             indices.push_back(row2 + j + 1);

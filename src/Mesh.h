@@ -23,7 +23,8 @@ public:
     virtual const std::vector<uint32_t>& getIndices() const = 0;
     
     // 获取对象的材质颜色
-    const dx::XMFLOAT4& getDiffuseColor() const {
+    const dx::XMFLOAT4& getDiffuseColor() const 
+    {
         return diffuseColor;
     }
     

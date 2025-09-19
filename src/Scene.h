@@ -62,7 +62,8 @@ public:
     void clear();
 
     // 获取场景中的所有Mesh对象
-    const std::vector<std::shared_ptr<Mesh>>& getPrimitives() const {
+    const std::vector<std::shared_ptr<Mesh>>& getPrimitives() const
+    {
         return m_primitives;
     }
 
@@ -73,7 +74,8 @@ public:
     }
 
     // 获取场景的背景颜色
-    const dx::XMFLOAT4& getBackgroundColor() const {
+    const dx::XMFLOAT4& getBackgroundColor() const
+    {
         return m_backgroundColor;
     }
 
@@ -84,7 +86,8 @@ public:
     }
 
     // 获取场景的光源位置
-    const dx::XMFLOAT4& getLightPosition() const {
+    const dx::XMFLOAT4& getLightPosition() const 
+    {
         return m_lightPosition;
     }
 
@@ -95,7 +98,8 @@ public:
     }
 
     // 获取场景的光源颜色
-    const dx::XMFLOAT4& getLightColor() const {
+    const dx::XMFLOAT4& getLightColor() const 
+    {
         return m_lightColor;
     }
 
