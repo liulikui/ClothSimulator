@@ -848,6 +848,125 @@ static inline void InitAsDescriptorTable(RALRootParameter& param, const std::vec
 	param.ShaderVisibility = visibility;
 }
 
+// 采样器过滤模式枚举
+enum class RALFilter
+{
+    MinMagMipPoint,
+    MinMagPointMipLinear,
+    MinPointMagLinearMipPoint,
+    MinPointMagMipLinear,
+    MinLinearMagMipPoint,
+    MinLinearMagPointMipLinear,
+    MinMagLinearMipPoint,
+    MinMagMipLinear,
+    Anisotropic,
+    ComparisonMinMagMipPoint,
+    ComparisonMinMagPointMipLinear,
+    ComparisonMinPointMagLinearMipPoint,
+    ComparisonMinPointMagMipLinear,
+    ComparisonMinLinearMagMipPoint,
+    ComparisonMinLinearMagPointMipLinear,
+    ComparisonMinMagLinearMipPoint,
+    ComparisonMinMagMipLinear,
+    ComparisonAnisotropic
+};
+
+// 纹理寻址模式枚举
+enum class RALTextureAddressMode
+{
+    Wrap,
+    Mirror,
+    Clamp,
+    Border,
+    MirrorOnce
+};
+
+// 比较函数枚举
+enum class RALComparisonFunc
+{
+    Never,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always
+};
+
+// 静态边界颜色枚举
+enum class RALStaticBorderColor
+{
+    TransparentBlack,
+    OpaqueBlack,
+    OpaqueWhite
+};
+
+// 根签名标志枚举
+enum class RALRootSignatureFlags : uint32_t
+{
+    None = 0,
+    AllowInputAssemblerInputLayout = 1 << 0,
+    AllowStreamOutput = 1 << 1,
+    DenyVertexShaderResource = 1 << 2,
+    DenyHullShaderResource = 1 << 3,
+    DenyDomainShaderResource = 1 << 4,
+    DenyGeometryShaderResource = 1 << 5,
+    DenyPixelShaderResource = 1 << 6,
+    AllowFeedbackTextureLOD = 1 << 7
+};
+
+// 注意：根签名标志位运算符重载已移至DX12Renderer.cpp中实现
+
+// 静态采样器结构体
+struct RALStaticSampler
+{
+    RALFilter Filter;
+    RALTextureAddressMode AddressU;
+    RALTextureAddressMode AddressV;
+    RALTextureAddressMode AddressW;
+    float MipLODBias;
+    uint32_t MaxAnisotropy;
+    RALComparisonFunc ComparisonFunc;
+    RALStaticBorderColor BorderColor;
+    float MinLOD;
+    float MaxLOD;
+    uint32_t ShaderRegister;
+    uint32_t RegisterSpace;
+    RALShaderVisibility ShaderVisibility;
+};
+
+// 初始化静态采样器
+static inline void InitStaticSampler(RALStaticSampler& sampler, 
+                                     RALFilter filter, 
+                                     RALTextureAddressMode addressU, 
+                                     RALTextureAddressMode addressV, 
+                                     RALTextureAddressMode addressW, 
+                                     float mipLODBias, 
+                                     uint32_t maxAnisotropy, 
+                                     RALComparisonFunc comparisonFunc, 
+                                     RALStaticBorderColor borderColor, 
+                                     float minLOD, 
+                                     float maxLOD, 
+                                     uint32_t shaderRegister, 
+                                     uint32_t registerSpace, 
+                                     RALShaderVisibility visibility)
+{
+    sampler.Filter = filter;
+    sampler.AddressU = addressU;
+    sampler.AddressV = addressV;
+    sampler.AddressW = addressW;
+    sampler.MipLODBias = mipLODBias;
+    sampler.MaxAnisotropy = maxAnisotropy;
+    sampler.ComparisonFunc = comparisonFunc;
+    sampler.BorderColor = borderColor;
+    sampler.MinLOD = minLOD;
+    sampler.MaxLOD = maxLOD;
+    sampler.ShaderRegister = shaderRegister;
+    sampler.RegisterSpace = registerSpace;
+    sampler.ShaderVisibility = visibility;
+}
+
 // RootSignature接口
 class IRALRootSignature : public IRALResource
 {

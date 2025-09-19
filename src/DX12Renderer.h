@@ -119,7 +119,12 @@ public:
 	IRALRayCallableShader* CompileRayCallableShader(const char* shaderCode, const char* entryPoint = "main");
 	
 	// 创建图形管线状态
-	TSharePtr<IRALGraphicsPipelineState> CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
+	IRALGraphicsPipelineState* CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
+
+    // 创建根签名
+    IRALRootSignature* CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
+        const std::vector<RALStaticSampler>& staticSamplers = {},
+        RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout);
 
 private:
     // 通用着色器编译辅助方法
@@ -140,7 +145,7 @@ private:
     // 创建深度/模板视图
     void CreateDepthStencilView();
 
-    // 创建根签名
+    // 创建根签名 (旧方法，已废弃)
     void CreateRootSignature();
 
     // 创建管道状态对象
