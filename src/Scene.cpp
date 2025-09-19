@@ -140,6 +140,90 @@ bool Scene::Initialize(DX12Renderer* pRender) {
 
     logDebug("[DEBUG] Scene::Initialize succeeded: shaders compiled and stored");
     
+    // 创建图形管道状态
+    RALGraphicsPipelineStateDesc pipelineDesc = {};
+    
+    // 配置输入布局
+    std::vector<RALVertexAttribute> inputLayout;
+    RALVertexAttribute posAttr;
+    posAttr.semantic = RALVertexSemantic::Position;
+    posAttr.format = RALVertexFormat::Float3;
+    posAttr.bufferSlot = 0;
+    posAttr.offset = 0;
+    inputLayout.push_back(posAttr);
+    
+    RALVertexAttribute normalAttr;
+    normalAttr.semantic = RALVertexSemantic::Normal;
+    normalAttr.format = RALVertexFormat::Float3;
+    normalAttr.bufferSlot = 0;
+    normalAttr.offset = 12; // 3个float，每个4字节，共12字节
+    inputLayout.push_back(normalAttr);
+    
+    pipelineDesc.inputLayout = &inputLayout;
+    
+    // 设置根签名
+    pipelineDesc.rootSignature = m_rootSignature.Get();
+    
+    // 设置着色器
+    pipelineDesc.vertexShader = m_vertexShader.Get();
+    pipelineDesc.pixelShader = m_pixelShader.Get();
+    
+    // 设置图元拓扑类型
+    pipelineDesc.primitiveTopologyType = RALPrimitiveTopologyType::TriangleList;
+    
+    // 配置光栅化状态
+    pipelineDesc.rasterizerState.cullMode = RALCullMode::None; // 关闭剔除，启用双面渲染
+    pipelineDesc.rasterizerState.fillMode = RALFillMode::Solid;
+    pipelineDesc.rasterizerState.frontCounterClockwise = false;
+    pipelineDesc.rasterizerState.depthClipEnable = true;
+    pipelineDesc.rasterizerState.multisampleEnable = false;
+    
+    // 配置混合状态
+    pipelineDesc.blendState.alphaToCoverageEnable = false;
+    pipelineDesc.blendState.independentBlendEnable = false;
+    
+    // 添加默认渲染目标混合状态
+    RALRenderTargetBlendState defaultBlendState;
+    defaultBlendState.blendEnable = false;
+    defaultBlendState.logicOpEnable = false;
+    defaultBlendState.srcBlend = RALBlendFactor::One;
+    defaultBlendState.destBlend = RALBlendFactor::Zero;
+    defaultBlendState.blendOp = RALBlendOp::Add;
+    defaultBlendState.srcBlendAlpha = RALBlendFactor::One;
+    defaultBlendState.destBlendAlpha = RALBlendFactor::Zero;
+    defaultBlendState.blendOpAlpha = RALBlendOp::Add;
+    defaultBlendState.logicOp = RALLogicOp::Noop;
+    defaultBlendState.colorWriteMask = 0xF; // RGBA
+    pipelineDesc.renderTargetBlendStates.push_back(defaultBlendState);
+    
+    // 配置深度模板状态
+    pipelineDesc.depthStencilState.depthEnable = true;
+    pipelineDesc.depthStencilState.depthWriteMask = true;
+    pipelineDesc.depthStencilState.depthFunc = RALCompareOp::Less;
+    pipelineDesc.depthStencilState.stencilEnable = false;
+    
+    // 配置渲染目标格式
+    pipelineDesc.numRenderTargets = 1;
+    pipelineDesc.renderTargetFormats[0] = DataFormat::R8G8B8A8_UNorm;
+    pipelineDesc.depthStencilFormat = DataFormat::D32_Float;
+    
+    // 配置多重采样
+    pipelineDesc.sampleDesc.Count = 1;
+    pipelineDesc.sampleDesc.Quality = 0;
+    pipelineDesc.sampleMask = UINT32_MAX;
+    
+    // 创建图形管道状态
+    IRALGraphicsPipelineState* pipelineStatePtr = pRender->CreateGraphicsPipelineState(pipelineDesc);
+    if (!pipelineStatePtr) {
+        logDebug("[DEBUG] Scene::Initialize failed: failed to create graphics pipeline state");
+        return false;
+    }
+    
+    // 保存图形管道状态到成员变量
+    m_pipelineState = pipelineStatePtr;
+    
+    logDebug("[DEBUG] Scene::Initialize succeeded: graphics pipeline state created and stored");
+    
     return true;
 }
 

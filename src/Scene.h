@@ -113,6 +113,9 @@ private:
     // 着色器对象
     TSharePtr<IRALVertexShader> m_vertexShader;
     TSharePtr<IRALPixelShader> m_pixelShader;
+
+    // 图形管道状态对象
+    TSharePtr<IRALGraphicsPipelineState> m_pipelineState;
 };
 
 #endif // SCENE_H
