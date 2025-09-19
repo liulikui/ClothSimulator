@@ -85,9 +85,6 @@ public:
     // 设置根签名
     void SetRootSignature(TSharePtr<IRALRootSignature> rootSignature);
     
-    // 创建并获取根签名
-    TSharePtr<IRALRootSignature> CreateAndGetRootSignature();
-    
     // 编译顶点着色器
     IRALVertexShader* CompileVertexShader(const char* shaderCode, const char* entryPoint = "main");
     
@@ -121,11 +118,11 @@ public:
 	// 创建图形管线状态
 	IRALGraphicsPipelineState* CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
 
-    // 创建根签名
+    // 创建根签名 
     IRALRootSignature* CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
         const std::vector<RALStaticSampler>& staticSamplers = {},
         RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout);
-
+        
 private:
     // 通用着色器编译辅助方法
     Microsoft::WRL::ComPtr<ID3DBlob> CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target);

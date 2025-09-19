@@ -3,6 +3,7 @@
 #include "Cloth.h"
 #include "Sphere.h"
 #include "DX12Renderer.h"
+#include "RALResource.h"
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -24,27 +25,120 @@ bool Scene::Initialize(DX12Renderer* pRender) {
     
     logDebug("[DEBUG] Scene::Initialize called");
     
-    // 从渲染器获取根签名
-    auto rootSignature = pRender->CreateAndGetRootSignature();
-    if (!rootSignature) {
+    // 定义根参数
+    std::vector<RALRootParameter> rootParameters(2);
+
+    // 根参数0: 常量缓冲区视图（变换矩阵）
+    InitAsConstantBufferView(rootParameters[0], 0, 0, RALShaderVisibility::Vertex);
+
+    // 根参数1: 常量缓冲区视图（材质和光照）
+    InitAsConstantBufferView(rootParameters[1], 0, 0, RALShaderVisibility::Pixel);
+
+    // 定义静态采样器
+    RALStaticSampler staticSampler;
+    InitStaticSampler(
+        staticSampler,
+        RALFilter::MinMagMipLinear,
+        RALTextureAddressMode::Wrap,
+        RALTextureAddressMode::Wrap,
+        RALTextureAddressMode::Wrap,
+        0.0f,                   // MipLODBias
+        1,                      // MaxAnisotropy
+        RALComparisonFunc::Always,
+        RALStaticBorderColor::TransparentBlack,
+        0.0f,                   // MinLOD
+        3.402823466e+38f,       // MaxLOD
+        0,                      // ShaderRegister
+        0,                      // RegisterSpace
+        RALShaderVisibility::Pixel
+    );
+    
+    std::vector<RALStaticSampler> staticSamplers = { staticSampler };
+
+    // 使用DX12Renderer的CreateRootSignature方法创建根签名
+    IRALRootSignature* rootSignaturePtr = pRender->CreateRootSignature(
+        rootParameters,
+        staticSamplers,
+        RALRootSignatureFlags::AllowInputAssemblerInputLayout
+    );
+    
+    if (!rootSignaturePtr) {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create root signature");
         return false;
     }
     
-    // 存储根签名的副本（需要先确保std::unique_ptr可以被复制，或者使用std::shared_ptr）
-    // 注意：std::unique_ptr不能被复制，只能被移动
-    // 由于我们需要在Scene中保留根签名，同时也需要传递给渲染器，我们需要重新设计这部分代码
+    // 保存根签名到成员变量
+    m_rootSignature = rootSignaturePtr;
     
-    // 方法1：使用std::shared_ptr代替std::unique_ptr（需要修改接口）
-    // 方法2：让渲染器自己创建并管理根签名（不推荐，因为我们已经将逻辑移到了Scene）
-    // 方法3：不存储在Scene中，直接传递给渲染器
+    logDebug("[DEBUG] Scene::Initialize succeeded: root signature created and stored");
     
-    // 我们选择方法3，因为这是最简单的解决方案
-    logDebug("[DEBUG] Scene::Initialize succeeded: root signature created");
-    
-    // 将根签名设置回渲染器
-    pRender->SetRootSignature(rootSignature);
-    logDebug("[DEBUG] Scene::Initialize: root signature set to renderer");
+    // 定义着色器代码
+    const char* vertexShaderCode = ""
+        "struct VS_INPUT {\n"
+        "    float3 pos : POSITION;\n"
+        "    float3 normal : NORMAL;\n"
+        "};\n"
+        "struct VS_OUTPUT {\n"
+        "    float4 pos : SV_POSITION;\n"
+        "    float3 normal : NORMAL;\n"
+        "    float3 worldPos : WORLD_POS;\n"
+        "};\n"
+        "cbuffer ConstantBuffer : register(b0) {\n"
+        "    float4x4 worldViewProj;\n"
+        "    float4x4 world;\n"
+        "};\n"
+        "VS_OUTPUT main(VS_INPUT input) {\n"
+        "    VS_OUTPUT output;\n"
+        "    output.pos = mul(float4(input.pos, 1.0f), worldViewProj);\n"
+        "    output.worldPos = mul(float4(input.pos, 1.0f), world).xyz;\n"
+        "    // Directly transform normal with world matrix since we don't have non-uniform scaling\n"
+        "    float3x3 worldMat = (float3x3)world;\n"
+        "    output.normal = mul(input.normal, worldMat);\n"
+        "    // Ensure normal is normalized for correct lighting\n"
+        "    output.normal = normalize(output.normal);\n"
+        "    return output;\n"
+        "}";
+
+    const char* pixelShaderCode = ""
+        "struct PS_INPUT {\n"
+        "    float4 pos : SV_POSITION;\n"
+        "    float3 normal : NORMAL;\n"
+        "    float3 worldPos : WORLD_POS;\n"
+        "};\n"
+        "cbuffer MaterialBuffer : register(b0) {\n"
+        "    float4 diffuseColor;\n"
+        "    float3 lightPos;\n"
+        "    float3 lightColor;\n"
+        "};\n"
+        "float4 main(PS_INPUT input) : SV_TARGET {\n"
+        "    float3 normal = normalize(input.normal);\n"
+        "    float3 lightDir = normalize(lightPos - input.worldPos);\n"
+        "    float3 viewDir = normalize(float3(0, 0, 5) - input.worldPos);\n"
+        "    float3 halfVec = normalize(lightDir + viewDir);\n"
+        "    \n"
+        "    float diffuse = max(dot(normal, lightDir), 0.0f);\n"
+        "    float specular = pow(max(dot(normal, halfVec), 0.0f), 32.0f);\n"
+        "    \n"
+        "    float3 ambient = float3(0.2f, 0.2f, 0.2f);\n"
+        "    float3 finalColor = ambient + diffuse * diffuseColor.rgb * lightColor + specular * lightColor;\n"
+        "    \n"
+        "    return float4(finalColor, diffuseColor.a);\n"
+        "}";
+
+    // 编译着色器
+    m_vertexShader = pRender->CompileVertexShader(vertexShaderCode, "main");
+    if (!m_vertexShader.Get()) {
+        logDebug("[DEBUG] Scene::Initialize failed: failed to compile vertex shader");
+        return false;
+    }
+
+    m_pixelShader = pRender->CompilePixelShader(pixelShaderCode, "main");
+    if (!m_pixelShader.Get()) {
+        logDebug("[DEBUG] Scene::Initialize failed: failed to compile pixel shader");
+        return false;
+    }
+
+    logDebug("[DEBUG] Scene::Initialize succeeded: shaders compiled and stored");
     
     return true;
 }

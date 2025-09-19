@@ -2,6 +2,8 @@
 #define SCENE_H
 
 #include "Primitive.h"
+#include "TSharePtr.h"
+#include "RALResource.h"
 #include <vector>
 #include <memory>
 #include <DirectXMath.h>
@@ -104,6 +106,13 @@ private:
     // 光源属性
     dx::XMFLOAT4 lightPosition = {10.0f, 10.0f, 10.0f, 1.0f}; // 默认光源位置
     dx::XMFLOAT4 lightColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
+
+    // 根签名对象
+    TSharePtr<IRALRootSignature> m_rootSignature;
+
+    // 着色器对象
+    TSharePtr<IRALVertexShader> m_vertexShader;
+    TSharePtr<IRALPixelShader> m_pixelShader;
 };
 
 #endif // SCENE_H

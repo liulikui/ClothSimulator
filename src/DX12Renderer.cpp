@@ -1238,8 +1238,7 @@ static inline D3D12_ROOT_SIGNATURE_FLAGS ConvertToD3D12RootSignatureFlags(RALRoo
 
 // 创建根签名
 IRALRootSignature* DX12Renderer::CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
-    const std::vector<RALStaticSampler>& staticSamplers,
-    RALRootSignatureFlags flags)
+    const std::vector<RALStaticSampler>& staticSamplers, RALRootSignatureFlags flags)
 {
     logDebug("[DEBUG] DX12Renderer::CreateRootSignature called with RALRootParameter");
     
@@ -1333,59 +1332,6 @@ IRALRootSignature* DX12Renderer::CreateRootSignature(const std::vector<RALRootPa
     static_cast<DX12RALRootSignature*>(ralRootSignature)->SetNativeRootSignature(d3d12RootSignature.Get());
     
     return ralRootSignature;
-}
-
-// 创建并获取根签名
-TSharePtr<IRALRootSignature> DX12Renderer::CreateAndGetRootSignature()
-{
-    logDebug("[DEBUG] DX12Renderer::CreateAndGetRootSignature called");
-    
-    // 定义根参数（使用跨平台封装类型）
-    std::vector<RALRootParameter> rootParameters(2);
-
-    // 根参数0: 常量缓冲区视图（变换矩阵）
-    InitAsConstantBufferView(rootParameters[0], 0, 0, RALShaderVisibility::Vertex);
-
-    // 根参数1: 常量缓冲区视图（材质和光照）
-    InitAsConstantBufferView(rootParameters[1], 0, 0, RALShaderVisibility::Pixel);
-
-    // 定义静态采样器（使用跨平台封装类型）
-    RALStaticSampler staticSampler;
-    InitStaticSampler(
-        staticSampler,
-        RALFilter::MinMagMipLinear,
-        RALTextureAddressMode::Wrap,
-        RALTextureAddressMode::Wrap,
-        RALTextureAddressMode::Wrap,
-        0.0f,                   // MipLODBias
-        1,                      // MaxAnisotropy
-        RALComparisonFunc::Always,
-        RALStaticBorderColor::TransparentBlack,
-        0.0f,                   // MinLOD
-        D3D12_FLOAT32_MAX,      // MaxLOD
-        0,                      // ShaderRegister
-        0,                      // RegisterSpace
-        RALShaderVisibility::Pixel
-    );
-    
-    std::vector<RALStaticSampler> staticSamplers = { staticSampler };
-
-    // 使用新的CreateRootSignature方法创建根签名
-    TSharePtr<IRALRootSignature> rootSignature(CreateRootSignature(
-        rootParameters,
-        staticSamplers,
-        RALRootSignatureFlags::AllowInputAssemblerInputLayout
-    ));
-
-    if (!rootSignature)
-    {
-        logDebug("[DEBUG] Failed to create root signature using CreateRootSignature method");
-        return TSharePtr<IRALRootSignature>();
-    }
-    
-    logDebug("[DEBUG] Root signature created successfully using CreateRootSignature method");
-    
-    return rootSignature;
 }
 
 // 前向声明
