@@ -179,7 +179,8 @@ bool Cloth::Initialize(DX12Renderer* renderer)
     size_t vertexBufferSize = vertexData.size() * sizeof(float);
     m_vertexBuffer = renderer->CreateVertexBuffer(
         vertexBufferSize,
-        6 * sizeof(float) // 顶点 stride（3个位置分量 + 3个法线分量）
+        6 * sizeof(float),// 顶点 stride（3个位置分量 + 3个法线分量）
+        true
     );
 
     if (!m_vertexBuffer)
@@ -190,8 +191,9 @@ bool Cloth::Initialize(DX12Renderer* renderer)
     // 创建索引缓冲区
     size_t indexBufferSize = m_indices.size() * sizeof(uint32_t);
     m_indexBuffer = renderer->CreateIndexBuffer(
-        indexBufferSize,
-        true // 32位索引
+        m_indices.size(),
+        true, // 32位索引
+        true
     );
 
     if (!m_indexBuffer)

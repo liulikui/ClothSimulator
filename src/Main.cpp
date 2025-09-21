@@ -86,9 +86,10 @@ float lastFrame = 0.0f;
 void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up);
 
 // 布料、渲染器和场景对象
-std::shared_ptr<Cloth> cloth = nullptr;
 DX12Renderer* renderer = nullptr;
 Scene* scene = nullptr;
+Sphere* sphere = nullptr;
+Cloth* cloth = nullptr;
 
 // 窗口过程函数
 LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lParam)
@@ -462,16 +463,29 @@ void Cleanup()
     // 清理场景对象
     if (scene)
     {
-        delete scene;
-        scene = nullptr;
+        scene->Clear();
     }
     
     // 清理布料对象
     if (cloth)
     {
+        delete cloth;
+        cloth = nullptr;
+    }
+
+    if (sphere)
+    {
+        delete sphere;
         cloth = nullptr;
     }
     
+    // 清理场景对象
+    if (scene)
+    {
+        delete scene;
+        scene = nullptr;
+    }
+
     // 清理渲染器
     if (renderer)
     {
@@ -569,13 +583,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
 
-    cloth = std::make_shared<Cloth>(dx::XMFLOAT3(-5.0f, 5.0f, -5.0f), 40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
+    cloth = new Cloth(dx::XMFLOAT3(-5.0f, 5.0f, -5.0f), 40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
     
     // 默认启用XPBD碰撞约束
     cloth->SetUseXPBDCollision(true);
     
     // 设置布料的材质颜色（蓝色）
-    cloth->SetDiffuseColor(dx::XMFLOAT4(0.3f, 0.5f, 1.0f, 1.0f));
+    cloth->SetDiffuseColor(dx::XMFLOAT3(0.3f, 0.5f, 1.0f));
 
 	cloth->Initialize(renderer);
 
@@ -587,10 +601,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 创建并初始化球体对象
     std::cout << "Creating sphere object..." << std::endl;
-    auto sphere = std::make_shared<Sphere>(dx::XMFLOAT3(0.0f, 0.0f, 0.0f), 2.0f, 32, 32);
+    sphere = new Sphere(dx::XMFLOAT3(0.0f, 0.0f, 0.0f), 2.0f, 32, 32);
     
     // 设置球体的材质颜色（红色）
-    sphere->SetDiffuseColor(dx::XMFLOAT4(1.0f, 0.3f, 0.3f, 1.0f));
+    sphere->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
     
     // 设置球体的世界矩阵
     sphere->SetPosition(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));

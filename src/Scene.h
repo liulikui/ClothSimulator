@@ -14,7 +14,8 @@ class DX12Renderer;
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-class Scene {
+class Scene
+{
 public:
     // 构造函数
     Scene();
@@ -49,23 +50,17 @@ public:
     //   primitive - 要添加的Primitive对象指针
     // 返回值：
     //   添加是否成功
-    bool AddPrimitive(std::shared_ptr<Primitive> primitive);
+    bool AddPrimitive(Primitive* primitive);
 
     // 从场景中移除一个Primitive对象
     // 参数：
     //   primitive - 要移除的primitive对象指针
     // 返回值：
     //   移除是否成功
-    bool RemovePrimitive(std::shared_ptr<Primitive> primitive);
+    bool RemovePrimitive(Primitive* primitive);
 
     // 清空场景中的所有对象
     void Clear();
-
-    // 获取场景中的所有Primitive对象
-    const std::vector<std::shared_ptr<Primitive>>& GetPrimitives() const
-    {
-        return m_primitives;
-    }
 
     // 设置场景的背景颜色
     void SetBackgroundColor(const dx::XMFLOAT4& color)
@@ -104,11 +99,27 @@ public:
     }
 
 private:
-    void UpdateUniformBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    struct PrimitiveInfo
+    {
+        Primitive* primitive;
+        dx::XMMATRIX worldMatrix;
+        bool visible;
+        dx::XMFLOAT3 diffuseColor;
+        TSharePtr<IRALVertexBuffer> vertexBuffer;
+        TSharePtr<IRALIndexBuffer> indexBuffer;
+        TSharePtr<IRALConstBuffer> constBuffer;
+    };
+
+    void UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+	void UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo);
 
 private:
+    DX12Renderer* m_render;
+
+   
+
     // 场景中的所有Mesh对象
-    std::vector<std::shared_ptr<Primitive>> m_primitives;
+    std::vector<PrimitiveInfo> m_primitives;
 
     // 场景的背景颜色
     dx::XMFLOAT4 m_backgroundColor = {0.9f, 0.9f, 0.9f, 1.0f}; // 默认浅灰色背景

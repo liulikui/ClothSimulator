@@ -12,6 +12,7 @@ namespace dx = DirectX;
 class IRALGraphicsCommandList;
 class IRALVertexBuffer;
 class IRALIndexBuffer;
+class IRALConstBuffer;
 
 class Primitive
 {
@@ -61,6 +62,16 @@ public:
     // 获取IndexBuffer
     virtual IRALIndexBuffer* GetIndexBuffer() const = 0;
 
+    void SetDiffuseColor(const dx::XMFLOAT3& color)
+    {
+        diffuseColor = color;
+	}
+
+    const dx::XMFLOAT3& GetDiffuseColor() const
+    {
+        return diffuseColor;
+	}
+
 protected:
     // 世界变换矩阵
     dx::XMMATRIX worldMatrix = dx::XMMatrixIdentity();
@@ -71,7 +82,7 @@ protected:
     dx::XMFLOAT3 scale = {1.0f, 1.0f, 1.0f};
 
     // 材质颜色
-    dx::XMFLOAT4 diffuseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+    dx::XMFLOAT3 diffuseColor = {1.0f, 1.0f, 1.0f};
 
     // 是否可见
     bool visible = true;

@@ -91,10 +91,10 @@ public:
     IRALGraphicsCommandList* CreateGraphicsCommandList();
 
     // 创建顶点缓冲区
-    IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic = true);
+    IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic);
 
     // 创建索引缓冲区
-    IRALIndexBuffer* CreateIndexBuffer(uint32_t size, bool is32BitIndex = true, bool isStatic = true);
+    IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic);
 
     // 创建常量缓冲区
     IRALConstBuffer* CreateConstBuffer(uint32_t size);
@@ -141,8 +141,6 @@ private:
     // 设备和交换链
     ComPtr<ID3D12Device> m_device;                    // D3D12设备
     
-    // 根签名
-    TSharePtr<IRALRootSignature> m_rootSignature;
     ComPtr<IDXGIFactory6> m_factory;                  // DXGI工厂
     ComPtr<IDXGISwapChain4> m_swapChain;              // 交换链
     uint32_t m_backBufferCount = 2;                            // 后缓冲区数量

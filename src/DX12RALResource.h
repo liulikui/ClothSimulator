@@ -656,8 +656,8 @@ protected:
 class DX12RALIndexBuffer : public IRALIndexBuffer
 {
 public:
-	DX12RALIndexBuffer(uint64_t size, bool is32BitIndex)
-		: IRALIndexBuffer(size, is32BitIndex)
+	DX12RALIndexBuffer(uint32_t count, uint32_t size, bool is32BitIndex)
+		: IRALIndexBuffer(count, size, is32BitIndex)
 	{
 	}
 

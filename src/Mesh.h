@@ -22,18 +22,6 @@ public:
     
     // 获取索引数据
     virtual const std::vector<uint32_t>& GetIndices() const = 0;
-    
-    // 获取对象的材质颜色
-    const dx::XMFLOAT4& GetDiffuseColor() const 
-    {
-        return diffuseColor;
-    }
-    
-    // 设置对象的材质颜色
-    void SetDiffuseColor(const dx::XMFLOAT4& color)
-    {
-        diffuseColor = color;
-    }
 };
 
 #endif // MESH_H

@@ -22,6 +22,13 @@ struct SceneConstBuffer
     dx::XMFLOAT4 lightSpecularColor; // 光源高光颜色
 };
 
+struct ObjectConstBuffer
+{
+    dx::XMFLOAT4X4 World;           // 世界矩阵
+    dx::XMFLOAT3 diffuseColor;      // 漫反射颜色
+    float padding1;                 // 4字节对齐填充
+};
+
 Scene::Scene()
 {
     // 初始化场景
@@ -35,6 +42,8 @@ bool Scene::Initialize(DX12Renderer* pRender)
         logDebug("[DEBUG] Scene::Initialize failed: renderer is null");
         return false;
     }
+
+    m_render = pRender;
     
     logDebug("[DEBUG] Scene::Initialize called");
     
@@ -281,36 +290,37 @@ Scene::~Scene()
 void Scene::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 {
     // 更新场景中所有可见对象的状态
-    for (auto& primitive : m_primitives) 
+    for (auto& primitiveInfo : m_primitives) 
     {
-        if (primitive && primitive->IsVisible())
+        if (primitiveInfo.primitive && primitiveInfo.visible)
         {
-            primitive->Update(commandList, deltaTime);
+            primitiveInfo.primitive->Update(commandList, deltaTime);
         }
      }
 }
 
 void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
-    UpdateUniformBuffer(commandList, viewMatrix, projectionMatrix);
+    UpdateSceneConstBuffer(commandList, viewMatrix, projectionMatrix);
 
     // 设置管道签名
     commandList->SetGraphicsRootSignature(m_rootSignature.Get());
-
+    // 设置管线状态
+    commandList->SetPipelineState(m_pipelineState.Get());
     // 设置根参数0（变换矩阵常量缓冲区）
     commandList->SetGraphicsRootConstantBuffer(0, m_constBuffer.Get());
 
     // 渲染每个可见的Primitive对象
     for (size_t i = 0; i < m_primitives.size(); ++i)
     {
-        auto& primitive = m_primitives[i];
+        auto& primitiveInfo = m_primitives[i];
 
-        if (primitive && primitive->IsVisible())
+        if (primitiveInfo.primitive && primitiveInfo.visible)
         {
             // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
-            const dx::XMMATRIX& worldMatrix = primitive->GetWorldMatrix();
-			IRALVertexBuffer* vertexBuffer = primitive->GetVertexBuffer();
-			IRALIndexBuffer* indexBuffer = primitive->GetIndexBuffer();
+            const dx::XMMATRIX& worldMatrix = primitiveInfo.worldMatrix;
+			IRALVertexBuffer* vertexBuffer = primitiveInfo.vertexBuffer.Get();
+			IRALIndexBuffer* indexBuffer = primitiveInfo.indexBuffer.Get();
 
             if (vertexBuffer == nullptr || indexBuffer == nullptr)
             {
@@ -321,6 +331,14 @@ void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
             commandList->SetIndexBuffer(indexBuffer);
             // 设置图元拓扑
             commandList->SetPrimitiveTopology(RALPrimitiveTopologyType::TriangleList);
+
+			UpdatePrimitiveConstBuffer(commandList, &primitiveInfo);
+
+            // 设置根参数1（对象常量缓冲区）
+            commandList->SetGraphicsRootConstantBuffer(1, primitiveInfo.constBuffer.Get());
+            
+            // 绘制对象
+			commandList->DrawIndexed(indexBuffer->GetIndexCount(), 1, 0, 0, 0);
 
     //        // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
     //        if (typeid(*mesh) == typeid(Cloth))
@@ -341,38 +359,51 @@ void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
     }
 }
 
-bool Scene::AddPrimitive(std::shared_ptr<Primitive> primitive) {
+bool Scene::AddPrimitive(Primitive* primitive)
+{
     if (!primitive)
     {
         return false;
     }
 
     // 检查对象是否已经在场景中
-    auto it = std::find(m_primitives.begin(), m_primitives.end(), primitive);
-
-    if (it != m_primitives.end())
+    for (std::vector<PrimitiveInfo>::iterator iter = m_primitives.begin(); iter != m_primitives.end(); ++iter)
     {
-        return false;
+        if (iter->primitive == primitive)
+        {
+            return false;
+        }
     }
+    
+    PrimitiveInfo primitiveInfo;
+    primitiveInfo.primitive = primitive;
+    primitiveInfo.worldMatrix = primitive->GetWorldMatrix();
+    primitiveInfo.vertexBuffer = primitive->GetVertexBuffer();
+    primitiveInfo.indexBuffer = primitive->GetIndexBuffer();
+    primitiveInfo.visible = primitive->IsVisible();
+	primitiveInfo.diffuseColor = primitive->GetDiffuseColor();
+    primitiveInfo.constBuffer = m_render->CreateConstBuffer(sizeof(ObjectConstBuffer));
 
     // 添加对象到场景中
-    m_primitives.push_back(std::shared_ptr<Primitive>(primitive));
+    m_primitives.push_back(primitiveInfo);
 
     return true;
 }
 
-bool Scene::RemovePrimitive(std::shared_ptr<Primitive> primitive) {
+bool Scene::RemovePrimitive(Primitive* primitive) {
     if (!primitive)
     {
         return false;
     }
 
-    // 查找并移除对象
-    auto it = std::find(m_primitives.begin(), m_primitives.end(), primitive);
-
-    if (it != m_primitives.end()) {
-        m_primitives.erase(it);
-        return true;
+    /// 检查对象是否已经在场景中
+    for (std::vector<PrimitiveInfo>::iterator iter = m_primitives.begin(); iter != m_primitives.end(); ++iter)
+    {
+        if (iter->primitive == primitive)
+        {
+            m_primitives.erase(iter);
+            return true;
+        }
     }
 
     return false;
@@ -384,7 +415,7 @@ void Scene::Clear()
     m_primitives.clear();
 }
 
-void Scene::UpdateUniformBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
+void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
     // 计算视图-投影矩阵
     dx::XMMATRIX viewProjMatrix = viewMatrix * projectionMatrix;
@@ -397,6 +428,20 @@ void Scene::UpdateUniformBuffer(IRALGraphicsCommandList* commandList, const dx::
     data.lightDiffuseColor = m_lightDiffuseColor;
     data.lightSpecularColor = m_lightSpecularColor;
     data.padding1 = 0.0f;
+
+    // 映射并更新缓冲区
+    void* mappedData = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    m_constBuffer->Map(&mappedData);
+    memcpy(mappedData, &data, sizeof(SceneConstBuffer));
+    m_constBuffer->Unmap();
+}
+
+void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo)
+{
+    ObjectConstBuffer data;
+    dx::XMStoreFloat4x4(&data.World, dx::XMMatrixTranspose(primitiveInfo->worldMatrix));
+    data.diffuseColor = primitiveInfo->diffuseColor;
 
     // 映射并更新缓冲区
     void* mappedData = nullptr;

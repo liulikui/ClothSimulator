@@ -644,20 +644,26 @@ public:
 class IRALIndexBuffer : public IRALBuffer
 {
 public:
-	IRALIndexBuffer(uint32_t size, bool is32BitIndex)
+	IRALIndexBuffer(uint32_t count, uint32_t size, bool is32BitIndex)
 		: IRALBuffer(RALResourceType::IndexBuffer, size)
+		, m_count(count)
 		, m_is32BitIndex(is32BitIndex)
 	{
 	}
 
 	virtual ~IRALIndexBuffer() = default;
 
+	uint32_t GetIndexCount() const
+	{
+		return m_count;
+	}
 	bool Is32BitIndex() const
 	{
 		return m_is32BitIndex;
 	}
 
 protected:
+	uint32_t m_count;
 	bool m_is32BitIndex;
 };
 

@@ -42,7 +42,8 @@ bool Sphere::Initialize(DX12Renderer* renderer)
     // 创建顶点缓冲区
     m_vertexBuffer = renderer->CreateVertexBuffer(
         vertexData.size(),
-        6 * sizeof(float) // 顶点 stride（3个位置分量 + 3个法线分量）
+        6 * sizeof(float),// 顶点 stride（3个位置分量 + 3个法线分量）
+        true
     );
 
     if (!m_vertexBuffer)
@@ -52,8 +53,9 @@ bool Sphere::Initialize(DX12Renderer* renderer)
 
     // 创建索引缓冲区
     m_indexBuffer = renderer->CreateIndexBuffer(
-        indices.size() * sizeof(uint32_t),
-        true // 32位索引
+        indices.size(),
+        true,// 32位索引
+        true
     );
 
     if (!m_indexBuffer)

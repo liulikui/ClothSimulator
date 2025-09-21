@@ -1813,9 +1813,11 @@ IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint32_t size, uint32_t strid
 }
 
 // 创建索引缓冲区
-IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint32_t size, bool is32BitIndex, bool isStatic) {
+IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic) {
     // 创建DX12RALIndexBuffer对象
-    DX12RALIndexBuffer* indexBuffer = new DX12RALIndexBuffer(size, is32BitIndex);
+    uint32_t size = is32BitIndex ? count * sizeof(int32_t) : count * sizeof(int16_t);
+
+    DX12RALIndexBuffer* indexBuffer = new DX12RALIndexBuffer(count, size, is32BitIndex);
 
     // 设置堆属性
     D3D12_HEAP_PROPERTIES heapProps = {};
