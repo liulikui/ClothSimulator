@@ -312,6 +312,63 @@ void DX12Renderer::CreateCommandObjects()
             throw std::runtime_error("Failed to create command allocator.");
         }
     }
+
+    // 创建复制命令队列
+    D3D12_COMMAND_QUEUE_DESC copyQueueDesc = {};
+    copyQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+    copyQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+    copyQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    copyQueueDesc.NodeMask = 0;
+
+    HRESULT hr = m_device->CreateCommandQueue(&copyQueueDesc, IID_PPV_ARGS(m_copyQueue.ReleaseAndGetAddressOf()));
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to create copy command queue.");
+    }
+
+    // 创建复制命令分配器
+    hr = m_device->CreateCommandAllocator(
+        D3D12_COMMAND_LIST_TYPE_COPY,
+        IID_PPV_ARGS(m_copyCommandAllocator.ReleaseAndGetAddressOf())
+    );
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to create copy command allocator.");
+    }
+
+    // 创建复制命令列表
+    hr = m_device->CreateCommandList(
+        0,
+        D3D12_COMMAND_LIST_TYPE_COPY,
+        m_copyCommandAllocator.Get(),
+        nullptr,
+        IID_PPV_ARGS(m_copyCommandList.ReleaseAndGetAddressOf())
+    );
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to create copy command list.");
+    }
+
+    // 初始关闭命令列表
+    hr = m_copyCommandList->Close();
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to close copy command list.");
+    }
+
+    // 创建复制围栏
+    hr = m_device->CreateFence(m_copyFenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_copyFence.ReleaseAndGetAddressOf()));
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to create copy fence.");
+    }
+
+    // 创建复制围栏事件
+    m_copyFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!m_copyFenceEvent)
+    {
+        throw std::runtime_error("Failed to create copy fence event.");
+    }
 }
 
 // 创建描述符堆
@@ -1847,6 +1904,9 @@ IRALConstBuffer* DX12Renderer::CreateConstBuffer(uint32_t size)
 
 bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size)
 {
+    // 等待之前的复制操作完成
+    WaitForCopyCompletion();
+
     // 创建上传堆
     D3D12_HEAP_PROPERTIES heapProps = {};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -1857,7 +1917,7 @@ bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t s
 
     // 创建上传缓冲区
     auto uploadBuffer = CreateBuffer(
-        size * sizeof(char),
+        size,
         D3D12_RESOURCE_FLAG_NONE,
         heapProps,
         D3D12_RESOURCE_STATE_GENERIC_READ
@@ -1867,36 +1927,26 @@ bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t s
     void* mappedData = nullptr;
     D3D12_RANGE readRange = { 0, 0 };
     uploadBuffer->Map(0, &readRange, &mappedData);
-    memcpy(mappedData, data, size * sizeof(char));
+    memcpy(mappedData, data, size);
     uploadBuffer->Unmap(0, nullptr);
 
-    // 创建一个临时的命令分配器和命令列表来执行复制操作
-    // 这样就不会影响主命令列表的状态
-    ComPtr<ID3D12CommandAllocator> tempCommandAllocator;
-    ComPtr<ID3D12GraphicsCommandList> tempCommandList;
-
-    // 创建临时命令分配器
-    HRESULT hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-        IID_PPV_ARGS(tempCommandAllocator.ReleaseAndGetAddressOf()));
-
+    // 重置复制命令分配器和命令列表
+    HRESULT hr = m_copyCommandAllocator->Reset();
     if (FAILED(hr))
     {
         return false;
     }
 
-    // 创建临时命令列表
-    hr = m_device->CreateCommandList(0,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        tempCommandAllocator.Get(),
-        nullptr,
-        IID_PPV_ARGS(tempCommandList.ReleaseAndGetAddressOf()));
-
+    hr = m_copyCommandList->Reset(
+        m_copyCommandAllocator.Get(),
+        nullptr
+    );
     if (FAILED(hr))
     {
         return false;
     }
 
-    // 记录复制命令到临时命令列表
+    // 记录复制命令到专用命令列表
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource = (ID3D12Resource*)buffer->GetNativeResource();
@@ -1904,29 +1954,64 @@ bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t s
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
 
-    tempCommandList->ResourceBarrier(1, &barrier);
+    m_copyCommandList->ResourceBarrier(1, &barrier);
 
     // 复制数据
-    tempCommandList->CopyBufferRegion(
+    m_copyCommandList->CopyBufferRegion(
         (ID3D12Resource*)buffer->GetNativeResource(),
         0,
         uploadBuffer.Get(),
         0,
-        size * sizeof(char)
+        size
     );
 
     // 转换缓冲区状态
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
 
-    tempCommandList->ResourceBarrier(1, &barrier);
+    m_copyCommandList->ResourceBarrier(1, &barrier);
 
-    // 关闭并执行临时命令列表
-    tempCommandList->Close();
-    ID3D12CommandList* ppCommandLists[] = { tempCommandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    // 关闭并执行命令列表
+    hr = m_copyCommandList->Close();
+    if (FAILED(hr))
+    {
+        return false;
+    }
+
+    ID3D12CommandList* ppCommandLists[] = { m_copyCommandList.Get() };
+    m_copyQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+    // 等待复制操作完成
+    WaitForCopyCompletion();
 
     return true;
+}
+
+// 等待复制操作完成
+void DX12Renderer::WaitForCopyCompletion()
+{
+    // 推进复制围栏值
+    uint64_t currentCopyFenceValue = ++m_copyFenceValue;
+
+    // 向复制命令队列添加围栏
+    HRESULT hr = m_copyQueue->Signal(m_copyFence.Get(), currentCopyFenceValue);
+    if (FAILED(hr))
+    {
+        throw std::runtime_error("Failed to signal copy fence.");
+    }
+
+    // 如果围栏值尚未完成，则等待
+    if (m_copyFence->GetCompletedValue() < currentCopyFenceValue)
+    {
+        hr = m_copyFence->SetEventOnCompletion(currentCopyFenceValue, m_copyFenceEvent);
+        if (FAILED(hr))
+        {
+            throw std::runtime_error("Failed to set event on copy fence completion.");
+        }
+
+        // 等待事件
+        WaitForSingleObject(m_copyFenceEvent, INFINITE);
+    }
 }
 
 // 清理资源
@@ -1934,12 +2019,20 @@ void DX12Renderer::Cleanup()
 {
     // 等待所有命令完成
     WaitForPreviousFrame();
+    WaitForCopyCompletion();
 
     // 关闭围栏事件
     if (m_fenceEvent)
     {
         CloseHandle(m_fenceEvent);
         m_fenceEvent = nullptr;
+    }
+
+    // 关闭复制围栏事件
+    if (m_copyFenceEvent)
+    {
+        CloseHandle(m_copyFenceEvent);
+        m_copyFenceEvent = nullptr;
     }
 
     // 释放资源（智能指针会自动处理）

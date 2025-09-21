@@ -129,6 +129,9 @@ private:
     // 等待前一帧完成
     void WaitForPreviousFrame();
 
+    // 等待复制操作完成
+    void WaitForCopyCompletion();
+
     // 成员变量
     uint32_t m_width;                           // 窗口宽度
     uint32_t m_height;                          // 窗口高度
@@ -145,14 +148,25 @@ private:
     uint32_t m_backBufferCount = 2;                            // 后缓冲区数量
     uint32_t m_currentBackBufferIndex = 0;                     // 当前后缓冲区索引
 
-    // 命令对象
+    // 命令对象 - 主渲染
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[2];    // 命令分配器数组
     ComPtr<ID3D12CommandQueue> m_commandQueue;            // 命令队列
 
-    // 同步对象
+    // 命令对象 - 复制专用
+    ComPtr<ID3D12CommandQueue> m_copyQueue;              // 复制命令队列
+    ComPtr<ID3D12CommandAllocator> m_copyCommandAllocator;  // 复制命令分配器
+    ComPtr<ID3D12GraphicsCommandList> m_copyCommandList; // 复制命令列表
+
+    // 同步对象 - 主渲染
     ComPtr<ID3D12Fence> m_fence;                     // 围栏
     uint64_t m_fenceValue = 0;                              // 围栏值
     HANDLE m_fenceEvent = nullptr;                        // 围栏事件
+
+    // 同步对象 - 复制专用
+    ComPtr<ID3D12Fence> m_copyFence;                 // 复制围栏
+    uint64_t m_copyFenceValue = 0;                       // 复制围栏值
+    HANDLE m_copyFenceEvent = nullptr;                   // 复制围栏事件
+
     uint32_t m_currentFrameIndex; // 当前帧索引，用于缓存
 
     // 描述符堆
