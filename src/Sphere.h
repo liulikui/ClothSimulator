@@ -30,6 +30,18 @@ public:
     // 更新球体状态
     void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
 
+    // 获取顶点缓冲区
+    virtual IRALVertexBuffer* GetVertexBuffer() const override
+    {
+        return m_vertexBuffer.Get();
+    }
+
+    // 获取索引缓冲区
+    virtual IRALIndexBuffer* GetIndexBuffer() const override
+    {
+        return m_indexBuffer.Get();
+    }
+
     // 初始化球体
     bool Initialize(DX12Renderer* renderer);
 
@@ -80,11 +92,6 @@ public:
     {
         return stacks;
     }
-
-    // 获取顶点缓冲区
-    IRALVertexBuffer* GetVertexBuffer() const { return m_vertexBuffer.Get(); }
-    // 获取索引缓冲区
-    IRALIndexBuffer* GetIndexBuffer() const { return m_indexBuffer.Get(); }
 
 private:
     // 球体参数

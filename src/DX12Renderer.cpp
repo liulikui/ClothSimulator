@@ -312,22 +312,6 @@ void DX12Renderer::CreateCommandObjects()
             throw std::runtime_error("Failed to create command allocator.");
         }
     }
-
-    // 创建命令列表
-    HRESULT hr = m_device->CreateCommandList(
-        0,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        m_commandAllocators[0].Get(), // 初始使用第一个命令分配器
-        nullptr,
-        IID_PPV_ARGS(m_commandList.ReleaseAndGetAddressOf())
-    );
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create command list.");
-    }
-
-    // 关闭命令列表（初始状态是打开的）
-    m_commandList->Close();
 }
 
 // 创建描述符堆
@@ -1709,8 +1693,23 @@ void DX12Renderer::Resize(uint32_t width, uint32_t height)
 // 创建图形命令列表
 IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList()
 {
-    // 使用当前帧的命令分配器创建图形命令列表
-    return new DX12RALGraphicsCommandList(m_device, m_commandAllocators[m_currentFrameIndex]);
+    ComPtr<ID3D12GraphicsCommandList> commandList;
+    HRESULT hr = m_device->CreateCommandList(
+        0,                                              // 节点掩码
+        D3D12_COMMAND_LIST_TYPE_DIRECT,                 // 命令列表类型
+        m_commandAllocators[m_currentFrameIndex].Get(),  // 命令分配器
+        nullptr,                                        // 初始管道状态对象
+        IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf()));
+
+    if (FAILED(hr))
+    {
+        return nullptr;
+    }
+    else
+    {
+        // 使用当前帧的命令分配器创建图形命令列表
+        return new DX12RALGraphicsCommandList(m_commandAllocators[m_currentFrameIndex].Get(), commandList.Get());
+    }
 }
 
 // 创建顶点缓冲区
@@ -1926,9 +1925,6 @@ bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t s
     tempCommandList->Close();
     ID3D12CommandList* ppCommandLists[] = { tempCommandList.Get() };
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-    // 等待命令执行完成
-    WaitForPreviousFrame();
 
     return true;
 }

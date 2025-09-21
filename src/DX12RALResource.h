@@ -100,6 +100,72 @@ inline DXGI_FORMAT toDXGIFormat(DataFormat format) {
 	}
 }
 
+// 将RAL图元拓扑转换为DX12图元拓扑
+inline D3D_PRIMITIVE_TOPOLOGY ConvertToDX12PrimitiveTopology(RALPrimitiveTopologyType topology)
+{
+	switch (topology)
+	{
+	case RALPrimitiveTopologyType::PointList:
+		return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+	case RALPrimitiveTopologyType::LineList:
+		return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+	case RALPrimitiveTopologyType::LineStrip:
+		return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+	case RALPrimitiveTopologyType::TriangleList:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	case RALPrimitiveTopologyType::TriangleStrip:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+	case RALPrimitiveTopologyType::LineListAdj:
+		return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+	case RALPrimitiveTopologyType::LineStripAdj:
+		return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
+	case RALPrimitiveTopologyType::TriangleListAdj:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
+	case RALPrimitiveTopologyType::TriangleStripAdj:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
+	default:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; // 默认使用三角形列表
+	}
+}
+
+// 将RAL资源状态转换为DX12资源状态
+inline D3D12_RESOURCE_STATES ConvertToDX12ResourceState(RALResourceState state)
+{
+	switch (state)
+	{
+	case RALResourceState::Common:
+		return D3D12_RESOURCE_STATE_COMMON;
+	case RALResourceState::VertexAndConstantBuffer:
+		return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+	case RALResourceState::IndexBuffer:
+		return D3D12_RESOURCE_STATE_INDEX_BUFFER;
+	case RALResourceState::RenderTarget:
+		return D3D12_RESOURCE_STATE_RENDER_TARGET;
+	case RALResourceState::UnorderedAccess:
+		return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	case RALResourceState::DepthWrite:
+		return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	case RALResourceState::DepthRead:
+		return D3D12_RESOURCE_STATE_DEPTH_READ;
+	case RALResourceState::ShaderResource:
+		return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case RALResourceState::StreamOut:
+		return D3D12_RESOURCE_STATE_STREAM_OUT;
+	case RALResourceState::IndirectArgument:
+		return D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+	case RALResourceState::CopyDest:
+		return D3D12_RESOURCE_STATE_COPY_DEST;
+	case RALResourceState::CopySource:
+		return D3D12_RESOURCE_STATE_COPY_SOURCE;
+	case RALResourceState::ResolveDest:
+		return D3D12_RESOURCE_STATE_RESOLVE_DEST;
+	case RALResourceState::ResolveSource:
+		return D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+	default:
+		return D3D12_RESOURCE_STATE_COMMON;
+	}
+}
+
 // DX12实现的Shader基类
 class DX12RALShader : public IRALShader
 {
@@ -478,18 +544,6 @@ protected:
 	ComPtr<ID3DBlob> m_nativeShader; // ID3D12ShaderBytecode* 或 ID3DBlob*
 };
 
-// DX12实现的Viewable资源
-class DX12RALViewableResource : public IRALViewableResource
-{
-public:
-	DX12RALViewableResource(RALResourceType type)
-		: IRALViewableResource(type)
-	{
-	}
-
-	virtual ~DX12RALViewableResource() = default;
-};
-
 // DX12实现的Texture
 class DX12RALTexture : public IRALTexture
 {
@@ -636,69 +690,6 @@ protected:
 	ComPtr<ID3D12Resource> m_nativeResource;     // ID3D12Resource*
 };
 
-// DX12实现的常量缓冲区视图
-class DX12UniformBufferView : public IRALUniformBufferView
-{
-public:
-	DX12UniformBufferView()
-		: m_bufferLocation(0)
-		, m_sizeInBytes(0)
-	{
-	}
-
-	virtual ~DX12UniformBufferView() = default;
-
-	// 设置缓冲区起始地址
-	void SetBufferLocation(uint64_t location)
-	{
-		m_bufferLocation = location;
-	}
-
-	// 获取缓冲区起始地址
-	virtual uint64_t GetBufferLocation() const override
-	{
-		return m_bufferLocation;
-	}
-
-	// 设置缓冲区大小
-	void SetSizeInBytes(uint32_t size)
-	{
-		m_sizeInBytes = size;
-	}
-
-	// 获取缓冲区大小
-	virtual uint32_t GetSizeInBytes() const override
-	{
-		return m_sizeInBytes;
-	}
-
-	// 设置原生视图
-	void SetNativeView(D3D12_CONSTANT_BUFFER_VIEW_DESC* view)
-	{
-		if (view)
-		{
-			m_nativeView = *view;
-			// 更新成员变量以保持一致性
-			m_bufferLocation = view->BufferLocation;
-			m_sizeInBytes = view->SizeInBytes;
-		}
-	}
-
-	// 获取原生视图
-	virtual void* GetNativeView() override
-	{
-		// 确保结构体内容与成员变量同步
-		m_nativeView.BufferLocation = m_bufferLocation;
-		m_nativeView.SizeInBytes = m_sizeInBytes;
-		return &m_nativeView;
-	}
-
-protected:
-	uint64_t m_bufferLocation;  // 缓冲区起始地址
-	uint32_t m_sizeInBytes;     // 缓冲区大小
-	D3D12_CONSTANT_BUFFER_VIEW_DESC m_nativeView; // D3D12_CONSTANT_BUFFER_VIEW_DESC结构体
-};
-
 // DX12实现的常量缓冲区
 class DX12RALConstBuffer : public IRALConstBuffer
 {
@@ -738,7 +729,7 @@ public:
 		return true;
 	}
 
-	virtual void Unmap()
+	virtual void Unmap() override
 	{
 		m_nativeResource->Unmap(0, nullptr);
 	}
@@ -756,45 +747,12 @@ protected:
 class DX12RALRenderTarget : public IRALRenderTarget
 {
 public:
-	DX12RALRenderTarget()
-		: m_nativeRenderTargetView(nullptr)
-		, m_width(0)
-		, m_height(0)
-		, m_format(DataFormat::Undefined)
+	DX12RALRenderTarget(uint32_t width, uint32_t height, DataFormat format)
+		: IRALRenderTarget(width, height, format)
 	{
 	}
 
 	virtual ~DX12RALRenderTarget() = default;
-
-	// 获取渲染目标宽度
-	virtual uint32_t GetWidth() const override
-	{
-		return m_width;
-	}
-
-	// 获取渲染目标高度
-	virtual uint32_t GetHeight() const override
-	{
-		return m_height;
-	}
-
-	// 获取渲染目标格式
-	virtual DataFormat GetFormat() const override
-	{
-		return m_format;
-	}
-
-	// 清除渲染目标
-	virtual void Clear(const float color[4]) override
-	{
-		// 实现将在DX12Renderer中完成
-	}
-
-	// 获取原生渲染目标视图
-	virtual void* GetNativeRenderTargetView() const override
-	{
-		return m_nativeRenderTargetView;
-	}
 
 	// 获取原生资源指针
 	void* GetNativeResource() const
@@ -814,75 +772,21 @@ public:
 		m_nativeRenderTargetView = rtv;
 	}
 
-	// 设置宽度
-	void SetWidth(uint32_t width)
-	{
-		m_width = width;
-	}
-
-	// 设置高度
-	void SetHeight(uint32_t height)
-	{
-		m_height = height;
-	}
-
-	// 设置格式
-	void SetFormat(DataFormat format)
-	{
-		m_format = format;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
 	void* m_nativeRenderTargetView;   // ID3D12DescriptorHeap中的RTV
-	uint32_t m_width;                 // 渲染目标宽度
-	uint32_t m_height;                // 渲染目标高度
-	DataFormat m_format;              // 渲染目标格式
 };
 
-// DX12实现的深度模板视图
-class DX12RALDepthStencilView : public IRALDepthStencilView
+// DX12实现的DepthStencil
+class DX12RALDepthStencil : public IRALDepthStencil
 {
 public:
-	DX12RALDepthStencilView()
-		: m_nativeDepthStencilView(nullptr)
-		, m_width(0)
-		, m_height(0)
-		, m_format(DataFormat::Undefined)
+	DX12RALDepthStencil(uint32_t width, uint32_t height, DataFormat format)
+		: IRALDepthStencil(width, height, format)
 	{
 	}
 
-	virtual ~DX12RALDepthStencilView() = default;
-
-	// 获取深度模板视图宽度
-	virtual uint32_t GetWidth() const override
-	{
-		return m_width;
-	}
-
-	// 获取深度模板视图高度
-	virtual uint32_t GetHeight() const override
-	{
-		return m_height;
-	}
-
-	// 获取深度模板视图格式
-	virtual DataFormat GetFormat() const override
-	{
-		return m_format;
-	}
-
-	// 清除深度模板视图
-	virtual void Clear(float depth, uint8_t stencil) override
-	{
-		// 实现将在DX12Renderer中完成
-	}
-
-	// 获取原生深度模板视图
-	virtual void* GetNativeDepthStencilView() const override
-	{
-		return m_nativeDepthStencilView;
-	}
+	virtual ~DX12RALDepthStencil() = default;
 
 	// 获取原生资源指针
 	void* GetNativeResource() const
@@ -893,39 +797,18 @@ public:
 	// 设置原生资源指针
 	void SetNativeResource(ID3D12Resource* resource)
 	{
-		m_nativeResource.Attach(resource);
+		m_nativeResource = resource;
 	}
 
-	// 设置原生深度模板视图
-	void SetNativeDepthStencilView(void* dsv)
+	// 设置原生渲染目标视图
+	void SetNativeRenderTargetView(void* rtv)
 	{
-		m_nativeDepthStencilView = dsv;
-	}
-
-	// 设置宽度
-	void SetWidth(uint32_t width)
-	{
-		m_width = width;
-	}
-
-	// 设置高度
-	void SetHeight(uint32_t height)
-	{
-		m_height = height;
-	}
-
-	// 设置格式
-	void SetFormat(DataFormat format)
-	{
-		m_format = format;
+		m_nativeRenderTargetView = rtv;
 	}
 
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
-	void* m_nativeDepthStencilView;   // ID3D12DescriptorHeap中的DSV
-	uint32_t m_width;                 // 深度模板视图宽度
-	uint32_t m_height;                // 深度模板视图高度
-	DataFormat m_format;              // 深度模板视图格式
+	void* m_nativeRenderTargetView;   // ID3D12DescriptorHeap中的DTV
 };
 
 // DX12实现的根签名

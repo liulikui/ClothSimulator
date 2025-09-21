@@ -16,9 +16,10 @@ struct SceneConstBuffer
     dx::XMFLOAT4X4 View;            // 世界矩阵
     dx::XMFLOAT4X4 Proj;            // 投影矩阵
     dx::XMFLOAT4X4 ViewProj;        // 视图-投影矩阵
-    dx::XMFLOAT4 lightDiffuseColor; // 光源漫反射颜色
     dx::XMFLOAT3 lightPos;          // 光源位置
     float padding1;                 // 4字节对齐填充
+    dx::XMFLOAT4 lightDiffuseColor; // 光源漫反射颜色
+    dx::XMFLOAT4 lightSpecularColor; // 光源高光颜色
 };
 
 Scene::Scene()
@@ -38,15 +39,17 @@ bool Scene::Initialize(DX12Renderer* pRender)
     logDebug("[DEBUG] Scene::Initialize called");
     
     // 定义根参数
-    std::vector<RALRootParameter> rootParameters(3);
+    std::vector<RALRootParameter> rootParameters(4);
 
-    // 根参数0: 常量缓冲区视图（变换矩阵）
+    // 根参数0: 常量缓冲区视图（场景常量）
     InitAsConstantBufferView(rootParameters[0], 0, 0, RALShaderVisibility::Vertex);
-    // 根参数1: 常量缓冲区视图（变换矩阵）
+    // 根参数1: 常量缓冲区视图（对象常量）
     InitAsConstantBufferView(rootParameters[1], 1, 0, RALShaderVisibility::Vertex);
 
-    // 根参数2: 常量缓冲区视图（材质和光照）
+    // 根参数2: 常量缓冲区视图（场景常量）
     InitAsConstantBufferView(rootParameters[2], 0, 0, RALShaderVisibility::Pixel);
+    // 根参数2: 常量缓冲区视图（对象常量）
+    InitAsConstantBufferView(rootParameters[3], 1, 0, RALShaderVisibility::Pixel);
 
     // 定义静态采样器
     RALStaticSampler staticSampler;
@@ -102,11 +105,14 @@ bool Scene::Initialize(DX12Renderer* pRender)
         "   float4x4 View;\n"
         "   float4x4 Proj;\n"
         "   float4x4 ViewProj;\n"
-        "   float4 lightDiffuseColor;\n"
         "   float3 lightPos;\n"
+        "   float3 lightDir;\n"
+        "   float4 lightDiffuseColor;\n"
+        "   float4 lightSpecularColor;\n"
         "};\n"
         "cbuffer ObjectBuffer : register(b1) {\n"
-        "    float4x4 World;\n"
+        "   float4x4 World;\n"
+        "   float4 diffuseColor;\n"
         "};\n"
         "VS_OUTPUT main(VS_INPUT input) {\n"
         "   VS_OUTPUT output;\n"
@@ -126,10 +132,18 @@ bool Scene::Initialize(DX12Renderer* pRender)
         "   float3 normal : NORMAL;\n"
         "   float3 worldPos : WORLD_POS;\n"
         "};\n"
-        "cbuffer MaterialBuffer : register(b0) {\n"
-        "   float4 diffuseColor;\n"
+        "cbuffer SceneBuffer : register(b0) {\n"
+        "   float4x4 View;\n"
+        "   float4x4 Proj;\n"
+        "   float4x4 ViewProj;\n"
         "   float3 lightPos;\n"
-        "   float3 lightColor;\n"
+        "   float3 lightDir;\n"
+        "   float4 lightDiffuseColor;\n"
+        "   float4 lightSpecularColor;\n"
+        "};\n"
+        "cbuffer ObjectBuffer : register(b1) {\n"
+        "   float4x4 World;\n"
+        "   float4 diffuseColor;\n"
         "};\n"
         "float4 main(PS_INPUT input) : SV_TARGET {\n"
         "   float3 normal = normalize(input.normal);\n"
@@ -141,7 +155,7 @@ bool Scene::Initialize(DX12Renderer* pRender)
         "   float specular = pow(max(dot(normal, halfVec), 0.0f), 32.0f);\n"
         "   \n"
         "   float3 ambient = float3(0.2f, 0.2f, 0.2f);\n"
-        "   float3 finalColor = ambient + diffuse * diffuseColor.rgb * lightColor + specular * lightColor;\n"
+        "   float3 finalColor = ambient + diffuse * diffuseColor.rgb * lightDiffuseColor + specular * lightSpecularColor;\n"
         "   \n"
         "   return float4(finalColor, diffuseColor.a);\n"
         "}";
@@ -286,39 +300,27 @@ void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
     // 设置根参数0（变换矩阵常量缓冲区）
     commandList->SetGraphicsRootConstantBuffer(0, m_constBuffer.Get());
 
-    //logDebug("[DEBUG] Scene::Render called");
+    // 渲染每个可见的Primitive对象
+    for (size_t i = 0; i < m_primitives.size(); ++i)
+    {
+        auto& primitive = m_primitives[i];
 
-    //// 渲染每个可见的Mesh对象
-    //logDebug("[DEBUG] Number of meshes in scene: " + std::to_string(m_primitives.size()));
-    //for (size_t i = 0; i < m_primitives.size(); ++i)
-    //{
-    //    auto& mesh = m_primitives[i];
-    //    logDebug("[DEBUG] Mesh " + std::to_string(i) + ": " + std::to_string(reinterpret_cast<uintptr_t>(mesh.get())));
+        if (primitive && primitive->IsVisible())
+        {
+            // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
+            const dx::XMMATRIX& worldMatrix = primitive->GetWorldMatrix();
+			IRALVertexBuffer* vertexBuffer = primitive->GetVertexBuffer();
+			IRALIndexBuffer* indexBuffer = primitive->GetIndexBuffer();
 
-    //    if (mesh && mesh->IsVisible())
-    //    {
-    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " is visible");
+            if (vertexBuffer == nullptr || indexBuffer == nullptr)
+            {
+                continue;
+            }
 
-    //        // 获取对象类型
-    //        std::string typeName = typeid(*mesh).name();
-    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " type: " + typeName);
-
-    //        // 获取对象的世界矩阵、材质颜色、顶点数据和索引数据
-    //        const dx::XMMATRIX& worldMatrix = mesh->GetWorldMatrix();
-    //        const dx::XMFLOAT4& diffuseColor = mesh->GetDiffuseColor();
-    //        const std::vector<dx::XMFLOAT3>& positions = mesh->GetPositions();
-    //        const std::vector<dx::XMFLOAT3>& normals = mesh->GetNormals();
-    //        const std::vector<uint32_t>& indices = mesh->GetIndices();
-
-    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " has " + std::to_string(positions.size()) + " positions, " +
-    //            std::to_string(normals.size()) + " normals, " + std::to_string(indices.size()) + " indices");
-
-    //        // 检查是否有有效数据
-    //        if (positions.empty() || normals.empty() || indices.empty())
-    //        {
-    //            logDebug("[DEBUG] Mesh " + std::to_string(i) + " has empty data, skipping");
-    //            continue;
-    //        }
+            commandList->SetVertexBuffers(0, 1, &vertexBuffer);
+            commandList->SetIndexBuffer(indexBuffer);
+            // 设置图元拓扑
+            commandList->SetPrimitiveTopology(RALPrimitiveTopologyType::TriangleList);
 
     //        // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
     //        if (typeid(*mesh) == typeid(Cloth))
@@ -335,23 +337,18 @@ void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
     //        {
     //            logDebug("[DEBUG] Unknown mesh type, skipping");
     //        }
-    //    }
-    //    else
-    //    {
-    //        logDebug("[DEBUG] Mesh " + std::to_string(i) + " is null or not visible");
-    //    }
-    //}
-    //logDebug("[DEBUG] Scene::Render finished");
+        }
+    }
 }
 
-bool Scene::AddPrimitive(std::shared_ptr<Mesh> mesh) {
-    if (!mesh)
+bool Scene::AddPrimitive(std::shared_ptr<Primitive> primitive) {
+    if (!primitive)
     {
         return false;
     }
 
     // 检查对象是否已经在场景中
-    auto it = std::find(m_primitives.begin(), m_primitives.end(), mesh);
+    auto it = std::find(m_primitives.begin(), m_primitives.end(), primitive);
 
     if (it != m_primitives.end())
     {
@@ -359,19 +356,19 @@ bool Scene::AddPrimitive(std::shared_ptr<Mesh> mesh) {
     }
 
     // 添加对象到场景中
-    m_primitives.push_back(std::shared_ptr<Mesh>(mesh));
+    m_primitives.push_back(std::shared_ptr<Primitive>(primitive));
 
     return true;
 }
 
-bool Scene::RemovePrimitive(std::shared_ptr<Mesh> mesh) {
-    if (!mesh)
+bool Scene::RemovePrimitive(std::shared_ptr<Primitive> primitive) {
+    if (!primitive)
     {
         return false;
     }
 
     // 查找并移除对象
-    auto it = std::find(m_primitives.begin(), m_primitives.end(), mesh);
+    auto it = std::find(m_primitives.begin(), m_primitives.end(), primitive);
 
     if (it != m_primitives.end()) {
         m_primitives.erase(it);
@@ -396,8 +393,9 @@ void Scene::UpdateUniformBuffer(IRALGraphicsCommandList* commandList, const dx::
     dx::XMStoreFloat4x4(&data.View, dx::XMMatrixTranspose(viewMatrix));
     dx::XMStoreFloat4x4(&data.Proj, dx::XMMatrixTranspose(projectionMatrix));
     dx::XMStoreFloat4x4(&data.ViewProj, dx::XMMatrixTranspose(viewProjMatrix));
-    data.lightDiffuseColor = m_lightDiffuseColor;
     data.lightPos = m_lightPosition;
+    data.lightDiffuseColor = m_lightDiffuseColor;
+    data.lightSpecularColor = m_lightSpecularColor;
     data.padding1 = 0.0f;
 
     // 映射并更新缓冲区

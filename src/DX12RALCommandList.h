@@ -38,7 +38,7 @@ class DX12RALGraphicsCommandList : public IRALGraphicsCommandList
 {
 public:
     // 构造函数和析构函数
-    DX12RALGraphicsCommandList(ComPtr<ID3D12Device> device, ComPtr<ID3D12CommandAllocator> commandAllocator);
+    DX12RALGraphicsCommandList(ID3D12CommandAllocator* dx12CommandAllocator, ID3D12GraphicsCommandList* dx12CommandList);
     virtual ~DX12RALGraphicsCommandList();
 
     // 从IRALCommandList继承的方法
@@ -49,8 +49,8 @@ public:
     virtual void* GetNativeCommandList() override;
 
     // 从IRALGraphicsCommandList继承的方法
-    virtual void ClearRenderTargetView(IRALRenderTargetView* renderTargetView, const float color[4]) override;
-    virtual void ClearDepthStencilView(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil) override;
+    virtual void ClearRenderTarget(IRALRenderTarget* renderTarget, const float color[4]) override;
+    virtual void ClearDepthStencil(IRALDepthStencil* depthStencil, float depth, uint8_t stencil) override;
     virtual void SetViewport(float x, float y, float width, float height, float minDepth, float maxDepth) override;
     virtual void SetScissorRect(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
     virtual void SetPipelineState(IRALResource* pipelineState) override;
@@ -67,13 +67,14 @@ public:
     virtual void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t startIndexLocation, int32_t baseVertexLocation, uint32_t startInstanceLocation) override;
     virtual void DrawIndirect(void* bufferLocation, uint32_t drawCount, uint32_t stride) override;
     virtual void DrawIndexedIndirect(void* bufferLocation, uint32_t drawCount, uint32_t stride) override;
-    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTargetView** renderTargetViews, IRALDepthStencilView* depthStencilView) override;
+    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTarget** renderTargets, IRALDepthStencil* depthStencil) override;
+    // 执行渲染通道
     virtual void ExecuteRenderPass(const void* renderPass, const void* framebuffer) override;
 
-protected:
-    // 辅助方法：将RAL资源状态转换为DX12资源状态
-    D3D12_RESOURCE_STATES ConvertToDX12ResourceState(RALResourceState state);
+    // 设置图元拓扑
+    virtual void SetPrimitiveTopology(RALPrimitiveTopologyType topology) override;
 
+private:
     // 成员变量
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;

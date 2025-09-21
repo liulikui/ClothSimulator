@@ -8,7 +8,8 @@
 
 namespace dx = DirectX;
 
-class Mesh : public Primitive {
+class Mesh : public Primitive 
+{
 public:
     // 虚析构函数
     virtual ~Mesh() = default;

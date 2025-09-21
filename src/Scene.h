@@ -1,7 +1,7 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include "Mesh.h"
+#include "Primitive.h"
 #include "TSharePtr.h"
 #include "RALResource.h"
 #include <vector>
@@ -44,25 +44,25 @@ public:
    //   projectionMatrix - 投影矩阵
     void Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
-    // 添加一个Mesh对象到场景中
+    // 添加一个Primitive对象到场景中
     // 参数：
-    //   mesh - 要添加的Mesh对象指针
+    //   primitive - 要添加的Primitive对象指针
     // 返回值：
     //   添加是否成功
-    bool AddPrimitive(std::shared_ptr<Mesh> mesh);
+    bool AddPrimitive(std::shared_ptr<Primitive> primitive);
 
-    // 从场景中移除一个Mesh对象
+    // 从场景中移除一个Primitive对象
     // 参数：
-    //   mesh - 要移除的Mesh对象指针
+    //   primitive - 要移除的primitive对象指针
     // 返回值：
     //   移除是否成功
-    bool RemovePrimitive(std::shared_ptr<Mesh> mesh);
+    bool RemovePrimitive(std::shared_ptr<Primitive> primitive);
 
     // 清空场景中的所有对象
     void Clear();
 
-    // 获取场景中的所有Mesh对象
-    const std::vector<std::shared_ptr<Mesh>>& GetPrimitives() const
+    // 获取场景中的所有Primitive对象
+    const std::vector<std::shared_ptr<Primitive>>& GetPrimitives() const
     {
         return m_primitives;
     }
@@ -108,7 +108,7 @@ private:
 
 private:
     // 场景中的所有Mesh对象
-    std::vector<std::shared_ptr<Mesh>> m_primitives;
+    std::vector<std::shared_ptr<Primitive>> m_primitives;
 
     // 场景的背景颜色
     dx::XMFLOAT4 m_backgroundColor = {0.9f, 0.9f, 0.9f, 1.0f}; // 默认浅灰色背景
@@ -116,6 +116,7 @@ private:
     // 光源属性
     dx::XMFLOAT3 m_lightPosition = {10.0f, 10.0f, 10.0f}; // 默认光源位置
     dx::XMFLOAT4 m_lightDiffuseColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
+    dx::XMFLOAT4 m_lightSpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };       // 默认光源颜色（白色）
 
     // 根签名对象
     TSharePtr<IRALRootSignature> m_rootSignature;

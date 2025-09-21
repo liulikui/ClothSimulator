@@ -147,7 +147,6 @@ private:
 
     // 命令对象
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[2];    // 命令分配器数组
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;      // 命令列表
     ComPtr<ID3D12CommandQueue> m_commandQueue;            // 命令队列
 
     // 同步对象

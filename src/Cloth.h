@@ -36,6 +36,18 @@ public:
     // 更新布料状态
     void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
     
+    // 获取VertexBuffer
+    virtual IRALVertexBuffer* GetVertexBuffer() const override
+    {
+        return m_vertexBuffer.Get();
+    }
+
+    // 获取IndexBuffer
+    virtual IRALIndexBuffer* GetIndexBuffer() const override
+    {
+        return m_indexBuffer.Get();
+    }
+
     // 初始化布料
     bool Initialize(DX12Renderer* renderer);
     

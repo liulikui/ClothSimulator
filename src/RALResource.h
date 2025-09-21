@@ -22,7 +22,7 @@ class IRALRayCallableShader;
 class IRALComputeShader;
 class IRALTexture;
 class IRALRenderTarget;
-class IRALDepthStencilView;
+class IRALDepthStencil;
 class IRALVertexBuffer;
 class IRALIndexBuffer;
 class IRALConstBuffer;
@@ -310,6 +310,7 @@ enum class RALResourceType
 	RayTracingPipelineState,
 	Texture,
 	RenderTarget,
+	DepthStencil,
 	Viewport,
 	RootSignature,
 
@@ -565,20 +566,6 @@ struct RALPipelineDesc
 	RALCompareOp depthCompareOp;
 };
 
-// Viewable资源
-class IRALViewableResource : public IRALResource
-{
-public:
-	IRALViewableResource(RALResourceType type) : IRALResource(type)
-	{
-	}
-	
-	virtual ~IRALViewableResource() = default;
-    
-    // 获取原生Shader resource view
-    virtual void* GetNativeShaderResourceView() const = 0;
-};
-
 enum ETextureType
 {
 	Texture2D,
@@ -589,11 +576,11 @@ enum ETextureType
 };
 
 // Texture基类
-class IRALTexture : public IRALViewableResource
+class IRALTexture : public IRALResource
 {
 public:
 	IRALTexture(ETextureType textureType)
-		: IRALViewableResource(RALResourceType::Texture)
+		: IRALResource(RALResourceType::Texture)
 		, m_textureType(textureType)
 	{
 
@@ -672,54 +659,6 @@ public:
 
 protected:
 	bool m_is32BitIndex;
-};
-
-// UniformBuffer视图接口
-class IRALUniformBufferView
-{
-public:
-	virtual ~IRALUniformBufferView() = default;
-	
-	// 获取缓冲区起始地址
-	virtual uint64_t GetBufferLocation() const = 0;
-	
-	// 获取缓冲区大小
-	virtual uint32_t GetSizeInBytes() const = 0;
-	
-	// 获取原生视图指针
-	virtual void* GetNativeView() = 0;
-};
-
-// 渲染目标视图接口
-class IRALRenderTargetView
-{
-public:
-	virtual ~IRALRenderTargetView() = default;
-	
-	// 获取原生渲染目标视图指针
-	virtual void* GetNativeRenderTargetView() const = 0;
-};
-
-// 深度模板视图接口
-class IRALDepthStencilView
-{
-public:
-	virtual ~IRALDepthStencilView() = default;
-	
-	// 获取深度模板视图宽度
-	virtual uint32_t GetWidth() const = 0;
-	
-	// 获取深度模板视图高度
-	virtual uint32_t GetHeight() const = 0;
-	
-	// 获取深度模板视图格式
-	virtual DataFormat GetFormat() const = 0;
-	
-	// 清除深度模板视图
-	virtual void Clear(float depth, uint8_t stencil) = 0;
-	
-	// 获取原生深度模板视图指针
-	virtual void* GetNativeDepthStencilView() const = 0;
 };
 
 // ConstBuffer接口
@@ -991,36 +930,78 @@ public:
 };
 
 // RenderTarget基类
-class IRALRenderTarget : public IRALViewableResource
+class IRALRenderTarget : public IRALResource
 {
 public:
-	IRALRenderTarget()
-		: IRALViewableResource(RALResourceType::RenderTarget)
+	IRALRenderTarget(uint32_t width, uint32_t height, DataFormat format)
+		: IRALResource(RALResourceType::RenderTarget)
+		, m_width(width)
+		, m_height(height)
+		, m_format(format)
 	{
 	}
 	
 	virtual ~IRALRenderTarget() = default;
 
-	// 获取渲染目标宽度
-	virtual uint32_t GetWidth() const = 0;
+	// 获取宽度
+	uint32_t GetWidth() const
+	{
+		return m_width;
+	}
 	
-	// 获取渲染目标高度
-	virtual uint32_t GetHeight() const = 0;
+	// 获取高度
+	uint32_t GetHeight() const
+	{
+		return m_height;
+	}
 	
-	// 获取渲染目标格式
-	virtual DataFormat GetFormat() const = 0;
-	
-	// 清除渲染目标
-	virtual void Clear(const float color[4]) = 0;
-	
-	// 获取原生渲染目标视图
-	virtual void* GetNativeRenderTargetView() const = 0;
-	
-	// 创建渲染目标视图
-	virtual IRALRenderTargetView* CreateRenderTargetView() = 0;
-	
-	// 创建深度模板视图
-	virtual IRALDepthStencilView* CreateDepthStencilView() = 0;
+	// 获取格式
+	DataFormat GetFormat() const
+	{
+		return m_format;
+	}
+
+protected:
+	uint32_t m_width;
+	uint32_t m_height;
+	DataFormat m_format;
 };
 
+// DepthStencil基类
+class IRALDepthStencil : public IRALResource
+{
+public:
+	IRALDepthStencil(uint32_t width, uint32_t height, DataFormat format)
+		: IRALResource(RALResourceType::DepthStencil)
+		, m_width(width)
+		, m_height(height)
+		, m_format(format)
+	{
+	}
+
+	virtual ~IRALDepthStencil() = default;
+
+	// 获取宽度
+	uint32_t GetWidth() const
+	{
+		return m_width;
+	}
+
+	// 获取高度
+	uint32_t GetHeight() const
+	{
+		return m_height;
+	}
+
+	// 获取格式
+	DataFormat GetFormat() const
+	{
+		return m_format;
+	}
+
+protected:
+	uint32_t m_width;
+	uint32_t m_height;
+	DataFormat m_format;
+};
 #endif // RALRESOURCE_H

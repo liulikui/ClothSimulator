@@ -10,6 +10,8 @@ namespace dx = DirectX;
 
 // 前向声明
 class IRALGraphicsCommandList;
+class IRALVertexBuffer;
+class IRALIndexBuffer;
 
 class Primitive
 {
@@ -52,6 +54,12 @@ public:
     {
         visible = isVisible;
     }
+
+    // 获取VertexBuffer
+    virtual IRALVertexBuffer* GetVertexBuffer() const = 0;
+
+    // 获取IndexBuffer
+    virtual IRALIndexBuffer* GetIndexBuffer() const = 0;
 
 protected:
     // 世界变换矩阵
