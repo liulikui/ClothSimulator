@@ -65,9 +65,9 @@ bool DX12Renderer::Initialize()
     return true;
 }
 
-void DX12Renderer::BeginFrame(IRALGraphicsCommandList* commandList)
+void DX12Renderer::BeginFrame()
 {
-    ID3D12GraphicsCommandList* dx12CommandList = (ID3D12GraphicsCommandList*)commandList->GetNativeCommandList();
+    ID3D12GraphicsCommandList* dx12CommandList = (ID3D12GraphicsCommandList*)m_graphicsCommandList->GetNativeCommandList();;
 
     // 获取当前后台缓冲区
     m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -99,6 +99,7 @@ void DX12Renderer::BeginFrame(IRALGraphicsCommandList* commandList)
 
     // 清除渲染目标和深度缓冲区 - 浅灰色背景
     const float clearColor[] = { 0.9f, 0.9f, 0.9f, 1.0f };
+
     dx12CommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     dx12CommandList->ClearDepthStencilView(
         m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
@@ -130,24 +131,42 @@ void DX12Renderer::BeginFrame(IRALGraphicsCommandList* commandList)
     dx12CommandList->RSSetScissorRects(1, &scissorRect);
 }
 
-void DX12Renderer::ExecuteCommandLists(uint32_t count, IRALCommandList** ppCommandList)
-{
-    if (count > 0)
-    {
-        std::vector<ID3D12CommandList*> commandLists;
-
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            IRALCommandList* pCommandList = ppCommandList[i];
-            commandLists.push_back((ID3D12CommandList*)pCommandList->GetNativeCommandList());
-        }
-
-        m_commandQueue->ExecuteCommandLists((UINT)count, commandLists.data());
-    }
-}
+//void DX12Renderer::ExecuteCommandLists(uint32_t count, IRALCommandList** ppCommandList)
+//{
+//    if (count > 0)
+//    {
+//        std::vector<ID3D12CommandList*> commandLists;
+//
+//        for (uint32_t i = 0; i < count; ++i)
+//        {
+//            IRALCommandList* pCommandList = ppCommandList[i];
+//            commandLists.push_back((ID3D12CommandList*)pCommandList->GetNativeCommandList());
+//        }
+//
+//        m_commandQueue->ExecuteCommandLists((UINT)count, commandLists.data());
+//    }
+//}
 
 void DX12Renderer::EndFrame()
 {
+    // 关闭命令列表
+    ID3D12GraphicsCommandList* commandList = (ID3D12GraphicsCommandList*)m_graphicsCommandList->GetNativeCommandList();
+
+    // 资源转换：设置渲染目标为呈现状态
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = m_backBuffers[m_currentBackBufferIndex].Get();
+    barrier.Transition.Subresource = 0;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+    commandList->ResourceBarrier(1, &barrier);
+
+    commandList->Close();
+
+    ID3D12CommandList* ppCommandLists[] = { commandList };
+
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
     // 呈现
     HRESULT presentHr = m_swapChain->Present(1, 0);
     if (FAILED(presentHr))
@@ -157,6 +176,8 @@ void DX12Renderer::EndFrame()
 
     // 等待当前帧完成
     WaitForPreviousFrame();
+
+    m_uploadingResources.clear();
 }
 
 // 创建设备和交换链
@@ -313,62 +334,25 @@ void DX12Renderer::CreateCommandObjects()
         }
     }
 
-    // 创建复制命令队列
-    D3D12_COMMAND_QUEUE_DESC copyQueueDesc = {};
-    copyQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-    copyQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-    copyQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    copyQueueDesc.NodeMask = 0;
+    ComPtr<ID3D12GraphicsCommandList> commandList;
 
-    HRESULT hr = m_device->CreateCommandQueue(&copyQueueDesc, IID_PPV_ARGS(m_copyQueue.ReleaseAndGetAddressOf()));
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create copy command queue.");
-    }
-
-    // 创建复制命令分配器
-    hr = m_device->CreateCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE_COPY,
-        IID_PPV_ARGS(m_copyCommandAllocator.ReleaseAndGetAddressOf())
-    );
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create copy command allocator.");
-    }
-
-    // 创建复制命令列表
-    hr = m_device->CreateCommandList(
+    // 创建命令列表
+    HRESULT hr = m_device->CreateCommandList(
         0,
-        D3D12_COMMAND_LIST_TYPE_COPY,
-        m_copyCommandAllocator.Get(),
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        m_commandAllocators[0].Get(), // 初始使用第一个命令分配器
         nullptr,
-        IID_PPV_ARGS(m_copyCommandList.ReleaseAndGetAddressOf())
+        IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())
     );
     if (FAILED(hr))
     {
-        throw std::runtime_error("Failed to create copy command list.");
+        throw std::runtime_error("Failed to create command list.");
     }
 
-    // 初始关闭命令列表
-    hr = m_copyCommandList->Close();
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to close copy command list.");
-    }
+    // 关闭命令列表（初始状态是打开的）
+    commandList->Close();
 
-    // 创建复制围栏
-    hr = m_device->CreateFence(m_copyFenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_copyFence.ReleaseAndGetAddressOf()));
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to create copy fence.");
-    }
-
-    // 创建复制围栏事件
-    m_copyFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    if (!m_copyFenceEvent)
-    {
-        throw std::runtime_error("Failed to create copy fence event.");
-    }
+    m_graphicsCommandList = new DX12RALGraphicsCommandList(m_commandAllocators[0].Get(), commandList.Get());
 }
 
 // 创建描述符堆
@@ -466,13 +450,18 @@ void DX12Renderer::CreateDepthStencilView()
     heapProps.CreationNodeMask = 1;
     heapProps.VisibleNodeMask = 1;
 
+    D3D12_CLEAR_VALUE depthStencilClearValue{};
+    depthStencilClearValue.Format = DXGI_FORMAT_D32_FLOAT;  // 必须与资源格式匹配
+    depthStencilClearValue.DepthStencil.Depth = 1.0f;    // 深度缓冲区默认清除值
+    depthStencilClearValue.DepthStencil.Stencil = 0;     // 模板缓冲区默认清除值
+
     // 创建深度/模板缓冲区
     HRESULT hr = m_device->CreateCommittedResource(
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
         &depthStencilDesc,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        nullptr,
+        &depthStencilClearValue,
         IID_PPV_ARGS(m_depthStencilBuffer.ReleaseAndGetAddressOf())
     );
 
@@ -1345,8 +1334,6 @@ static inline D3D12_ROOT_SIGNATURE_FLAGS ConvertToD3D12RootSignatureFlags(RALRoo
 IRALRootSignature* DX12Renderer::CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
     const std::vector<RALStaticSampler>& staticSamplers, RALRootSignatureFlags flags)
 {
-    logDebug("[DEBUG] DX12Renderer::CreateRootSignature called with RALRootParameter");
-    
     // 转换根参数
     std::vector<D3D12_ROOT_PARAMETER> d3d12RootParameters;
     d3d12RootParameters.reserve(rootParameters.size());
@@ -1680,8 +1667,8 @@ ComPtr<ID3D12Resource> DX12Renderer::CreateBuffer(size_t size, D3D12_RESOURCE_FL
     return buffer;
 }
 
-// 等待前一帧完成
-void DX12Renderer::WaitForPreviousFrame()
+// 等待操作完成
+void DX12Renderer::WaitForPreviousOperations()
 {
     // 推进围栏值
     uint64_t currentFenceValue = ++m_fenceValue;
@@ -1705,6 +1692,12 @@ void DX12Renderer::WaitForPreviousFrame()
         // 等待事件
         WaitForSingleObject(m_fenceEvent, INFINITE);
     }
+}
+
+// 等待前一帧完成
+void DX12Renderer::WaitForPreviousFrame()
+{
+    WaitForPreviousOperations();
 
     // 切换到下一帧的命令分配器
     m_currentFrameIndex = (m_currentFrameIndex + 1) % 2;
@@ -1747,30 +1740,31 @@ void DX12Renderer::Resize(uint32_t width, uint32_t height)
     // 注意：相机调整现在由Main.cpp处理
 }
 
-// 创建图形命令列表
-IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList()
-{
-    ComPtr<ID3D12GraphicsCommandList> commandList;
-    HRESULT hr = m_device->CreateCommandList(
-        0,                                              // 节点掩码
-        D3D12_COMMAND_LIST_TYPE_DIRECT,                 // 命令列表类型
-        m_commandAllocators[m_currentFrameIndex].Get(),  // 命令分配器
-        nullptr,                                        // 初始管道状态对象
-        IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf()));
-
-    if (FAILED(hr))
-    {
-        return nullptr;
-    }
-    else
-    {
-        // 使用当前帧的命令分配器创建图形命令列表
-        return new DX12RALGraphicsCommandList(m_commandAllocators[m_currentFrameIndex].Get(), commandList.Get());
-    }
-}
+//// 创建图形命令列表
+//IRALGraphicsCommandList* DX12Renderer::CreateGraphicsCommandList()
+//{
+//    ComPtr<ID3D12GraphicsCommandList> commandList;
+//    HRESULT hr = m_device->CreateCommandList(
+//        0,                                              // 节点掩码
+//        D3D12_COMMAND_LIST_TYPE_DIRECT,                 // 命令列表类型
+//        m_commandAllocators[m_currentFrameIndex].Get(),  // 命令分配器
+//        nullptr,                                        // 初始管道状态对象
+//        IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf()));
+//
+//    if (FAILED(hr))
+//    {
+//        return nullptr;
+//    }
+//    else
+//    {
+//        // 使用当前帧的命令分配器创建图形命令列表
+//        return new DX12RALGraphicsCommandList(m_commandAllocators[m_currentFrameIndex].Get(), commandList.Get());
+//    }
+//}
 
 // 创建顶点缓冲区
-IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic) {
+IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic)
+{
     // 创建DX12RALVertexBuffer对象
     DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size, stride);
 
@@ -1796,7 +1790,7 @@ IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint32_t size, uint32_t strid
     }
 
     // 设置初始状态
-    D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
@@ -1808,12 +1802,14 @@ IRALVertexBuffer* DX12Renderer::CreateVertexBuffer(uint32_t size, uint32_t strid
 
     // 设置原生资源
     vertexBuffer->SetNativeResource(d3d12Resource.Get());
+    vertexBuffer->SetResourceState(RALResourceState::VertexBuffer);
 
     return vertexBuffer;
 }
 
 // 创建索引缓冲区
-IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic) {
+IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic)
+{
     // 创建DX12RALIndexBuffer对象
     uint32_t size = is32BitIndex ? count * sizeof(int32_t) : count * sizeof(int16_t);
 
@@ -1841,7 +1837,7 @@ IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint32_t count, bool is32BitInd
     }
 
     // 设置初始状态
-    D3D12_RESOURCE_STATES initialState = isStatic ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
@@ -1853,6 +1849,7 @@ IRALIndexBuffer* DX12Renderer::CreateIndexBuffer(uint32_t count, bool is32BitInd
 
     // 设置原生资源
     indexBuffer->SetNativeResource(d3d12Resource.Get());
+    indexBuffer->SetResourceState(RALResourceState::IndexBuffer);
 
     return indexBuffer;
 }
@@ -1885,11 +1882,13 @@ IRALConstBuffer* DX12Renderer::CreateConstBuffer(uint32_t size)
 
     ComPtr<ID3D12Resource> d3d12Resource;
 
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+
     HRESULT hr = m_device->CreateCommittedResource(
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
         &desc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        initialState,
         nullptr,
         IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
     );
@@ -1900,6 +1899,7 @@ IRALConstBuffer* DX12Renderer::CreateConstBuffer(uint32_t size)
     }
 
     constBuffer->SetNativeResource(d3d12Resource.Get());
+    constBuffer->SetResourceState(RALResourceState::VertexBuffer);
 
     return constBuffer;
 }
@@ -1907,7 +1907,7 @@ IRALConstBuffer* DX12Renderer::CreateConstBuffer(uint32_t size)
 bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size)
 {
     // 等待之前的复制操作完成
-    WaitForCopyCompletion();
+    WaitForPreviousOperations();
 
     // 创建上传堆
     D3D12_HEAP_PROPERTIES heapProps = {};
@@ -1925,6 +1925,9 @@ bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t s
         D3D12_RESOURCE_STATE_GENERIC_READ
     );
 
+    // 记录下来到EndFrame之后释放
+    m_uploadingResources.push_back(uploadBuffer);
+
     // 映射上传缓冲区并复制数据
     void* mappedData = nullptr;
     D3D12_RANGE readRange = { 0, 0 };
@@ -1932,34 +1935,22 @@ bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t s
     memcpy(mappedData, data, size);
     uploadBuffer->Unmap(0, nullptr);
 
-    // 重置复制命令分配器和命令列表
-    HRESULT hr = m_copyCommandAllocator->Reset();
-    if (FAILED(hr))
-    {
-        return false;
-    }
+    ID3D12GraphicsCommandList* commandList = (ID3D12GraphicsCommandList*)m_graphicsCommandList->GetNativeCommandList();
 
-    hr = m_copyCommandList->Reset(
-        m_copyCommandAllocator.Get(),
-        nullptr
-    );
-    if (FAILED(hr))
-    {
-        return false;
-    }
+    RALResourceState oldState = buffer->GetResourceState();
 
-    // 记录复制命令到专用命令列表
+    // 记录复制命令到命令列表
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource = (ID3D12Resource*)buffer->GetNativeResource();
     barrier.Transition.Subresource = 0;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+    barrier.Transition.StateBefore = ConvertToDX12ResourceState(oldState);
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
 
-    m_copyCommandList->ResourceBarrier(1, &barrier);
+    commandList->ResourceBarrier(1, &barrier);
 
     // 复制数据
-    m_copyCommandList->CopyBufferRegion(
+    commandList->CopyBufferRegion(
         (ID3D12Resource*)buffer->GetNativeResource(),
         0,
         uploadBuffer.Get(),
@@ -1969,51 +1960,16 @@ bool DX12Renderer::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t s
 
     // 转换缓冲区状态
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+    barrier.Transition.StateAfter = ConvertToDX12ResourceState(oldState);
 
-    m_copyCommandList->ResourceBarrier(1, &barrier);
-
-    // 关闭并执行命令列表
-    hr = m_copyCommandList->Close();
-    if (FAILED(hr))
-    {
-        return false;
-    }
-
-    ID3D12CommandList* ppCommandLists[] = { m_copyCommandList.Get() };
-    m_copyQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-    // 等待复制操作完成
-    WaitForCopyCompletion();
+    commandList->ResourceBarrier(1, &barrier);
 
     return true;
 }
 
-// 等待复制操作完成
-void DX12Renderer::WaitForCopyCompletion()
+IRALGraphicsCommandList* DX12Renderer::GetGraphicsCommandList()
 {
-    // 推进复制围栏值
-    uint64_t currentCopyFenceValue = ++m_copyFenceValue;
-
-    // 向复制命令队列添加围栏
-    HRESULT hr = m_copyQueue->Signal(m_copyFence.Get(), currentCopyFenceValue);
-    if (FAILED(hr))
-    {
-        throw std::runtime_error("Failed to signal copy fence.");
-    }
-
-    // 如果围栏值尚未完成，则等待
-    if (m_copyFence->GetCompletedValue() < currentCopyFenceValue)
-    {
-        hr = m_copyFence->SetEventOnCompletion(currentCopyFenceValue, m_copyFenceEvent);
-        if (FAILED(hr))
-        {
-            throw std::runtime_error("Failed to set event on copy fence completion.");
-        }
-
-        // 等待事件
-        WaitForSingleObject(m_copyFenceEvent, INFINITE);
-    }
+    return m_graphicsCommandList.Get();
 }
 
 // 清理资源
@@ -2021,20 +1977,14 @@ void DX12Renderer::Cleanup()
 {
     // 等待所有命令完成
     WaitForPreviousFrame();
-    WaitForCopyCompletion();
+
+    m_uploadingResources.clear();
 
     // 关闭围栏事件
     if (m_fenceEvent)
     {
         CloseHandle(m_fenceEvent);
         m_fenceEvent = nullptr;
-    }
-
-    // 关闭复制围栏事件
-    if (m_copyFenceEvent)
-    {
-        CloseHandle(m_copyFenceEvent);
-        m_copyFenceEvent = nullptr;
     }
 
     // 释放资源（智能指针会自动处理）

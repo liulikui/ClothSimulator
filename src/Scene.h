@@ -22,10 +22,10 @@ public:
     
     // 初始化场景，创建根签名
     // 参数：
-    //   pRender - DX12Renderer对象指针
+    //   pRenderer - DX12Renderer对象指针
     // 返回值：
     //   初始化是否成功
-    bool Initialize(DX12Renderer* pRender);
+    bool Initialize(DX12Renderer* pRenderer);
     
     // 析构函数
     ~Scene();
@@ -36,14 +36,14 @@ public:
     }
 
     // 更新场景中所有对象的状态
-    void Update(IRALGraphicsCommandList* commandList, float deltaTime);
+    void Update(float deltaTime);
 
     // 渲染场景
    // 参数：
    //   commandList - 命令队列
    //   viewMatrix - 视图矩阵
    //   projectionMatrix - 投影矩阵
-    void Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    void Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 
     // 添加一个Primitive对象到场景中
     // 参数：
@@ -99,6 +99,11 @@ public:
     }
 
 private:
+    struct AddPrimitiveRequest
+    {
+        Primitive* primitive;
+    };
+
     struct PrimitiveInfo
     {
         Primitive* primitive;
@@ -110,13 +115,15 @@ private:
         TSharePtr<IRALConstBuffer> constBuffer;
     };
 
+    void UpdatePrimitiveRequests();
     void UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 	void UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo);
 
 private:
-    DX12Renderer* m_render;
+    DX12Renderer* m_renderer;
 
-   
+    // 添加Primitive的请求列表
+    std::vector<AddPrimitiveRequest> m_addPrimitiveRequests;
 
     // 场景中的所有Mesh对象
     std::vector<PrimitiveInfo> m_primitives;

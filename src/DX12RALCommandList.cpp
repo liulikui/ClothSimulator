@@ -12,7 +12,6 @@ DX12RALGraphicsCommandList::DX12RALGraphicsCommandList(ID3D12CommandAllocator* d
     , m_commandAllocator(dx12CommandAllocator)
     , m_commandList(dx12CommandList)
 {
-    m_commandList->Close();
 }
 
 // DX12RALGraphicsCommandList析构函数

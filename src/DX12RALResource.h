@@ -129,38 +129,26 @@ inline D3D_PRIMITIVE_TOPOLOGY ConvertToDX12PrimitiveTopology(RALPrimitiveTopolog
 }
 
 // 将RAL资源状态转换为DX12资源状态
-inline D3D12_RESOURCE_STATES ConvertToDX12ResourceState(RALResourceState state)
+static D3D12_RESOURCE_STATES ConvertToDX12ResourceState(RALResourceState state)
 {
 	switch (state)
 	{
 	case RALResourceState::Common:
 		return D3D12_RESOURCE_STATE_COMMON;
-	case RALResourceState::VertexAndConstantBuffer:
+	case RALResourceState::CopySource:
+		return D3D12_RESOURCE_STATE_COPY_SOURCE;
+	case RALResourceState::CopyDest:
+		return D3D12_RESOURCE_STATE_COPY_DEST;
+	case RALResourceState::VertexBuffer:
 		return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 	case RALResourceState::IndexBuffer:
 		return D3D12_RESOURCE_STATE_INDEX_BUFFER;
-	case RALResourceState::RenderTarget:
-		return D3D12_RESOURCE_STATE_RENDER_TARGET;
-	case RALResourceState::UnorderedAccess:
-		return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-	case RALResourceState::DepthWrite:
-		return D3D12_RESOURCE_STATE_DEPTH_WRITE;
-	case RALResourceState::DepthRead:
-		return D3D12_RESOURCE_STATE_DEPTH_READ;
 	case RALResourceState::ShaderResource:
 		return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	case RALResourceState::StreamOut:
-		return D3D12_RESOURCE_STATE_STREAM_OUT;
-	case RALResourceState::IndirectArgument:
-		return D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
-	case RALResourceState::CopyDest:
-		return D3D12_RESOURCE_STATE_COPY_DEST;
-	case RALResourceState::CopySource:
-		return D3D12_RESOURCE_STATE_COPY_SOURCE;
-	case RALResourceState::ResolveDest:
-		return D3D12_RESOURCE_STATE_RESOLVE_DEST;
-	case RALResourceState::ResolveSource:
-		return D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+	case RALResourceState::RenderTarget:
+		return D3D12_RESOURCE_STATE_RENDER_TARGET;
+	case RALResourceState::DepthStencil:
+		return D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	default:
 		return D3D12_RESOURCE_STATE_COMMON;
 	}

@@ -23,12 +23,11 @@ class Cloth : public Mesh
 public:
     // 构造函数：创建一个布料对象
     // 参数：
-    //   position - 布料左下角的初始位置
     //   width - 布料宽度方向的粒子数
     //   height - 布料高度方向的粒子数
     //   size - 布料的实际物理尺寸（以米为单位）
     //   mass - 每个粒子的质量
-    Cloth(const dx::XMFLOAT3& position, int width, int height, float size, float mass);
+    Cloth(int width, int height, float size, float mass);
     
     // 析构函数
     ~Cloth() override;
@@ -36,21 +35,15 @@ public:
     // 更新布料状态
     void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
     
-    // 获取VertexBuffer
-    virtual IRALVertexBuffer* GetVertexBuffer() const override
-    {
-        return m_vertexBuffer.Get();
-    }
-
-    // 获取IndexBuffer
-    virtual IRALIndexBuffer* GetIndexBuffer() const override
-    {
-        return m_indexBuffer.Get();
-    }
-
     // 初始化布料
     bool Initialize(DX12Renderer* renderer);
     
+    // 初始化Mesh
+    virtual void OnSetupMesh(DX12Renderer* render, PrimitiveMesh& mesh) override;
+
+    // Update Mesh
+    virtual void OnUpdateMesh(DX12Renderer* renderer, PrimitiveMesh& mesh) override;
+
     // 获取布料的所有粒子
     const std::vector<Particle>& GetParticles() const
     {
@@ -139,16 +132,19 @@ public:
     // 获取布料的索引数据
     const std::vector<uint32_t>& GetIndices() const override { return m_indices; }
 
+    // 初始化球体碰撞约束（一次性创建，避免每次重建）
+    void InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
+
 private:
     // 创建布料的粒子
-    void CreateParticles(const dx::XMFLOAT3& position, float size, float mass);
+    void CreateParticles(float size, float mass);
     
     // 创建布料的约束
     void CreateConstraints(float size);
-    
-    // 初始化球体碰撞约束（一次性创建，避免每次重建）
-    void InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
-    
+
+    // 计算法线
+    void ComputeNormals();
+
     // 布料的尺寸参数
     int m_width; // 宽度方向的粒子数
     int m_height; // 高度方向的粒子数
@@ -170,10 +166,6 @@ private:
     std::vector<dx::XMFLOAT3> m_positions; // 布料顶点位置数据
     std::vector<dx::XMFLOAT3> m_normals; // 布料顶点法线数据
     std::vector<uint32_t> m_indices; // 布料索引数据
-    
-    // 渲染资源
-    TSharePtr<IRALVertexBuffer> m_vertexBuffer;
-    TSharePtr<IRALIndexBuffer> m_indexBuffer;
 };
 
 #endif // CLOTH_H

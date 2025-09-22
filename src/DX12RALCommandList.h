@@ -76,7 +76,6 @@ public:
 
 private:
     // 成员变量
-    ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
 };

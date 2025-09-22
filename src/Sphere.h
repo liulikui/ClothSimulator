@@ -15,12 +15,10 @@ class Sphere : public Mesh {
 public:
     // 构造函数：创建一个球体对象
     // 参数：
-    //   center - 球体中心位置
     //   radius - 球体半径
     //   sectors - 球体的经度分段数
     //   stacks - 球体的纬度分段数
-    Sphere(const dx::XMFLOAT3& center = dx::XMFLOAT3(0.0f, 0.0f, 0.0f),
-           float radius = 1.0f,
+    Sphere(float radius = 1.0f,
            uint32_t sectors = 32,
            uint32_t stacks = 32);
 
@@ -30,20 +28,11 @@ public:
     // 更新球体状态
     void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
 
-    // 获取顶点缓冲区
-    virtual IRALVertexBuffer* GetVertexBuffer() const override
-    {
-        return m_vertexBuffer.Get();
-    }
-
-    // 获取索引缓冲区
-    virtual IRALIndexBuffer* GetIndexBuffer() const override
-    {
-        return m_indexBuffer.Get();
-    }
-
     // 初始化球体
     bool Initialize(DX12Renderer* renderer);
+
+    // 初始化Mesh
+    virtual void OnSetupMesh(DX12Renderer* render, PrimitiveMesh& mesh) override;
 
     // 获取球体的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override
@@ -104,10 +93,6 @@ private:
     std::vector<dx::XMFLOAT3> positions; // 顶点位置数据
     std::vector<dx::XMFLOAT3> normals;   // 顶点法线数据
     std::vector<uint32_t> indices;       // 索引数据
-
-    // 渲染资源
-    TSharePtr<IRALVertexBuffer> m_vertexBuffer;
-    TSharePtr<IRALIndexBuffer> m_indexBuffer;
 
     // 生成球体的顶点和索引数据
     void GenerateSphereData();

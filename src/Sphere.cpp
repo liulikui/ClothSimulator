@@ -5,12 +5,9 @@
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-Sphere::Sphere(const dx::XMFLOAT3& center, float radius, uint32_t sectors, uint32_t stacks)
-    : center(center), radius(radius), sectors(sectors), stacks(stacks)
+Sphere::Sphere(float radius, uint32_t sectors, uint32_t stacks)
+    : radius(radius), sectors(sectors), stacks(stacks)
 {
-    // 设置球体的位置
-    SetPosition(center);
-    
     // 生成球体数据
     GenerateSphereData();
 }
@@ -28,6 +25,11 @@ bool Sphere::Initialize(DX12Renderer* renderer)
         return false;
     }
 
+    return true;
+}
+
+void Sphere::OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+{
     // 创建顶点数据（位置 + 法线）
     std::vector<uint8_t> vertexData(positions.size() * sizeof(dx::XMFLOAT3) * 2);
     for (size_t i = 0; i < positions.size(); ++i)
@@ -40,42 +42,24 @@ bool Sphere::Initialize(DX12Renderer* renderer)
     }
 
     // 创建顶点缓冲区
-    m_vertexBuffer = renderer->CreateVertexBuffer(
+    mesh.vertexBuffer = renderer->CreateVertexBuffer(
         vertexData.size(),
         6 * sizeof(float),// 顶点 stride（3个位置分量 + 3个法线分量）
         true
     );
 
-    if (!m_vertexBuffer)
-    {
-        return false;
-    }
-
     // 创建索引缓冲区
-    m_indexBuffer = renderer->CreateIndexBuffer(
+    mesh.indexBuffer = renderer->CreateIndexBuffer(
         indices.size(),
         true,// 32位索引
         true
     );
 
-    if (!m_indexBuffer)
-    {
-        return false;
-    }
-
     // 上传顶点数据
-    if (!renderer->UploadBuffer(m_indexBuffer.Get(), (const char*)vertexData.data(), vertexData.size()))
-    {
-        return false;
-    }
+    renderer->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexData.size());
 
     // 上传索引数据
-    if (!renderer->UploadBuffer(m_indexBuffer.Get(), (const char*)indices.data(), indices.size() * sizeof(uint32_t)))
-    {
-        return false;
-    }
-
-    return true;
+    renderer->UploadBuffer(mesh.indexBuffer.Get(), (const char*)indices.data(), indices.size() * sizeof(uint32_t));
 }
 
 void Sphere::SetRadius(float newRadius)

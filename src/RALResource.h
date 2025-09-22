@@ -296,6 +296,36 @@ struct RALGraphicsPipelineStateDesc
     uint32_t sampleMask = UINT32_MAX;
 };
 
+// 资源屏障类型
+enum class RALResourceBarrierType
+{
+	Transition,
+	Aliasing,
+	UnorderedAccess
+};
+
+// 资源状态
+enum class RALResourceState
+{
+	// 初始/通用状态
+	Common,
+
+	// 复制相关
+	CopySource,
+	CopyDest,
+
+	// 顶点/索引缓冲区
+	VertexBuffer,
+	IndexBuffer,
+
+	// 着色器资源
+	ShaderResource,
+
+	// 渲染目标/深度缓冲
+	RenderTarget,
+	DepthStencil,
+};
+
 // Render Abstraction Layer资源类型
 enum class RALResourceType
 {
@@ -362,6 +392,18 @@ public:
 		return m_resourceType;
 	}
 
+	// 获取资源状态
+	RALResourceState GetResourceState() const
+	{
+		return m_resourceState;
+	}
+
+	// 设置资源状态
+	void SetResourceState(RALResourceState state)
+	{
+		m_resourceState = state;
+	}
+
 	// 获取原生资源指针
 	virtual void* GetNativeResource() const = 0;
 
@@ -383,6 +425,7 @@ public:
 protected:
 	std::atomic<int32_t> m_refCount;
 	RALResourceType m_resourceType;
+	RALResourceState m_resourceState;
 };
 
 // Shader基类
@@ -716,7 +759,7 @@ struct RALRootDescriptorTable
 };
 
 // 着色器可见性枚举
-enum class RALShaderVisibility
+enum RALShaderVisibility
 {
 	All,
 	Vertex,

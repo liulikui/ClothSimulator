@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include <vector>
 #include <cstdint>
+#include "TSharePtr.h"
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -13,6 +14,13 @@ class IRALGraphicsCommandList;
 class IRALVertexBuffer;
 class IRALIndexBuffer;
 class IRALConstBuffer;
+class DX12Renderer;
+
+struct PrimitiveMesh
+{
+    TSharePtr<IRALVertexBuffer> vertexBuffer;
+    TSharePtr<IRALIndexBuffer> indexBuffer;
+};
 
 class Primitive
 {
@@ -37,12 +45,24 @@ public:
 
     // 设置对象的位置
     void SetPosition(const dx::XMFLOAT3& position);
+    const dx::XMFLOAT3& GetPosition() const
+    {
+        return position;
+    }
 
     // 设置对象的旋转（欧拉角，弧度）
     void SetRotation(const dx::XMFLOAT3& rotation);
+    const dx::XMFLOAT3& GetRotation() const
+    {
+        return rotation;
+    }
 
     // 设置对象的缩放
     void SetScale(const dx::XMFLOAT3& scale);
+    const dx::XMFLOAT3& GetScale() const
+    {
+        return scale;
+    }
 
     // 是否可见
     bool IsVisible() const
@@ -56,11 +76,17 @@ public:
         visible = isVisible;
     }
 
-    // 获取VertexBuffer
-    virtual IRALVertexBuffer* GetVertexBuffer() const = 0;
+    // Setup Mesh
+    virtual void OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+    {
 
-    // 获取IndexBuffer
-    virtual IRALIndexBuffer* GetIndexBuffer() const = 0;
+    }
+
+    // Update Mesh
+    virtual void OnUpdateMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+    {
+
+    }
 
     void SetDiffuseColor(const dx::XMFLOAT3& color)
     {

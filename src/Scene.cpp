@@ -36,14 +36,14 @@ Scene::Scene()
     logDebug("[DEBUG] Scene constructor called");
 }
 
-bool Scene::Initialize(DX12Renderer* pRender)
+bool Scene::Initialize(DX12Renderer* pRenderer)
 {
-    if (!pRender) {
+    if (!pRenderer) {
         logDebug("[DEBUG] Scene::Initialize failed: renderer is null");
         return false;
     }
 
-    m_render = pRender;
+    m_renderer = pRenderer;
     
     logDebug("[DEBUG] Scene::Initialize called");
     
@@ -82,7 +82,7 @@ bool Scene::Initialize(DX12Renderer* pRender)
     std::vector<RALStaticSampler> staticSamplers = { staticSampler };
 
     // 使用DX12Renderer的CreateRootSignature方法创建根签名
-    IRALRootSignature* rootSignaturePtr = pRender->CreateRootSignature(
+    IRALRootSignature* rootSignaturePtr = pRenderer->CreateRootSignature(
         rootParameters,
         staticSamplers,
         RALRootSignatureFlags::AllowInputAssemblerInputLayout
@@ -115,7 +115,6 @@ bool Scene::Initialize(DX12Renderer* pRender)
         "   float4x4 Proj;\n"
         "   float4x4 ViewProj;\n"
         "   float3 lightPos;\n"
-        "   float3 lightDir;\n"
         "   float4 lightDiffuseColor;\n"
         "   float4 lightSpecularColor;\n"
         "};\n"
@@ -170,14 +169,14 @@ bool Scene::Initialize(DX12Renderer* pRender)
         "}";
 
     // 编译着色器
-    m_vertexShader = pRender->CompileVertexShader(vertexShaderCode, "main");
+    m_vertexShader = pRenderer->CompileVertexShader(vertexShaderCode, "main");
     if (!m_vertexShader.Get())
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to compile vertex shader");
         return false;
     }
 
-    m_pixelShader = pRender->CompilePixelShader(pixelShaderCode, "main");
+    m_pixelShader = pRenderer->CompilePixelShader(pixelShaderCode, "main");
     if (!m_pixelShader.Get())
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to compile pixel shader");
@@ -259,7 +258,7 @@ bool Scene::Initialize(DX12Renderer* pRender)
     pipelineDesc.sampleMask = UINT32_MAX;
     
     // 创建图形管道状态
-    IRALGraphicsPipelineState* pipelineStatePtr = pRender->CreateGraphicsPipelineState(pipelineDesc);
+    IRALGraphicsPipelineState* pipelineStatePtr = pRenderer->CreateGraphicsPipelineState(pipelineDesc);
     if (!pipelineStatePtr)
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create graphics pipeline state");
@@ -271,7 +270,7 @@ bool Scene::Initialize(DX12Renderer* pRender)
     
     logDebug("[DEBUG] Scene::Initialize succeeded: graphics pipeline state created and stored");
     
-    m_constBuffer = pRender->CreateConstBuffer(sizeof(SceneConstBuffer));
+    m_constBuffer = pRenderer->CreateConstBuffer(sizeof(SceneConstBuffer));
     if (!m_constBuffer.Get())
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create const buffer");
@@ -287,8 +286,12 @@ Scene::~Scene()
     Clear();
 }
 
-void Scene::Update(IRALGraphicsCommandList* commandList, float deltaTime)
+void Scene::Update(float deltaTime)
 {
+    UpdatePrimitiveRequests();
+
+    IRALGraphicsCommandList* commandList = m_renderer->GetGraphicsCommandList();
+
     // 更新场景中所有可见对象的状态
     for (auto& primitiveInfo : m_primitives) 
     {
@@ -299,16 +302,20 @@ void Scene::Update(IRALGraphicsCommandList* commandList, float deltaTime)
      }
 }
 
-void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
+void Scene::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
-    UpdateSceneConstBuffer(commandList, viewMatrix, projectionMatrix);
+    IRALGraphicsCommandList* commandList = m_renderer->GetGraphicsCommandList();
 
+    // 更新场景常量缓冲区
+    UpdateSceneConstBuffer(commandList, viewMatrix, projectionMatrix);
     // 设置管道签名
     commandList->SetGraphicsRootSignature(m_rootSignature.Get());
     // 设置管线状态
     commandList->SetPipelineState(m_pipelineState.Get());
     // 设置根参数0（变换矩阵常量缓冲区）
     commandList->SetGraphicsRootConstantBuffer(0, m_constBuffer.Get());
+    // 设置图元拓扑
+    commandList->SetPrimitiveTopology(RALPrimitiveTopologyType::TriangleList);
 
     // 渲染每个可见的Primitive对象
     for (size_t i = 0; i < m_primitives.size(); ++i)
@@ -327,34 +334,23 @@ void Scene::Render(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& vie
                 continue;
             }
 
+            PrimitiveMesh mesh;
+            mesh.vertexBuffer = primitiveInfo.vertexBuffer.Get();
+            mesh.indexBuffer = primitiveInfo.indexBuffer.Get();
+
+            // 更新Mesh
+            primitiveInfo.primitive->OnUpdateMesh(m_renderer, mesh);
+
+            // 更新Primitive常量缓冲区
+            UpdatePrimitiveConstBuffer(commandList, &primitiveInfo);
+
             commandList->SetVertexBuffers(0, 1, &vertexBuffer);
             commandList->SetIndexBuffer(indexBuffer);
-            // 设置图元拓扑
-            commandList->SetPrimitiveTopology(RALPrimitiveTopologyType::TriangleList);
-
-			UpdatePrimitiveConstBuffer(commandList, &primitiveInfo);
 
             // 设置根参数1（对象常量缓冲区）
             commandList->SetGraphicsRootConstantBuffer(1, primitiveInfo.constBuffer.Get());
-            
             // 绘制对象
 			commandList->DrawIndexed(indexBuffer->GetIndexCount(), 1, 0, 0, 0);
-
-    //        // 渲染对象（具体的渲染方式将在DX12Renderer中实现为更通用的接口）
-    //        if (typeid(*mesh) == typeid(Cloth))
-    //        {
-    //            logDebug("[DEBUG] Rendering cloth mesh");
-    //            //renderer->SetClothVertices(positions, normals, indices);
-    //        }
-    //        else if (typeid(*mesh) == typeid(Sphere))
-    //        {
-    //            logDebug("[DEBUG] Rendering sphere mesh");
-    //            //renderer->SetSphereVertices(positions, normals, indices);
-    //        }
-    //        else
-    //        {
-    //            logDebug("[DEBUG] Unknown mesh type, skipping");
-    //        }
         }
     }
 }
@@ -374,19 +370,12 @@ bool Scene::AddPrimitive(Primitive* primitive)
             return false;
         }
     }
+
+    AddPrimitiveRequest request;
+    request.primitive = primitive;
+
+    m_addPrimitiveRequests.push_back(request);
     
-    PrimitiveInfo primitiveInfo;
-    primitiveInfo.primitive = primitive;
-    primitiveInfo.worldMatrix = primitive->GetWorldMatrix();
-    primitiveInfo.vertexBuffer = primitive->GetVertexBuffer();
-    primitiveInfo.indexBuffer = primitive->GetIndexBuffer();
-    primitiveInfo.visible = primitive->IsVisible();
-	primitiveInfo.diffuseColor = primitive->GetDiffuseColor();
-    primitiveInfo.constBuffer = m_render->CreateConstBuffer(sizeof(ObjectConstBuffer));
-
-    // 添加对象到场景中
-    m_primitives.push_back(primitiveInfo);
-
     return true;
 }
 
@@ -413,6 +402,32 @@ void Scene::Clear()
 {
     // 清空所有对象
     m_primitives.clear();
+}
+
+void Scene::UpdatePrimitiveRequests()
+{
+    for (std::vector<AddPrimitiveRequest>::iterator iter = m_addPrimitiveRequests.begin(); iter != m_addPrimitiveRequests.end(); ++iter)
+    {
+        Primitive* primitive = iter->primitive;
+        PrimitiveInfo primitiveInfo;
+        primitiveInfo.primitive = primitive;
+        primitiveInfo.worldMatrix = primitive->GetWorldMatrix();
+        primitiveInfo.visible = primitive->IsVisible();
+
+        PrimitiveMesh mesh;
+        primitive->OnSetupMesh(m_renderer, mesh);
+        
+        primitiveInfo.vertexBuffer = mesh.vertexBuffer;
+        primitiveInfo.indexBuffer = mesh.indexBuffer;
+        
+        primitiveInfo.diffuseColor = primitive->GetDiffuseColor();
+        primitiveInfo.constBuffer = m_renderer->CreateConstBuffer(sizeof(ObjectConstBuffer));
+
+        // 添加对象到场景中
+        m_primitives.push_back(primitiveInfo);
+    }
+
+    m_addPrimitiveRequests.clear();
 }
 
 void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
@@ -446,7 +461,7 @@ void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, Pri
     // 映射并更新缓冲区
     void* mappedData = nullptr;
     D3D12_RANGE readRange = { 0, 0 };
-    m_constBuffer->Map(&mappedData);
+    primitiveInfo->constBuffer->Map(&mappedData);
     memcpy(mappedData, &data, sizeof(SceneConstBuffer));
-    m_constBuffer->Unmap();
+    primitiveInfo->constBuffer->Unmap();
 }

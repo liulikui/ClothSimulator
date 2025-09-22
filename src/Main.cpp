@@ -583,11 +583,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
 
-    cloth = new Cloth(dx::XMFLOAT3(-5.0f, 5.0f, -5.0f), 40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
+    cloth = new Cloth(40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
     
     // 默认启用XPBD碰撞约束
     cloth->SetUseXPBDCollision(true);
     
+    // 设置位置
+    cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
+
     // 设置布料的材质颜色（蓝色）
     cloth->SetDiffuseColor(dx::XMFLOAT3(0.3f, 0.5f, 1.0f));
 
@@ -595,23 +598,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // 将布料添加到场景中
     scene->AddPrimitive(cloth);
+
     std::cout << "Sphere object added to scene successfully" << std::endl;
 
     std::cout << "Cloth object created successfully" << std::endl;
     
     // 创建并初始化球体对象
+    dx::XMFLOAT3 sphereCenter(0.0f, 5.0f, 0.0f);
+    float sphereRadius = 2.0f;
+
     std::cout << "Creating sphere object..." << std::endl;
-    sphere = new Sphere(dx::XMFLOAT3(0.0f, 0.0f, 0.0f), 2.0f, 32, 32);
-    
+    sphere = new Sphere(sphereRadius, 32, 32);
+
     // 设置球体的材质颜色（红色）
     sphere->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
     
     // 设置球体的世界矩阵
-    sphere->SetPosition(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    sphere->SetPosition(dx::XMFLOAT3(0.0f, 5.0f, 0.0f));
     sphere->SetScale(dx::XMFLOAT3(1.0f, 1.0f, 1.0f));
     sphere->SetRotation(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
     
     sphere->Initialize(renderer);
+
+    // 初始化球体碰撞约束（一次性创建，避免每帧重建）
+    cloth->InitializeSphereCollisionConstraints(sphere->GetPosition(), sphereRadius);
 
     // 将球体添加到场景中
     scene->AddPrimitive(sphere);
@@ -661,16 +671,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         {
             std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
         }
-        
-        IRALGraphicsCommandList* commandList = renderer->CreateGraphicsCommandList();
 
-        renderer->BeginFrame(commandList);
+        renderer->BeginFrame();
 
         // 处理键盘输入
         camera->ProcessKeyboardInput(keys, deltaTime);
 
         // 更新场景
-        scene->Update(commandList, deltaTime);
+        scene->Update(deltaTime);
 
         // 渲染场景
         static int renderCount = 0;
@@ -678,11 +686,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         logDebug("[DEBUG] Rendering scene, render count: " + std::to_string(renderCount));
         logDebug("[DEBUG] Scene has " + std::to_string(scene->GetMeshCount()) + " meshes");
 
-        scene->Render(commandList, camera->GetViewMatrix(), camera->GetProjectionMatrix());
+        scene->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
         renderer->EndFrame();
-
-        commandList->Release();
     }
     
     logDebug("Exiting main loop");

@@ -12,33 +12,6 @@ enum class RALCommandListType
     Copy
 };
 
-// 资源屏障类型
-enum class RALResourceBarrierType
-{
-    Transition,
-    Aliasing,
-    UnorderedAccess
-};
-
-// 资源状态
-enum class RALResourceState
-{
-    Common,
-    VertexAndConstantBuffer,
-    IndexBuffer,
-    RenderTarget,
-    UnorderedAccess,
-    DepthWrite,
-    DepthRead,
-    ShaderResource,
-    StreamOut,
-    IndirectArgument,
-    CopyDest,
-    CopySource,
-    ResolveDest,
-    ResolveSource
-};
-
 // 资源屏障结构体
 struct RALResourceBarrier
 {
