@@ -522,6 +522,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 解析命令行参数
     std::string cmdLine(lpCmdLine);
     
+    // 检查是否需要显示帮助信息
+    if (cmdLine.find("-help") != std::string::npos || cmdLine.find("-h") != std::string::npos)
+    {
+        std::cout << "XPBD Cloth Simulator (DirectX 12) - 命令行参数帮助" << std::endl;
+        std::cout << "===================================================" << std::endl;
+        std::cout << "可用的命令行参数：" << std::endl;
+        std::cout << "  -help, -h            显示此帮助信息并退出" << std::endl;
+        std::cout << "  -debug, -d           启用调试输出模式" << std::endl;
+        std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
+        std::cout << "===================================================" << std::endl;
+        std::cout << "程序控制：" << std::endl;
+        std::cout << "  F9                    切换调试输出开关" << std::endl;
+        std::cout << "  ESC                   退出程序" << std::endl;
+        std::cout << "  鼠标右键 + 移动       旋转相机视角" << std::endl;
+        std::cout << "  鼠标滚轮              缩放相机距离" << std::endl;
+        
+        // 关闭日志文件
+        closeLogFile();
+        return 0; // 直接退出程序，不创建其他对象
+    }
+
     // 简单解析命令行参数，寻找 -maxFrames:xxx 格式的参数
     size_t maxFramesPos = cmdLine.find("-maxFrames:");
     if (maxFramesPos != std::string::npos)
@@ -536,8 +557,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::string maxFramesStr = cmdLine.substr(start, end - start);
             maxFrames = std::stoi(maxFramesStr);
             logDebug("Max frames set to: " + std::to_string(maxFrames));
-        } 
-        catch (const std::exception& e) 
+        }
+        catch (const std::exception& e)
         {
             std::cerr << "Error parsing maxFrames parameter: " << e.what() << std::endl;
             std::cerr << "Using default maxFrames value (-1 = unlimited)" << std::endl;
@@ -545,7 +566,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
     }
     
-    if (cmdLine.find("--debug") != std::string::npos || cmdLine.find("-d") != std::string::npos)
+    if (cmdLine.find("-debug") != std::string::npos || cmdLine.find("-d") != std::string::npos)
     {
         debugOutputEnabled = true;
         std::cout << "[DEBUG] Debug output enabled via command line parameter: " << cmdLine << std::endl;
