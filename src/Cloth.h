@@ -62,18 +62,6 @@ public:
         return m_height;
     }
     
-    // 使用传统方法检查布料粒子与球体的碰撞
-    // 参数:
-    //   sphereCenter - 球体中心位置
-    //   sphereRadius - 球体半径
-    void CheckSphereCollision(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
-    
-    // 添加基于XPBD约束的球体碰撞检测
-    // 参数:
-    //   sphereCenter - 球体中心位置
-    //   sphereRadius - 球体半径
-    void AddSphereCollisionConstraint(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
-    
     // 清除所有球体碰撞约束
     void ClearSphereCollisionConstraints();
     

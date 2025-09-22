@@ -25,7 +25,8 @@ public:
         compliance = customCompliance;
     }
 
-    float ComputeConstraintValue() const override {
+    float ComputeConstraintValue() const override
+    {
         if (particle->isStatic) return 0.0f;
         
         dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);

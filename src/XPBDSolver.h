@@ -212,20 +212,7 @@ private:
             
             // 计算拉格朗日乘子增量 - 正确实现XPBD算法
             float deltaLambda = (-C - alpha * constraint->lambda) / sum;
-            
-            // 记录调试信息（已禁用）
-            // static size_t constraintCounter = 0;
-            // logDebugInfo(deltaTime, 0, constraintCounter++, constraintParticles, C, deltaLambda);
-            
-            // 对于碰撞约束，确保deltaLambda是非正的（只推粒子向外，不向内拉）
-            if (isCollisionConstraint)
-            {
-                if (deltaLambda > 0.0f)
-                {
-                    deltaLambda = 0.0f;
-                }
-            }
-            
+
             // 为提高稳定性，添加deltaLambda的上限限制
             float lambdaLimit = 100.0f; // 可以根据需要调整
             if (deltaLambda > lambdaLimit)

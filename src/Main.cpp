@@ -591,8 +591,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
 
-    // 设置布料的材质颜色（蓝色）
-    cloth->SetDiffuseColor(dx::XMFLOAT3(0.3f, 0.5f, 1.0f));
+    // 设置布料的材质颜色（红色）
+    cloth->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
 
 	cloth->Initialize(renderer);
 
