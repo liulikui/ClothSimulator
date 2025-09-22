@@ -50,12 +50,12 @@ Cloth::~Cloth()
 }
 
 // 初始化布料的顶点和索引缓冲区
-bool Cloth::Initialize(DX12Renderer* renderer)
+bool Cloth::Initialize(IRALDevice* device)
 {
-    // 确保renderer不为空
-    if (!renderer)
+    // 确保device不为空
+    if (!device)
     {
-        std::cerr << "Cloth::Initialize: renderer is null" << std::endl;
+        std::cerr << "Cloth::Initialize: device is null" << std::endl;
         return false;
     }
 
@@ -90,7 +90,7 @@ bool Cloth::Initialize(DX12Renderer* renderer)
     return true;
 }
 
-void Cloth::OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+void Cloth::OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh)
 {
     // 生成顶点数据（位置和法线）
     std::vector<float> vertexData;
@@ -110,7 +110,7 @@ void Cloth::OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
 
     // 创建顶点缓冲区
     size_t vertexBufferSize = vertexData.size() * sizeof(float);
-    mesh.vertexBuffer = renderer->CreateVertexBuffer(
+    mesh.vertexBuffer = device->CreateVertexBuffer(
         vertexBufferSize,
         6 * sizeof(float),// 顶点 stride（3个位置分量 + 3个法线分量）
         true
@@ -118,20 +118,20 @@ void Cloth::OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
 
     // 创建索引缓冲区
     size_t indexBufferSize = m_indices.size() * sizeof(uint32_t);
-    mesh.indexBuffer = renderer->CreateIndexBuffer(
+    mesh.indexBuffer = device->CreateIndexBuffer(
         m_indices.size(),
         true, // 32位索引
         true
     );
 
     // 上传顶点数据
-    renderer->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexBufferSize);
+    device->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexBufferSize);
 
     // 上传索引数据
-    renderer->UploadBuffer(mesh.indexBuffer.Get(), (const char*)m_indices.data(), indexBufferSize);
+    device->UploadBuffer(mesh.indexBuffer.Get(), (const char*)m_indices.data(), indexBufferSize);
 }
 
-void Cloth::OnUpdateMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+void Cloth::OnUpdateMesh(IRALDevice* device, PrimitiveMesh& mesh)
 {
     // 生成顶点数据（位置和法线）
     std::vector<float> vertexData;
@@ -152,7 +152,7 @@ void Cloth::OnUpdateMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
     size_t vertexBufferSize = vertexData.size() * sizeof(float);
 
     // 上传顶点数据
-    renderer->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexBufferSize);
+    device->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexBufferSize);
 }
 
 // 初始化球体碰撞约束（一次性创建，避免每帧重建）

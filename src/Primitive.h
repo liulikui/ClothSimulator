@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdint>
 #include "TSharePtr.h"
+#include "IRALDevice.h"
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -14,7 +15,6 @@ class IRALGraphicsCommandList;
 class IRALVertexBuffer;
 class IRALIndexBuffer;
 class IRALConstBuffer;
-class DX12Renderer;
 
 struct PrimitiveMesh
 {
@@ -77,13 +77,13 @@ public:
     }
 
     // Setup Mesh
-    virtual void OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+    virtual void OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh)
     {
 
     }
 
     // Update Mesh
-    virtual void OnUpdateMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+    virtual void OnUpdateMesh(IRALDevice* device, PrimitiveMesh& mesh)
     {
 
     }

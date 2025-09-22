@@ -9,7 +9,7 @@
 #include "XPBDSolver.h"
 #include "Mesh.h"
 #include "RALResource.h"
-#include "DX12Renderer.h"
+#include "DX12RALDevice.h"
 #include <cstdint> // For uint32_t
 
 // 前向声明
@@ -36,13 +36,13 @@ public:
     void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
     
     // 初始化布料
-    bool Initialize(DX12Renderer* renderer);
+    bool Initialize(IRALDevice* device);
     
     // 初始化Mesh
-    virtual void OnSetupMesh(DX12Renderer* render, PrimitiveMesh& mesh) override;
+    virtual void OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh) override;
 
     // Update Mesh
-    virtual void OnUpdateMesh(DX12Renderer* renderer, PrimitiveMesh& mesh) override;
+    virtual void OnUpdateMesh(IRALDevice* device, PrimitiveMesh& mesh) override;
 
     // 获取布料的所有粒子
     const std::vector<Particle>& GetParticles() const

@@ -9,7 +9,7 @@
 #include <DirectXMath.h>
 
 // 前向声明
-class DX12Renderer;
+class IRALDevice;
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -22,10 +22,10 @@ public:
     
     // 初始化场景，创建根签名
     // 参数：
-    //   pRenderer - DX12Renderer对象指针
+    //   pRenderer - IRALDevice对象指针
     // 返回值：
     //   初始化是否成功
-    bool Initialize(DX12Renderer* pRenderer);
+    bool Initialize(IRALDevice* pRenderer);
     
     // 析构函数
     ~Scene();
@@ -120,7 +120,7 @@ private:
 	void UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo);
 
 private:
-    DX12Renderer* m_renderer;
+    IRALDevice* m_renderer;
 
     // 添加Primitive的请求列表
     std::vector<AddPrimitiveRequest> m_addPrimitiveRequests;

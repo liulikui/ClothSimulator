@@ -6,7 +6,7 @@
 #include <fstream>
 #include <string>
 #include "Cloth.h"
-#include "DX12Renderer.h"
+#include "DX12RALDevice.h"
 #include "Camera.h"
 #include "Sphere.h"
 #include "Scene.h"
@@ -85,8 +85,8 @@ float lastFrame = 0.0f;
 // 前向声明
 void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up);
 
-// 布料、渲染器和场景对象
-DX12Renderer* renderer = nullptr;
+// 布料、渲染设备和场景对象
+IRALDevice* device = nullptr;
 Scene* scene = nullptr;
 Sphere* sphere = nullptr;
 Cloth* cloth = nullptr;
@@ -97,11 +97,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
     switch (message)
     {
     case WM_SIZE:
-        if (wParam != SIZE_MINIMIZED && renderer)
+        if (wParam != SIZE_MINIMIZED && device)
         {
             uint32_t width = LOWORD(lParam);
             uint32_t height = HIWORD(lParam);
-            renderer->Resize(width, height);
+            device->Resize(width, height);
             
             // 同时更新相机的尺寸
             if (camera)
@@ -309,21 +309,21 @@ void ProcessMessages()
     }
 }
 
-// 初始化DirectX 12渲染器
-BOOL InitializeRenderer()
+// 初始化DirectX 12渲染设备
+BOOL InitializeDevice()
 {
     std::cout << "  - Converting window title to wide character..." << std::endl;
     // 转换窗口标题为宽字符
     std::wstring windowName(L"XPBD Cloth Simulator");
 
-    std::cout << "  - Creating DX12Renderer object..." << std::endl;
+    std::cout << "  - Creating DX12RALDevice object..." << std::endl;
     // 获取系统屏幕分辨率
     int screenWidth = GetSystemMetrics(SM_CXSCREEN);
     int screenHeight = GetSystemMetrics(SM_CYSCREEN);
     
-    // 创建渲染器实例，传入正确顺序的参数和全屏尺寸
-    renderer = new DX12Renderer(screenWidth, screenHeight, windowName, hWnd);
-    std::cout << "  - DX12Renderer object created successfully" << std::endl;
+    // 创建渲染设备实例，传入正确顺序的参数和全屏尺寸
+    device = new DX12RALDevice(screenWidth, screenHeight, windowName, hWnd);
+    std::cout << "  - DX12RALDevice object created successfully" << std::endl;
     
     // 创建相机对象
     camera = new Camera(screenWidth, screenHeight);
@@ -335,15 +335,15 @@ BOOL InitializeRenderer()
     dx::XMVECTOR cameraUp = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     UpdateCamera(cameraPos, cameraTarget, cameraUp);
 
-    std::cout << "  - Calling renderer->Initialize()..." << std::endl;
-    // 初始化渲染器
-    if (!renderer->Initialize())
+    std::cout << "  - Calling device->Initialize()..." << std::endl;
+    // 初始化渲染设备
+    if (!device->Initialize())
     {
-        std::cerr << "  - renderer->Initialize() failed!" << std::endl;
-        MessageBox(NULL, TEXT("Failed to initialize DirectX 12 renderer!"), TEXT("Error"), MB_ICONERROR);
+        std::cerr << "  - Failed to initialize DX12RALDevice!" << std::endl;
+        MessageBox(NULL, TEXT("Failed to initialize DX12RALDevice!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
     }
-    std::cout << "  - renderer->Initialize() succeeded" << std::endl;
+    std::cout << "  - DX12RALDevice initialized successfully" << std::endl;
     
     // 创建场景对象
     std::cout << "  - Creating Scene object..." << std::endl;
@@ -351,8 +351,8 @@ BOOL InitializeRenderer()
     std::cout << "  - Scene object created successfully" << std::endl;
     
     // 初始化场景，创建根签名
-    std::cout << "  - Initializing Scene with renderer..." << std::endl;
-    if (!scene->Initialize(renderer)) {
+    std::cout << "  - Initializing Scene with device..." << std::endl;
+    if (!scene->Initialize(device)) {
         std::cerr << "  - scene->Initialize() failed!" << std::endl;
         MessageBox(NULL, TEXT("Failed to initialize Scene!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
@@ -373,11 +373,11 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
         globalRenderFrameCount++;
     }
     
-    if (!cloth || !renderer)
+    if (!cloth || !device)
     {
         if (debugOutputEnabled)
         {
-            std::cout << "UpdateClothRenderData: cloth or renderer is null" << std::endl;
+            std::cout << "UpdateClothRenderData: cloth or device is null" << std::endl;
         }
         return;
     }
@@ -438,7 +438,7 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
             std::cout << "--------------------------------------\n" << std::endl;
         }
         
-        // 更新渲染器中的布料顶点数据
+        // 更新渲染设备中的布料顶点数据
         std::cout << "UpdateClothRenderData: Calling SetClothVertices with " << positions.size() << " positions" << std::endl;
     }
     
@@ -486,12 +486,12 @@ void Cleanup()
         scene = nullptr;
     }
 
-    // 清理渲染器
-    if (renderer)
+    // 清理渲染设备
+    if (device)
     {
-        renderer->Cleanup();
-        delete renderer;
-        renderer = nullptr;
+        device->Cleanup();
+        delete device;
+        device = nullptr;
     }
     
     // 清理相机对象
@@ -568,17 +568,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
     std::cout << "Window created successfully" << std::endl;
     
-    // 初始化DirectX 12渲染器
-    std::cout << "Initializing renderer..." << std::endl;
-    std::cout << "  - Creating DX12Renderer instance..." << std::endl;
-    if (!InitializeRenderer())
+    // 初始化DirectX 12渲染设备
+    std::cout << "Initializing device..." << std::endl;
+    std::cout << "  - Creating DX12RALDevice instance..." << std::endl;
+    if (!InitializeDevice())
     {
-        std::cerr << "Failed to initialize renderer" << std::endl;
-        MessageBox(hWnd, L"Failed to initialize DirectX 12 renderer", L"Error", MB_OK | MB_ICONERROR);
+        std::cerr << "Failed to initialize device" << std::endl;
+        MessageBox(hWnd, L"Failed to initialize DirectX 12 device", L"Error", MB_OK | MB_ICONERROR);
         Cleanup();
         return -1;
     }
-    std::cout << "Renderer initialized successfully" << std::endl;
+    std::cout << "Device initialized successfully" << std::endl;
     
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
@@ -594,7 +594,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 设置布料的材质颜色（红色）
     cloth->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
 
-	cloth->Initialize(renderer);
+	cloth->Initialize(device);
 
     // 将布料添加到场景中
     scene->AddPrimitive(cloth);
@@ -618,7 +618,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     sphere->SetScale(dx::XMFLOAT3(1.0f, 1.0f, 1.0f));
     sphere->SetRotation(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
     
-    sphere->Initialize(renderer);
+    sphere->Initialize(device);
 
     // 初始化球体碰撞约束（一次性创建，避免每帧重建）
     cloth->InitializeSphereCollisionConstraints(sphere->GetPosition(), sphereRadius);
@@ -672,7 +672,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
         }
 
-        renderer->BeginFrame();
+        device->BeginFrame();
 
         // 处理键盘输入
         camera->ProcessKeyboardInput(keys, deltaTime);
@@ -688,7 +688,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         scene->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
-        renderer->EndFrame();
+        device->EndFrame();
     }
     
     logDebug("Exiting main loop");

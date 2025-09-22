@@ -2,7 +2,7 @@
 #include "Primitive.h"
 #include "Cloth.h"
 #include "Sphere.h"
-#include "DX12Renderer.h"
+#include "DX12RALDevice.h"
 #include "RALResource.h"
 #include <algorithm>
 #include <iostream>
@@ -36,7 +36,7 @@ Scene::Scene()
     logDebug("[DEBUG] Scene constructor called");
 }
 
-bool Scene::Initialize(DX12Renderer* pRenderer)
+bool Scene::Initialize(IRALDevice* pRenderer)
 {
     if (!pRenderer) {
         logDebug("[DEBUG] Scene::Initialize failed: renderer is null");
@@ -440,11 +440,7 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
     data.padding1 = 0.0f;
 
     // 映射并更新缓冲区
-    void* mappedData = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
-    m_constBuffer->Map(&mappedData);
-    memcpy(mappedData, &data, sizeof(SceneConstBuffer));
-    m_constBuffer->Unmap();
+    m_renderer->UploadBuffer(m_constBuffer.Get(), reinterpret_cast<const char*>(&data), sizeof(SceneConstBuffer));
 }
 
 void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo)
@@ -454,9 +450,5 @@ void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, Pri
     data.diffuseColor = primitiveInfo->diffuseColor;
 
     // 映射并更新缓冲区
-    void* mappedData = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
-    primitiveInfo->constBuffer->Map(&mappedData);
-    memcpy(mappedData, &data, sizeof(SceneConstBuffer));
-    primitiveInfo->constBuffer->Unmap();
+    m_renderer->UploadBuffer(primitiveInfo->constBuffer.Get(), reinterpret_cast<const char*>(&data), sizeof(ObjectConstBuffer));
 }

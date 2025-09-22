@@ -18,9 +18,9 @@ void Sphere::Update(IRALGraphicsCommandList* commandList, float deltaTime)
     // 可以在这里添加动画或其他动态行为
 }
 
-bool Sphere::Initialize(DX12Renderer* renderer)
+bool Sphere::Initialize(IRALDevice* device)
 {
-    if (!renderer || positions.empty() || indices.empty())
+    if (!device || positions.empty() || indices.empty())
     {
         return false;
     }
@@ -28,7 +28,7 @@ bool Sphere::Initialize(DX12Renderer* renderer)
     return true;
 }
 
-void Sphere::OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
+void Sphere::OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh)
 {
     // 创建顶点数据（位置 + 法线）
     std::vector<uint8_t> vertexData(positions.size() * sizeof(dx::XMFLOAT3) * 2);
@@ -42,24 +42,24 @@ void Sphere::OnSetupMesh(DX12Renderer* renderer, PrimitiveMesh& mesh)
     }
 
     // 创建顶点缓冲区
-    mesh.vertexBuffer = renderer->CreateVertexBuffer(
+    mesh.vertexBuffer = device->CreateVertexBuffer(
         vertexData.size(),
         6 * sizeof(float),// 顶点 stride（3个位置分量 + 3个法线分量）
         true
     );
 
     // 创建索引缓冲区
-    mesh.indexBuffer = renderer->CreateIndexBuffer(
+    mesh.indexBuffer = device->CreateIndexBuffer(
         indices.size(),
         true,// 32位索引
         true
     );
 
     // 上传顶点数据
-    renderer->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexData.size());
+    device->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexData.size());
 
     // 上传索引数据
-    renderer->UploadBuffer(mesh.indexBuffer.Get(), (const char*)indices.data(), indices.size() * sizeof(uint32_t));
+    device->UploadBuffer(mesh.indexBuffer.Get(), (const char*)indices.data(), indices.size() * sizeof(uint32_t));
 }
 
 void Sphere::SetRadius(float newRadius)

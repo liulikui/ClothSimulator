@@ -3,7 +3,7 @@
 
 #include "Mesh.h"
 #include "RALResource.h"
-#include "DX12Renderer.h"
+#include "DX12RALDevice.h"
 #include <DirectXMath.h>
 #include <vector>
 #include <cstdint>
@@ -29,10 +29,10 @@ public:
     void Update(IRALGraphicsCommandList* commandList, float deltaTime) override;
 
     // 初始化球体
-    bool Initialize(DX12Renderer* renderer);
+    bool Initialize(IRALDevice* device);
 
     // 初始化Mesh
-    virtual void OnSetupMesh(DX12Renderer* render, PrimitiveMesh& mesh) override;
+    virtual void OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh) override;
 
     // 获取球体的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override
