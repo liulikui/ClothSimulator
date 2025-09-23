@@ -141,7 +141,6 @@ bool Scene::Initialize(IRALDevice* pDevice)
         "   float4x4 Proj;\n"
         "   float4x4 ViewProj;\n"
         "   float3 lightPos;\n"
-        "   float3 lightDir;\n"
         "   float4 lightDiffuseColor;\n"
         "   float4 lightSpecularColor;\n"
         "};\n"
