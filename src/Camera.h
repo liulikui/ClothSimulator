@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <cstdint>
 #include <DirectXMath.h>
 
@@ -30,15 +30,15 @@ private:
     void UpdateViewMatrix();
     void UpdateProjectionMatrix();
 
-    dx::XMVECTOR cameraPosition_;
-    dx::XMVECTOR cameraTarget_;
-    dx::XMVECTOR cameraUp_;
-    dx::XMMATRIX viewMatrix_;
-    dx::XMMATRIX projectionMatrix_;
+    dx::XMVECTOR m_cameraPosition;
+    dx::XMVECTOR m_cameraTarget;
+    dx::XMVECTOR m_cameraUp;
+    dx::XMMATRIX m_viewMatrix;
+    dx::XMMATRIX m_projectionMatrix;
 
-    uint32_t width_;
-    uint32_t height_;
-    float fieldOfView_;
-    float nearClipPlane_;
-    float farClipPlane_;
+    uint32_t m_width;
+    uint32_t m_height;
+    float m_fieldOfView;
+    float m_nearClipPlane;
+    float m_farClipPlane;
 };

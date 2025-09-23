@@ -1,4 +1,4 @@
-﻿#ifndef PARTICLE_H
+#ifndef PARTICLE_H
 #define PARTICLE_H
 
 #include <DirectXMath.h>
@@ -6,7 +6,8 @@
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-class Particle {
+class Particle
+{
 public:
     // 构造函数
     // 参数：
@@ -15,7 +16,8 @@ public:
     //   isStatic - 粒子是否为固定（不可移动）
     Particle(const dx::XMFLOAT3& pos = dx::XMFLOAT3(0.0f, 0.0f, 0.0f), float m = 1.0f, bool isStatic = false)
         : position(pos), oldPosition(pos), velocity(dx::XMFLOAT3(0.0f, 0.0f, 0.0f)), force(dx::XMFLOAT3(0.0f, 0.0f, 0.0f)),
-          mass(m), inverseMass(1.0f / m), isStatic(isStatic) {
+          mass(m), inverseMass(1.0f / m), isStatic(isStatic)
+    {
         if (isStatic) {
             inverseMass = 0.0f; // 固定粒子的质量倒数为0，表示不受力
         }
@@ -24,8 +26,10 @@ public:
     // 应用力
     // 参数：
     //   f - 要应用的力向量
-    void applyForce(const dx::XMFLOAT3& f) {
-        if (!isStatic) {
+    void ApplyForce(const dx::XMFLOAT3& f)
+    {
+        if (!isStatic) 
+        {
             // 将力转换为XMVECTOR进行计算
             dx::XMVECTOR forceVector = dx::XMLoadFloat3(&force);
             dx::XMVECTOR appliedForce = dx::XMLoadFloat3(&f);
@@ -39,7 +43,8 @@ public:
     }
 
     // 重置力
-    void resetForce() {
+    void ResetForce()
+    {
         force = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
     }
 

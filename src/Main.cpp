@@ -3,10 +3,50 @@
 #include <iostream>
 #include <vector>
 #include <cstdint>
+#include <fstream>
+#include <string>
 #include "Cloth.h"
-#include "DX12Renderer.h"
+#include "DX12RALDevice.h"
 #include "Camera.h"
+#include "Sphere.h"
+#include "Scene.h"
 #include <windowsx.h>
+
+// 日志文件
+std::ofstream logFile;
+
+// 日志函数
+void logDebug(const std::string& message)
+{
+    std::cout << message << std::endl;
+    if (logFile.is_open())
+    {
+        logFile << message << std::endl;
+        logFile.flush();
+    }
+}
+
+// 初始化日志文件
+void initLogFile()
+{
+    logFile.open("debug_log.txt", std::ios::out | std::ios::trunc);
+    if (logFile.is_open())
+    {
+        logFile << "[LOG] Debug log started." << std::endl;
+    } else {
+        std::cerr << "Failed to open log file!" << std::endl;
+    }
+}
+
+// 关闭日志文件
+void closeLogFile()
+{
+    if (logFile.is_open())
+    {
+        logFile << "[LOG] Debug log ended." << std::endl;
+        logFile.close();
+    }
+}
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -23,6 +63,7 @@ bool debugOutputEnabled = false; // 调试输出开关，默认关闭
 bool f9Pressed = false;        // F9键按下标志，用于检测按键状态变化
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
+int iteratorCount = 50;        // XPBD求解器迭代次数，默认50
 
 // 相机对象
 Camera* camera = nullptr;
@@ -45,21 +86,27 @@ float lastFrame = 0.0f;
 // 前向声明
 void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up);
 
-// 布料和渲染器对象
+// 布料、渲染设备和场景对象
+IRALDevice* device = nullptr;
+Scene* scene = nullptr;
+Sphere* sphere = nullptr;
 Cloth* cloth = nullptr;
-DX12Renderer* renderer = nullptr;
 
 // 窗口过程函数
-LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lParam) {
-    switch (message) {
+LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
     case WM_SIZE:
-        if (wParam != SIZE_MINIMIZED && renderer) {
+        if (wParam != SIZE_MINIMIZED && device)
+        {
             uint32_t width = LOWORD(lParam);
             uint32_t height = HIWORD(lParam);
-            renderer->Resize(width, height);
+            device->Resize(width, height);
             
             // 同时更新相机的尺寸
-            if (camera) {
+            if (camera)
+            {
                 camera->Resize(width, height);
             }
         }
@@ -69,18 +116,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         keys[wParam] = true;
         
         // 处理一次性按键事件（如ESC）
-        switch (wParam) {
+        switch (wParam)
+        {
         case VK_ESCAPE:
             running = false;
             break;
         case VK_F9:
-            if (!f9Pressed) {  // 只在按键状态变化时处理
+            if (!f9Pressed)
+            {  // 只在按键状态变化时处理
                 debugOutputEnabled = !debugOutputEnabled;
                 f9Pressed = true;
                 
                 // 显示调试状态切换消息
                 const char* statusMsg = debugOutputEnabled ? "Debug output ENABLED" : "Debug output DISABLED";
-                std::cout << "[F9] " << statusMsg << std::endl;
+                logDebug("[F9] " + std::string(statusMsg));
             }
             break;
         default:
@@ -92,7 +141,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         keys[wParam] = false;
         
         // 重置F9键按下标志
-        if (wParam == VK_F9) {
+        if (wParam == VK_F9)
+        {
             f9Pressed = false;
         }
         break;
@@ -113,7 +163,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         mouseCaptured = false;
         break;
     case WM_MOUSEMOVE:
-        if (mouseCaptured) {
+        if (mouseCaptured)
+        {
             int xPos = GET_X_LPARAM(lParam);
             int yPos = GET_Y_LPARAM(lParam);
 
@@ -189,7 +240,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
 }
 
 // 注册窗口类
-BOOL RegisterWindowClass(HINSTANCE hInstance) {
+BOOL RegisterWindowClass(HINSTANCE hInstance)
+{
     WNDCLASSEX wc;
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -208,31 +260,34 @@ BOOL RegisterWindowClass(HINSTANCE hInstance) {
 }
 
 // 创建窗口
-BOOL CreateWindowApp(HINSTANCE hInstance) {
+BOOL CreateWindowApp(HINSTANCE hInstance)
+{
     // 注册窗口类
-    if (!RegisterWindowClass(hInstance)) {
+    if (!RegisterWindowClass(hInstance))
+    {
         MessageBox(NULL, TEXT("RegisterWindowClass failed!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
     }
 
-    // 获取系统屏幕分辨率
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    // 使用固定窗口尺寸800*600
+    int screenWidth = 800;
+    int screenHeight = 600;
 
-    // 创建全屏窗口
+    // 创建窗口（使用窗口样式，不再是全屏模式）
     hWnd = CreateWindow(
         TEXT("DX12ClothSimulator"),  // 窗口类名称
         TEXT("XPBD Cloth Simulator (DirectX 12)"),  // 窗口标题
-        WS_POPUP,                    // 无边框全屏窗口样式
-        0, 0,                        // 窗口位置（全屏时从(0,0)开始）
-        screenWidth, screenHeight,   // 窗口尺寸（使用屏幕分辨率）
+        WS_OVERLAPPEDWINDOW,         // 窗口样式
+        CW_USEDEFAULT, CW_USEDEFAULT,// 窗口位置
+        screenWidth, screenHeight,   // 窗口尺寸（使用固定尺寸800*600）
         NULL,                        // 父窗口
         NULL,                        // 菜单
         hInstance,                   // 实例句柄
         NULL                         // 附加数据
     );
 
-    if (!hWnd) {
+    if (!hWnd)
+    {
         MessageBox(NULL, TEXT("CreateWindow failed!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
     }
@@ -245,30 +300,33 @@ BOOL CreateWindowApp(HINSTANCE hInstance) {
 }
 
 // 处理Windows消息
-void ProcessMessages() {
+void ProcessMessages()
+{
     MSG msg;
-    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+    {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 }
 
-// 初始化DirectX 12渲染器
-BOOL InitializeRenderer() {
+// 初始化DirectX 12渲染设备
+BOOL InitializeDevice()
+{
     std::cout << "  - Converting window title to wide character..." << std::endl;
     // 转换窗口标题为宽字符
     std::wstring windowName(L"XPBD Cloth Simulator");
 
-    std::cout << "  - Creating DX12Renderer object..." << std::endl;
-    // 获取系统屏幕分辨率
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    std::cout << "  - Creating DX12RALDevice object..." << std::endl;
+    // 使用固定窗口尺寸800*600
+    int screenWidth = 800;
+    int screenHeight = 600;
     
-    // 创建渲染器实例，传入正确顺序的参数和全屏尺寸
-    renderer = new DX12Renderer(screenWidth, screenHeight, windowName, hWnd);
-    std::cout << "  - DX12Renderer object created successfully" << std::endl;
+    // 创建渲染设备实例，传入正确顺序的参数和窗口尺寸
+    device = new DX12RALDevice(screenWidth, screenHeight, windowName, hWnd);
+    std::cout << "  - DX12RALDevice object created successfully" << std::endl;
     
-    // 创建相机对象
+    // 创建相机对象，使用窗口尺寸800*600
     camera = new Camera(screenWidth, screenHeight);
     std::cout << "  - Camera object created successfully" << std::endl;
     
@@ -278,93 +336,59 @@ BOOL InitializeRenderer() {
     dx::XMVECTOR cameraUp = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     UpdateCamera(cameraPos, cameraTarget, cameraUp);
 
-    std::cout << "  - Calling renderer->Initialize()..." << std::endl;
-    // 初始化渲染器
-    if (!renderer->Initialize()) {
-        std::cerr << "  - renderer->Initialize() failed!" << std::endl;
-        MessageBox(NULL, TEXT("Failed to initialize DirectX 12 renderer!"), TEXT("Error"), MB_ICONERROR);
+    std::cout << "  - Calling device->Initialize()..." << std::endl;
+    // 初始化渲染设备
+    if (!device->Initialize())
+    {
+        std::cerr << "  - Failed to initialize DX12RALDevice!" << std::endl;
+        MessageBox(NULL, TEXT("Failed to initialize DX12RALDevice!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
     }
-    std::cout << "  - renderer->Initialize() succeeded" << std::endl;
+    std::cout << "  - DX12RALDevice initialized successfully" << std::endl;
+    
+    // 创建场景对象
+    std::cout << "  - Creating Scene object..." << std::endl;
+    scene = new Scene();
+    std::cout << "  - Scene object created successfully" << std::endl;
+    
+    // 初始化场景，创建根签名
+    std::cout << "  - Initializing Scene with device..." << std::endl;
+    if (!scene->Initialize(device)) {
+        std::cerr << "  - scene->Initialize() failed!" << std::endl;
+        MessageBox(NULL, TEXT("Failed to initialize Scene!"), TEXT("Error"), MB_ICONERROR);
+        return FALSE;
+    }
+    std::cout << "  - scene->Initialize() succeeded" << std::endl;
 
     return TRUE;
-}
-
-// 生成球体数据
-void GenerateSphereData(float radius, uint32_t sectors, uint32_t stacks,
-    std::vector<dx::XMFLOAT3>& positions, std::vector<dx::XMFLOAT3>& normals, std::vector<uint32_t>& indices) {
-    // 清空现有数据
-    positions.clear();
-    normals.clear();
-    indices.clear();
-
-    // 生成顶点和法线
-    for (uint32_t i = 0; i <= stacks; ++i) {
-        float phi = dx::XMConvertToRadians(180.0f * static_cast<float>(i) / stacks); // 极角
-        float sinPhi = sin(phi);
-        float cosPhi = cos(phi);
-
-        for (uint32_t j = 0; j <= sectors; ++j) {
-            float theta = dx::XMConvertToRadians(360.0f * static_cast<float>(j) / sectors); // 方位角
-            float sinTheta = sin(theta);
-            float cosTheta = cos(theta);
-
-            // 添加顶点位置
-            dx::XMFLOAT3 pos;
-            pos.x = radius * sinPhi * cosTheta;
-            pos.y = radius * cosPhi;
-            pos.z = radius * sinPhi * sinTheta;
-            positions.push_back(pos);
-
-            // 添加法线（单位向量）
-            dx::XMFLOAT3 normal;
-            normal.x = sinPhi * cosTheta;
-            normal.y = cosPhi;
-            normal.z = sinPhi * sinTheta;
-            normals.push_back(normal);
-        }
-    }
-
-    // 生成索引
-    for (uint32_t i = 0; i < stacks; ++i) {
-        uint32_t row1 = i * (sectors + 1);
-        uint32_t row2 = (i + 1) * (sectors + 1);
-
-        for (uint32_t j = 0; j < sectors; ++j) {
-            // 第一个三角形
-            indices.push_back(row1 + j);
-            indices.push_back(row2 + j + 1);
-            indices.push_back(row1 + j + 1);
-
-            // 第二个三角形
-            indices.push_back(row1 + j);
-            indices.push_back(row2 + j);
-            indices.push_back(row2 + j + 1);
-        }
-    }
 }
 
 // 全局渲染计数器，用于控制调试输出频率
 int globalRenderFrameCount = 0;
 
 // 更新布料渲染数据
-void UpdateClothRenderData() {
-    if (debugOutputEnabled) {
+void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
+{
+    if (debugOutputEnabled)
+    {
         globalRenderFrameCount++;
     }
     
-    if (!cloth || !renderer) {
-        if (debugOutputEnabled) {
-            std::cout << "UpdateClothRenderData: cloth or renderer is null" << std::endl;
+    if (!cloth || !device)
+    {
+        if (debugOutputEnabled)
+        {
+            std::cout << "UpdateClothRenderData: cloth or device is null" << std::endl;
         }
         return;
     }
     
-    const std::vector<Particle>& particles = cloth->getParticles();
-    int width = cloth->getWidth();
-    int height = cloth->getHeight();
+    const std::vector<Particle>& particles = cloth->GetParticles();
+    int width = cloth->GetWidth();
+    int height = cloth->GetHeight();
     
-    if (debugOutputEnabled) {
+    if (debugOutputEnabled)
+    {
         std::cout << "UpdateClothRenderData: Frame " << globalRenderFrameCount << ", particles count = " << particles.size() << ", width = " << width << ", height = " << height << std::endl;
         
         // 调试输出第一个粒子的位置和状态
@@ -392,18 +416,17 @@ void UpdateClothRenderData() {
         }
     }
     
-    // 使用Cloth类的computeNormals方法计算法线数据
-    cloth->computeNormals();
-    
     // 通过getter方法获取渲染数据
-    const std::vector<dx::XMFLOAT3>& positions = cloth->getPositions();
-    const std::vector<dx::XMFLOAT3>& normals = cloth->getNormals();
-    const std::vector<uint32_t>& indices = cloth->getIndices();
+    const std::vector<dx::XMFLOAT3>& positions = cloth->GetPositions();
+    const std::vector<dx::XMFLOAT3>& normals = cloth->GetNormals();
+    const std::vector<uint32_t>& indices = cloth->GetIndices();
     
     // 只有在启用调试输出时才打印详细信息
-    if (debugOutputEnabled) {
+    if (debugOutputEnabled)
+    {
         // 每10帧输出一次部分顶点和法线数据进行验证
-        if (globalRenderFrameCount % 10 == 0) {
+        if (globalRenderFrameCount % 10 == 0)
+        {
             std::cout << "\n--- Frame " << globalRenderFrameCount << " Selected Vertex Data ---" << std::endl;
             // 输出前5个顶点的位置和法线
             int outputCount = (positions.size() < 5) ? static_cast<int>(positions.size()) : 5;
@@ -416,48 +439,73 @@ void UpdateClothRenderData() {
             std::cout << "--------------------------------------\n" << std::endl;
         }
         
-        // 更新渲染器中的布料顶点数据
+        // 更新渲染设备中的布料顶点数据
         std::cout << "UpdateClothRenderData: Calling SetClothVertices with " << positions.size() << " positions" << std::endl;
     }
     
-    renderer->SetClothVertices(positions, normals, indices);
-    
-    if (debugOutputEnabled) {
+    if (debugOutputEnabled)
+    {
         std::cout << "UpdateClothRenderData: SetClothVertices called" << std::endl;
     }
 }
 
 // 更新相机的辅助函数
-void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up) {
-    if (camera) {
+void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up)
+{
+    if (camera)
+    {
         camera->UpdateCamera(position, target, up);
     }
 }
 
 // 清理资源
-void Cleanup() {
+void Cleanup()
+{
+    // 清理场景对象
+    if (scene)
+    {
+        scene->Clear();
+    }
+    
     // 清理布料对象
-    if (cloth) {
+    if (cloth)
+    {
         delete cloth;
         cloth = nullptr;
     }
+
+    if (sphere)
+    {
+        delete sphere;
+        cloth = nullptr;
+    }
     
-    // 清理渲染器
-    if (renderer) {
-        renderer->Cleanup();
-        delete renderer;
-        renderer = nullptr;
+    // 清理场景对象
+    if (scene)
+    {
+        delete scene;
+        scene = nullptr;
+    }
+
+    // 清理渲染设备
+    if (device)
+    {
+        device->Cleanup();
+        delete device;
+        device = nullptr;
     }
     
     // 清理相机对象
-    if (camera) {
+    if (camera)
+    {
         delete camera;
         camera = nullptr;
     }
 }
 
 // main函数
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+{
     // 保存实例句柄
     ::hInstance = hInstance;
     
@@ -466,35 +514,72 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     freopen("CONOUT$", "w", stdout);
     freopen("CONOUT$", "w", stderr);
     
+    // 初始化日志文件
+    initLogFile();
+    
     // 无条件输出一些基本信息
-    std::cout << "[TEST] Console window created" << std::endl;
+    logDebug("[TEST] Console window created");
     
     // 解析命令行参数
     std::string cmdLine(lpCmdLine);
     
+    // 检查是否需要显示帮助信息
+    if (cmdLine.find("-help") != std::string::npos || cmdLine.find("-h") != std::string::npos)
+    {
+        std::cout << "XPBD Cloth Simulator (DirectX 12) - 命令行参数帮助" << std::endl;
+        std::cout << "===================================================" << std::endl;
+        std::cout << "可用的命令行参数：" << std::endl;
+        std::cout << "  -help, -h            显示此帮助信息并退出" << std::endl;
+        std::cout << "  -debug, -d           启用调试输出模式" << std::endl;
+        std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
+        std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认50）" << std::endl;
+        std::cout << "===================================================" << std::endl;
+        std::cout << "程序控制：" << std::endl;
+        std::cout << "  F9                    切换调试输出开关" << std::endl;
+        std::cout << "  ESC                   退出程序" << std::endl;
+        std::cout << "  鼠标右键 + 移动       旋转相机视角" << std::endl;
+        std::cout << "  鼠标滚轮              缩放相机距离" << std::endl;
+        
+        // 关闭日志文件
+        closeLogFile();
+        return 0; // 直接退出程序，不创建其他对象
+    }
+
     // 简单解析命令行参数，寻找 -maxFrames:xxx 格式的参数
     size_t maxFramesPos = cmdLine.find("-maxFrames:");
-    if (maxFramesPos != std::string::npos) {
-        try {
-            size_t start = maxFramesPos + 11; // "-maxFrames:" 长度为11
-            size_t end = cmdLine.find(' ', start);
-            if (end == std::string::npos) {
-                end = cmdLine.length();
-            }
-            std::string maxFramesStr = cmdLine.substr(start, end - start);
-            maxFrames = std::stoi(maxFramesStr);
-            std::cout << "Max frames set to: " << maxFrames << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "Error parsing maxFrames parameter: " << e.what() << std::endl;
-            std::cerr << "Using default maxFrames value (-1 = unlimited)" << std::endl;
-            maxFrames = -1; // 恢复为默认值
+    if (maxFramesPos != std::string::npos)
+    {
+        size_t start = maxFramesPos + 11; // "-maxFrames:" 长度为11
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
         }
+        std::string maxFramesStr = cmdLine.substr(start, end - start);
+        maxFrames = std::stoi(maxFramesStr);
+        logDebug("Max frames set to: " + std::to_string(maxFrames));
+    }
+
+    // 解析-iteratorCount:xxx参数
+    size_t iteratorCountPos = cmdLine.find("-iteratorCount:");
+    if (iteratorCountPos != std::string::npos)
+    {
+        size_t start = iteratorCountPos + 15; // "-iteratorCount:" 长度为15
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string iteratorCountStr = cmdLine.substr(start, end - start);
+        iteratorCount = std::stoi(iteratorCountStr);
+        logDebug("Iterator count set to: " + std::to_string(iteratorCount));
     }
     
-    if (cmdLine.find("--debug") != std::string::npos || cmdLine.find("-d") != std::string::npos) {
+    if (cmdLine.find("-debug") != std::string::npos || cmdLine.find("-d") != std::string::npos)
+    {
         debugOutputEnabled = true;
         std::cout << "[DEBUG] Debug output enabled via command line parameter: " << cmdLine << std::endl;
-    } else {
+    }
+    else
+    {
         std::cout << "[INFO] Running in normal mode (debug output disabled)" << std::endl;
     }
     
@@ -504,47 +589,87 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 创建窗口
     std::cout << "Creating window..." << std::endl;
-    if (!CreateWindowApp(hInstance)) {
+    if (!CreateWindowApp(hInstance))
+    {
         std::cerr << "Failed to create window" << std::endl;
         return -1;
     }
     std::cout << "Window created successfully" << std::endl;
     
-    // 初始化DirectX 12渲染器
-    std::cout << "Initializing renderer..." << std::endl;
-    std::cout << "  - Creating DX12Renderer instance..." << std::endl;
-    if (!InitializeRenderer()) {
-        std::cerr << "Failed to initialize renderer" << std::endl;
-        MessageBox(hWnd, L"Failed to initialize DirectX 12 renderer", L"Error", MB_OK | MB_ICONERROR);
+    // 初始化DirectX 12渲染设备
+    std::cout << "Initializing device..." << std::endl;
+    std::cout << "  - Creating DX12RALDevice instance..." << std::endl;
+    if (!InitializeDevice())
+    {
+        std::cerr << "Failed to initialize device" << std::endl;
+        MessageBox(hWnd, L"Failed to initialize DirectX 12 device", L"Error", MB_OK | MB_ICONERROR);
         Cleanup();
         return -1;
     }
-    std::cout << "Renderer initialized successfully" << std::endl;
+    std::cout << "Device initialized successfully" << std::endl;
     
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
-    cloth = new Cloth(dx::XMFLOAT3(-5.0f, 5.0f, -5.0f), 40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
+
+    cloth = new Cloth(40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
     
     // 默认启用XPBD碰撞约束
-    cloth->setUseXPBDCollision(true);
+    cloth->SetUseXPBDCollision(true);
     
+    // 设置位置
+    cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
+
+    // 设置布料的材质颜色（红色）
+    cloth->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
+
+	cloth->Initialize(device);
+
+    // 设置XPBD求解器迭代次数
+    cloth->SetIteratorCount(iteratorCount);
+    logDebug("Cloth iterator count set to: " + std::to_string(iteratorCount));
+
+    // 将布料添加到场景中
+    scene->AddPrimitive(cloth);
+
+    std::cout << "Sphere object added to scene successfully" << std::endl;
+
     std::cout << "Cloth object created successfully" << std::endl;
     
-    // 初始化球体数据
-    std::cout << "Initializing sphere data..." << std::endl;
-    std::vector<dx::XMFLOAT3> spherePositions;
-    std::vector<dx::XMFLOAT3> sphereNormals;
-    std::vector<uint32_t> sphereIndices;
-    GenerateSphereData(2.0f, 32, 32, spherePositions, sphereNormals, sphereIndices);
-    renderer->SetSphereVertices(spherePositions, sphereNormals, sphereIndices);
-    std::cout << "Sphere data initialized successfully" << std::endl;
+    // 创建并初始化球体对象
+    dx::XMFLOAT3 sphereCenter(0.0f, 5.0f, 0.0f);
+    float sphereRadius = 2.0f;
+
+    std::cout << "Creating sphere object..." << std::endl;
+    sphere = new Sphere(sphereRadius, 32, 32);
+
+    // 设置球体的材质颜色（红色）
+    sphere->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
+    
+    // 设置球体的世界矩阵
+    sphere->SetPosition(dx::XMFLOAT3(0.0f, 5.0f, 0.0f));
+    sphere->SetScale(dx::XMFLOAT3(1.0f, 1.0f, 1.0f));
+    sphere->SetRotation(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    
+    sphere->Initialize(device);
+
+    // 初始化球体碰撞约束（一次性创建，避免每帧重建）
+    cloth->InitializeSphereCollisionConstraints(sphere->GetPosition(), sphereRadius);
+
+    // 将球体添加到场景中
+    scene->AddPrimitive(sphere);
+    std::cout << "Sphere object added to scene successfully" << std::endl;
+
+    // 设置场景光源属性
+    scene->SetLightPosition(dx::XMFLOAT3(-10.0f, 30.0f, -10.0f));
+    scene->SetLightDiffuseColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
     
     // 初始化时间
     lastFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
     
     std::cout << "Entering main loop..." << std::endl;
     // 主循环
-    while (running) {
+    while (running)
+    {
         // 处理Windows消息
         ProcessMessages();
         
@@ -552,65 +677,74 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         float currentFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        // 增加帧计数器
+        frameCount++;
+
+        // 计算FPS并更新窗口标题
+        static float fpsUpdateTimer = 0.0f;
+        static int fpsCounter = 0;
+        fpsUpdateTimer += deltaTime;
+        fpsCounter++;
         
-        // 限制最大帧率以避免CPU过载
-        if (deltaTime < 1.0f / 60.0f) {
-            Sleep(static_cast<DWORD>((1.0f / 60.0f - deltaTime) * 1000.0f));
-            currentFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
-            deltaTime = currentFrame - lastFrame;
-            lastFrame = currentFrame;
+        // 每秒更新一次窗口标题
+        if (fpsUpdateTimer >= 1.0f)
+        {
+            float fps = static_cast<float>(fpsCounter) / fpsUpdateTimer;
+            
+            // 构造新的窗口标题
+        std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
+        std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
+                                std::to_wstring(iteratorCount) + L" Iter]";
+            
+            // 更新窗口标题
+            SetWindowText(hWnd, newTitle.c_str());
+            
+            // 重置计时器和计数器
+            fpsUpdateTimer = 0.0f;
+            fpsCounter = 0;
         }
-        
-        // 更新布料模拟
-        if (cloth) {
-            // 恢复布料物理更新
-            cloth->update(deltaTime);
-            
-            // 增加帧计数器
-            frameCount++;
-            
-            // 如果设置了最大帧数限制且已达到，则退出程序
-            if (maxFrames > 0 && frameCount >= maxFrames) {
-                std::cout << "Reached maximum frames (" << maxFrames << "), exiting..." << std::endl;
-                running = false;
-                continue;
-            }
-            
-            // 定期输出当前帧数
-            if (debugOutputEnabled && frameCount % 30 == 0) {
-                std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
-            }
-            
-            // 恢复渲染数据更新
-            UpdateClothRenderData();
-            
-            // 调用UpdateCamera函数，传入渲染器需要的相机参数
-            UpdateCamera(camera->GetPosition(), camera->GetTarget(), camera->GetUp());
+
+        // 如果设置了最大帧数限制且已达到，则退出程序
+        if (maxFrames > 0 && frameCount >= maxFrames)
+        {
+            std::cout << "Reached maximum frames (" << maxFrames << "), exiting..." << std::endl;
+            running = false;
+            continue;
         }
-        
+
+        // 定期输出当前帧数
+        if (debugOutputEnabled && frameCount % 30 == 0)
+        {
+            std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
+        }
+
+        device->BeginFrame();
+
         // 处理键盘输入
         camera->ProcessKeyboardInput(keys, deltaTime);
-        
-        // 可以在这里添加按某个键切换碰撞检测模式的功能
-        // 例如：按'C'键切换传统碰撞和XPBD碰撞
-        
+
+        // 更新场景
+        scene->Update(deltaTime);
+
         // 渲染场景
-        if (renderer && camera) {
-            if (debugOutputEnabled) {
-                static int renderCount = 0;
-                renderCount++;
-                if (renderCount % 30 == 0) {
-                    std::cout << "Rendering scene, render count: " << renderCount << std::endl;
-                }
-            }
-            renderer->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
-        }
+        static int renderCount = 0;
+        renderCount++;
+        logDebug("[DEBUG] Rendering scene, render count: " + std::to_string(renderCount));
+        logDebug("[DEBUG] Scene has " + std::to_string(scene->GetMeshCount()) + " meshes");
+
+        scene->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
+
+        device->EndFrame();
     }
     
-    std::cout << "Exiting main loop" << std::endl;
+    logDebug("Exiting main loop");
     // 清理资源
     Cleanup();
-    std::cout << "Resources cleaned up" << std::endl;
+    logDebug("Resources cleaned up");
+    
+    // 关闭日志文件
+    closeLogFile();
     
     return 0;
 }
