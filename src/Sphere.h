@@ -83,6 +83,10 @@ public:
     }
 
 private:
+    // 生成球体的顶点和索引数据
+    void GenerateSphereData();
+
+private:
     // 球体参数
     dx::XMFLOAT3 m_center; // 球体中心位置
     float m_radius;        // 球体半径
@@ -93,9 +97,6 @@ private:
     std::vector<dx::XMFLOAT3> m_positions; // 顶点位置数据
     std::vector<dx::XMFLOAT3> m_normals;   // 顶点法线数据
     std::vector<uint32_t> m_indices;       // 索引数据
-
-    // 生成球体的顶点和索引数据
-    void GenerateSphereData();
 };
 
 #endif // SPHERE_H

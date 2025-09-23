@@ -18,7 +18,12 @@ extern int& GetCollisionConstraintCount();
 //   size - 布料的实际物理尺寸（以米为单位）
 //   mass - 每个粒子的质量
 Cloth::Cloth(int width, int height, float size, float mass)
-    : Mesh(), m_width(width), m_height(height), m_solver(m_particles, m_constraints), m_useXPBDCollision(true)
+    : Mesh()
+    , m_width(width)
+    , m_height(height)
+    , m_solver(m_particles, m_constraints)
+    , m_useXPBDCollision(true)
+    , m_iteratorCount(80)
 {
     // 创建粒子
     CreateParticles(size, mass);
@@ -29,9 +34,6 @@ Cloth::Cloth(int width, int height, float size, float mass)
     // 设置重力为标准地球重力
     m_gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
     m_solver.SetGravity(m_gravity);
-    
-    // 设置求解器参数（增加迭代次数以提高约束求解质量）
-    m_solver.SetIterations(80); // 显著增加迭代次数以提高高分辨率布料和碰撞的稳定性
 }
 
 // 析构函数
@@ -278,17 +280,14 @@ void Cloth::ComputeNormals()
 }
 
 // 更新布料状态
-void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime) {
-    // 重置碰撞约束计数
-    GetCollisionConstraintCount() = 0;
-    
+void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
+{
+    // 设置求解器参数
+    m_solver.SetIterations(m_iteratorCount);
+
     // 添加重力
     m_solver.SetGravity(m_gravity);
     
-    // 设置球体参数
-    dx::XMFLOAT3 sphereCenter(0.0f, 0.0f, 0.0f); // 与Main.cpp中的注释一致，使布料中心对准球体(0,0,0)
-    float sphereRadius = 2.0f;
-
     // 使用XPBD求解器更新布料状态
     m_solver.Step(deltaTime);
     
@@ -309,7 +308,7 @@ void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime) {
 void Cloth::ClearSphereCollisionConstraints()
 {
     // 从总约束列表中移除球体碰撞约束
-    auto it = std::remove_if(m_constraints.begin(), m_constraints.end(), [this](Constraint* constraint) {
+    auto it = std::remove_if(m_constraints.begin(), m_constraints.end(), [this](Constraint* constraint){
         return std::find(m_sphereConstraints.begin(), m_sphereConstraints.end(), constraint) != m_sphereConstraints.end();
     });
     m_constraints.erase(it, m_constraints.end());

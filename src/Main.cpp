@@ -63,6 +63,7 @@ bool debugOutputEnabled = false; // 调试输出开关，默认关闭
 bool f9Pressed = false;        // F9键按下标志，用于检测按键状态变化
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
+int iteratorCount = 50;        // XPBD求解器迭代次数，默认50
 
 // 相机对象
 Camera* camera = nullptr;
@@ -531,6 +532,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -help, -h            显示此帮助信息并退出" << std::endl;
         std::cout << "  -debug, -d           启用调试输出模式" << std::endl;
         std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
+        std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认50）" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "程序控制：" << std::endl;
         std::cout << "  F9                    切换调试输出开关" << std::endl;
@@ -547,23 +549,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     size_t maxFramesPos = cmdLine.find("-maxFrames:");
     if (maxFramesPos != std::string::npos)
     {
-        try
-        {
-            size_t start = maxFramesPos + 11; // "-maxFrames:" 长度为11
-            size_t end = cmdLine.find(' ', start);
-            if (end == std::string::npos) {
-                end = cmdLine.length();
-            }
-            std::string maxFramesStr = cmdLine.substr(start, end - start);
-            maxFrames = std::stoi(maxFramesStr);
-            logDebug("Max frames set to: " + std::to_string(maxFrames));
+        size_t start = maxFramesPos + 11; // "-maxFrames:" 长度为11
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
         }
-        catch (const std::exception& e)
-        {
-            std::cerr << "Error parsing maxFrames parameter: " << e.what() << std::endl;
-            std::cerr << "Using default maxFrames value (-1 = unlimited)" << std::endl;
-            maxFrames = -1; // 恢复为默认值
+        std::string maxFramesStr = cmdLine.substr(start, end - start);
+        maxFrames = std::stoi(maxFramesStr);
+        logDebug("Max frames set to: " + std::to_string(maxFrames));
+    }
+
+    // 解析-iteratorCount:xxx参数
+    size_t iteratorCountPos = cmdLine.find("-iteratorCount:");
+    if (iteratorCountPos != std::string::npos)
+    {
+        size_t start = iteratorCountPos + 15; // "-iteratorCount:" 长度为15
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
         }
+        std::string iteratorCountStr = cmdLine.substr(start, end - start);
+        iteratorCount = std::stoi(iteratorCountStr);
+        logDebug("Iterator count set to: " + std::to_string(iteratorCount));
     }
     
     if (cmdLine.find("-debug") != std::string::npos || cmdLine.find("-d") != std::string::npos)
@@ -616,6 +623,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     cloth->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
 
 	cloth->Initialize(device);
+
+    // 设置XPBD求解器迭代次数
+    cloth->SetIteratorCount(iteratorCount);
+    logDebug("Cloth iterator count set to: " + std::to_string(iteratorCount));
 
     // 将布料添加到场景中
     scene->AddPrimitive(cloth);
@@ -682,8 +693,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             float fps = static_cast<float>(fpsCounter) / fpsUpdateTimer;
             
             // 构造新的窗口标题
-            std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
-            std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS]";
+        std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
+        std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
+                                std::to_wstring(iteratorCount) + L" Iter]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());

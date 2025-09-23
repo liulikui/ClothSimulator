@@ -62,6 +62,18 @@ public:
         return m_height;
     }
     
+    // 获取迭代次数
+    uint32_t GetIteratorCount() const
+    {
+        return m_iteratorCount;
+    }
+
+    // 设置迭代次数
+    void SetIteratorCount(uint32_t count)
+    {
+        m_iteratorCount = count;
+    }
+
     // 清除所有球体碰撞约束
     void ClearSphereCollisionConstraints();
     
@@ -133,6 +145,7 @@ private:
     // 计算法线
     void ComputeNormals();
 
+private:
     // 布料的尺寸参数
     int m_width; // 宽度方向的粒子数
     int m_height; // 高度方向的粒子数
@@ -154,6 +167,8 @@ private:
     std::vector<dx::XMFLOAT3> m_positions; // 布料顶点位置数据
     std::vector<dx::XMFLOAT3> m_normals; // 布料顶点法线数据
     std::vector<uint32_t> m_indices; // 布料索引数据
+
+    uint32_t m_iteratorCount;   // 迭代次数
 };
 
 #endif // CLOTH_H

@@ -10,12 +10,6 @@
 #include <string>
 #include <iomanip>
 
-// 使用inline函数来跟踪碰撞约束的应用次数，避免多重定义问题
-inline int& GetCollisionConstraintCount() {
-    static int count = 0;
-    return count;
-}
-
 #include "Particle.h"
 #include "Constraint.h"
 
@@ -150,7 +144,6 @@ private:
             if (constraintParticles.size() == 1 && C < 0)
             {
                 isCollisionConstraint = true;
-                GetCollisionConstraintCount()++;
                 
                 // 对于碰撞约束，我们只在粒子在球内时应用约束
                 // C < 0表示粒子在球内，需要被推回球外
