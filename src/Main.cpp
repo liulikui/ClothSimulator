@@ -268,17 +268,17 @@ BOOL CreateWindowApp(HINSTANCE hInstance)
         return FALSE;
     }
 
-    // 获取系统屏幕分辨率
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    // 使用固定窗口尺寸800*600
+    int screenWidth = 800;
+    int screenHeight = 600;
 
-    // 创建全屏窗口
+    // 创建窗口（使用窗口样式，不再是全屏模式）
     hWnd = CreateWindow(
         TEXT("DX12ClothSimulator"),  // 窗口类名称
         TEXT("XPBD Cloth Simulator (DirectX 12)"),  // 窗口标题
-        WS_POPUP,                    // 无边框全屏窗口样式
-        0, 0,                        // 窗口位置（全屏时从(0,0)开始）
-        screenWidth, screenHeight,   // 窗口尺寸（使用屏幕分辨率）
+        WS_OVERLAPPEDWINDOW,         // 窗口样式
+        CW_USEDEFAULT, CW_USEDEFAULT,// 窗口位置
+        screenWidth, screenHeight,   // 窗口尺寸（使用固定尺寸800*600）
         NULL,                        // 父窗口
         NULL,                        // 菜单
         hInstance,                   // 实例句柄
@@ -317,15 +317,15 @@ BOOL InitializeDevice()
     std::wstring windowName(L"XPBD Cloth Simulator");
 
     std::cout << "  - Creating DX12RALDevice object..." << std::endl;
-    // 获取系统屏幕分辨率
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    // 使用固定窗口尺寸800*600
+    int screenWidth = 800;
+    int screenHeight = 600;
     
-    // 创建渲染设备实例，传入正确顺序的参数和全屏尺寸
+    // 创建渲染设备实例，传入正确顺序的参数和窗口尺寸
     device = new DX12RALDevice(screenWidth, screenHeight, windowName, hWnd);
     std::cout << "  - DX12RALDevice object created successfully" << std::endl;
     
-    // 创建相机对象
+    // 创建相机对象，使用窗口尺寸800*600
     camera = new Camera(screenWidth, screenHeight);
     std::cout << "  - Camera object created successfully" << std::endl;
     
@@ -649,7 +649,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::cout << "Sphere object added to scene successfully" << std::endl;
 
     // 设置场景光源属性
-    scene->SetLightPosition(dx::XMFLOAT3(10.0f, 10.0f, 10.0f));
+    scene->SetLightPosition(dx::XMFLOAT3(-10.0f, 30.0f, -10.0f));
     scene->SetLightDiffuseColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
     
     // 初始化时间
@@ -666,18 +666,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         float currentFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        
-        // 限制最大帧率以避免CPU过载
-        if (deltaTime < 1.0f / 60.0f)
-        {
-            Sleep(static_cast<DWORD>((1.0f / 60.0f - deltaTime) * 1000.0f));
-            currentFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
-            deltaTime = currentFrame - lastFrame;
-            lastFrame = currentFrame;
-        }
-        
+
         // 增加帧计数器
         frameCount++;
+
+        // 计算FPS并更新窗口标题
+        static float fpsUpdateTimer = 0.0f;
+        static int fpsCounter = 0;
+        fpsUpdateTimer += deltaTime;
+        fpsCounter++;
+        
+        // 每秒更新一次窗口标题
+        if (fpsUpdateTimer >= 1.0f)
+        {
+            float fps = static_cast<float>(fpsCounter) / fpsUpdateTimer;
+            
+            // 构造新的窗口标题
+            std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
+            std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS]";
+            
+            // 更新窗口标题
+            SetWindowText(hWnd, newTitle.c_str());
+            
+            // 重置计时器和计数器
+            fpsUpdateTimer = 0.0f;
+            fpsCounter = 0;
+        }
 
         // 如果设置了最大帧数限制且已达到，则退出程序
         if (maxFrames > 0 && frameCount >= maxFrames)
