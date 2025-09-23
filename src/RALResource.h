@@ -759,7 +759,7 @@ struct RALRootDescriptorTable
 };
 
 // 着色器可见性枚举
-enum RALShaderVisibility
+enum class RALShaderVisibility
 {
 	All,
 	Vertex,
