@@ -84,7 +84,7 @@ ClothSimulator/
   - 默认情况下，布料的左上角和右上角粒子是固定的
 - **窗口信息**：
   - 窗口尺寸：800×600像素
-  - 窗口标题会显示当前帧率、迭代次数和布料分辨率（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res]"），其中W和H分别表示布料的宽度和高度分辨率
+  - 窗口标题会显示当前帧率、迭代次数、布料分辨率和LRA约束状态（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res, LRA:ON/OFF]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束
 
 ## 命令行参数
 

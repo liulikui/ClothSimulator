@@ -771,9 +771,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             
             // 构造新的窗口标题
         std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
+        std::wstring lraStatus = cloth->GetAddLRAConstraint() ? L"LRA:ON" : L"LRA:OFF";
         std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                                 std::to_wstring(iteratorCount) + L" Iter, " + 
-                                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res]";
+                                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
+                                lraStatus + L"]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());
