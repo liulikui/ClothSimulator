@@ -22,10 +22,10 @@ public:
     
     // 初始化场景，创建根签名
     // 参数：
-    //   pRenderer - IRALDevice对象指针
+    //   pDevice - IRALDevice对象指针
     // 返回值：
     //   初始化是否成功
-    bool Initialize(IRALDevice* pRenderer);
+    bool Initialize(IRALDevice* pDevice);
     
     // 析构函数
     ~Scene();
@@ -120,7 +120,7 @@ private:
 	void UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo);
 
 private:
-    IRALDevice* m_renderer;
+    IRALDevice* m_device;
 
     // 添加Primitive的请求列表
     std::vector<AddPrimitiveRequest> m_addPrimitiveRequests;

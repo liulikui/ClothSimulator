@@ -36,14 +36,15 @@ Scene::Scene()
     logDebug("[DEBUG] Scene constructor called");
 }
 
-bool Scene::Initialize(IRALDevice* pRenderer)
+bool Scene::Initialize(IRALDevice* pDevice)
 {
-    if (!pRenderer) {
-        logDebug("[DEBUG] Scene::Initialize failed: renderer is null");
+    if (!pDevice)
+    {
+        logDebug("[DEBUG] Scene::Initialize failed: device is null");
         return false;
     }
 
-    m_renderer = pRenderer;
+    m_device = pDevice;
     
     logDebug("[DEBUG] Scene::Initialize called");
     
@@ -77,7 +78,7 @@ bool Scene::Initialize(IRALDevice* pRenderer)
     std::vector<RALStaticSampler> staticSamplers = { staticSampler };
 
     // 使用DX12Renderer的CreateRootSignature方法创建根签名
-    IRALRootSignature* rootSignaturePtr = pRenderer->CreateRootSignature(
+    IRALRootSignature* rootSignaturePtr = pDevice->CreateRootSignature(
         rootParameters,
         staticSamplers,
         RALRootSignatureFlags::AllowInputAssemblerInputLayout
@@ -164,14 +165,14 @@ bool Scene::Initialize(IRALDevice* pRenderer)
         "}";
 
     // 编译着色器
-    m_vertexShader = pRenderer->CompileVertexShader(vertexShaderCode, "main");
+    m_vertexShader = pDevice->CompileVertexShader(vertexShaderCode, "main");
     if (!m_vertexShader.Get())
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to compile vertex shader");
         return false;
     }
 
-    m_pixelShader = pRenderer->CompilePixelShader(pixelShaderCode, "main");
+    m_pixelShader = pDevice->CompilePixelShader(pixelShaderCode, "main");
     if (!m_pixelShader.Get())
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to compile pixel shader");
@@ -253,7 +254,7 @@ bool Scene::Initialize(IRALDevice* pRenderer)
     pipelineDesc.sampleMask = UINT32_MAX;
     
     // 创建图形管道状态
-    IRALGraphicsPipelineState* pipelineStatePtr = pRenderer->CreateGraphicsPipelineState(pipelineDesc);
+    IRALGraphicsPipelineState* pipelineStatePtr = pDevice->CreateGraphicsPipelineState(pipelineDesc);
     if (!pipelineStatePtr)
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create graphics pipeline state");
@@ -265,7 +266,7 @@ bool Scene::Initialize(IRALDevice* pRenderer)
     
     logDebug("[DEBUG] Scene::Initialize succeeded: graphics pipeline state created and stored");
     
-    m_constBuffer = pRenderer->CreateConstBuffer(sizeof(SceneConstBuffer));
+    m_constBuffer = pDevice->CreateConstBuffer(sizeof(SceneConstBuffer));
     if (!m_constBuffer.Get())
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create const buffer");
@@ -285,7 +286,7 @@ void Scene::Update(float deltaTime)
 {
     UpdatePrimitiveRequests();
 
-    IRALGraphicsCommandList* commandList = m_renderer->GetGraphicsCommandList();
+    IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
 
     // 更新场景中所有可见对象的状态
     for (auto& primitiveInfo : m_primitives) 
@@ -299,7 +300,7 @@ void Scene::Update(float deltaTime)
 
 void Scene::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
 {
-    IRALGraphicsCommandList* commandList = m_renderer->GetGraphicsCommandList();
+    IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
 
     // 更新场景常量缓冲区
     UpdateSceneConstBuffer(commandList, viewMatrix, projectionMatrix);
@@ -334,7 +335,7 @@ void Scene::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectio
             mesh.indexBuffer = primitiveInfo.indexBuffer.Get();
 
             // 更新Mesh
-            primitiveInfo.primitive->OnUpdateMesh(m_renderer, mesh);
+            primitiveInfo.primitive->OnUpdateMesh(m_device, mesh);
 
             // 更新Primitive常量缓冲区
             UpdatePrimitiveConstBuffer(commandList, &primitiveInfo);
@@ -410,13 +411,13 @@ void Scene::UpdatePrimitiveRequests()
         primitiveInfo.visible = primitive->IsVisible();
 
         PrimitiveMesh mesh;
-        primitive->OnSetupMesh(m_renderer, mesh);
+        primitive->OnSetupMesh(m_device, mesh);
         
         primitiveInfo.vertexBuffer = mesh.vertexBuffer;
         primitiveInfo.indexBuffer = mesh.indexBuffer;
         
         primitiveInfo.diffuseColor = primitive->GetDiffuseColor();
-        primitiveInfo.constBuffer = m_renderer->CreateConstBuffer(sizeof(ObjectConstBuffer));
+        primitiveInfo.constBuffer = m_device->CreateConstBuffer(sizeof(ObjectConstBuffer));
 
         // 添加对象到场景中
         m_primitives.push_back(primitiveInfo);
@@ -440,7 +441,11 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
     data.padding1 = 0.0f;
 
     // 映射并更新缓冲区
-    m_renderer->UploadBuffer(m_constBuffer.Get(), reinterpret_cast<const char*>(&data), sizeof(SceneConstBuffer));
+    void* mappedData = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    m_constBuffer->Map(&mappedData);
+    memcpy(mappedData, &data, sizeof(SceneConstBuffer));
+    m_constBuffer->Unmap();
 }
 
 void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo)
@@ -450,5 +455,9 @@ void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, Pri
     data.diffuseColor = primitiveInfo->diffuseColor;
 
     // 映射并更新缓冲区
-    m_renderer->UploadBuffer(primitiveInfo->constBuffer.Get(), reinterpret_cast<const char*>(&data), sizeof(ObjectConstBuffer));
+    void* mappedData = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    primitiveInfo->constBuffer->Map(&mappedData);
+    memcpy(mappedData, &data, sizeof(SceneConstBuffer));
+    primitiveInfo->constBuffer->Unmap();
 }
