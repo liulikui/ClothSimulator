@@ -349,6 +349,12 @@ void Cloth::CreateParticles()
             
             // 创建粒子
             m_particles.emplace_back(posFloat3, m_mass, isStatic);
+
+#ifdef DEBUG_SOLVER
+            Particle& particle = m_particles.back();
+            particle.coordX = x;
+            particle.coordY = y;
+#endif//DEBUG_SOLVER
         }
     }
 

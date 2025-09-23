@@ -16,13 +16,13 @@
 std::ofstream logFile;
 
 // 日志函数
-void logDebug(const std::string& message)
+extern void logDebug(const std::string& message)
 {
-    std::cout << message << std::endl;
+    //std::cout << message << std::endl;
     if (logFile.is_open())
     {
         logFile << message << std::endl;
-        logFile.flush();
+        //logFile.flush();
     }
 }
 
@@ -43,6 +43,7 @@ void closeLogFile()
 {
     if (logFile.is_open())
     {
+        logFile.flush();
         logFile << "[LOG] Debug log ended." << std::endl;
         logFile.close();
     }
@@ -81,9 +82,10 @@ bool mouseCaptured = false;
 // 键盘状态数组，用于跟踪按键状态
 bool keys[256] = { false }; // 假设是标准ASCII键盘
 
-// 时间控制
+// 高精度计时器变量
+LARGE_INTEGER frequency;
+LARGE_INTEGER lastCounter;
 float deltaTime = 0.0f;
-float lastFrame = 0.0f;
 
 // 前向声明
 void UpdateCamera(const dx::XMVECTOR& position, const dx::XMVECTOR& target, const dx::XMVECTOR& up);
@@ -707,8 +709,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     scene->SetLightPosition(dx::XMFLOAT3(-10.0f, 30.0f, -10.0f));
     scene->SetLightDiffuseColor(dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
     
-    // 初始化时间
-    lastFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
+    // 初始化高精度计时器
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&lastCounter);
     
     std::cout << "Entering main loop..." << std::endl;
     // 主循环
@@ -717,11 +720,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // 处理Windows消息
         ProcessMessages();
         
-        // 计算帧率
-        float currentFrame = static_cast<float>(GetTickCount64()) / 1000.0f;
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
+        // 使用高精度计时器计算帧时间
+        LARGE_INTEGER currentCounter;
+        QueryPerformanceCounter(&currentCounter);
+        deltaTime = static_cast<float>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<float>(frequency.QuadPart);
+        lastCounter = currentCounter;
+        
         // 增加帧计数器
         frameCount++;
 
@@ -764,6 +768,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::cout << "Current frame: " << frameCount << ", deltaTime: " << deltaTime << std::endl;
         }
 
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] BeginFrame" + std::to_string(frameCount));
+#endif//DEBUG_SOLVER
         device->BeginFrame();
 
         // 处理键盘输入
@@ -781,6 +788,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         scene->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
         device->EndFrame();
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] EndFrame" + std::to_string(frameCount));
+#endif//DEBUG_SOLVER
     }
     
     logDebug("Exiting main loop");
