@@ -541,6 +541,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "程序控制：" << std::endl;
         std::cout << "  F9                    切换调试输出开关" << std::endl;
         std::cout << "  ESC                   退出程序" << std::endl;
+        std::cout << "  W/S/A/D               使用WASD键移动摄像机" << std::endl;
         std::cout << "  鼠标右键 + 移动       旋转相机视角" << std::endl;
         std::cout << "  鼠标滚轮              缩放相机距离" << std::endl;
         
