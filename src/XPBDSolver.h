@@ -16,6 +16,8 @@
 // 为了方便使用，创建一个命名空间别名
 namespace dx = DirectX;
 
+extern void logDebug(const std::string& message);
+
 // XPBD (Extended Position Based Dynamics) 求解器
 // 一种基于位置的物理模拟系统，特别适合处理约束
 class XPBDSolver
@@ -203,20 +205,9 @@ private:
                 sum = 1e-9f;
             }
             
-            // 计算拉格朗日乘子增量 - 正确实现XPBD算法
+            // 计算拉格朗日乘子增量
             float deltaLambda = (-C - alpha * constraint->lambda) / sum;
 
-            // 为提高稳定性，添加deltaLambda的上限限制
-            float lambdaLimit = 100.0f; // 可以根据需要调整
-            if (deltaLambda > lambdaLimit)
-            {
-                deltaLambda = lambdaLimit;
-            }
-            else if(deltaLambda < -lambdaLimit)
-            {
-                deltaLambda = -lambdaLimit;
-            }
-            
             // 更新约束的拉格朗日乘子
             constraint->lambda += deltaLambda;
             
@@ -231,15 +222,19 @@ private:
                     
                     // 计算校正量
                     dx::XMVECTOR correction = dx::XMVectorScale(gradient, deltaLambda * constraintParticles[i]->inverseMass);
-                    
-                    // 为了提高稳定性，限制单次校正量的大小
-                    float maxCorrection = 1.0f;  // 增加最大校正量，对于碰撞约束允许更大的校正
+
+#ifdef DEBUG_SOLVER
                     dx::XMVECTOR correctionLength = dx::XMVector3Length(correction);
-                    if (dx::XMVectorGetX(correctionLength) > maxCorrection)
-                    {
-                        correction = dx::XMVectorScale(correction, maxCorrection / dx::XMVectorGetX(correctionLength));
-                    }
-                    
+                    char buffer[256];
+                    sprintf_s(buffer, "[DEBUG] deltaTime:%f coordX:%d,coordY:%d alpha:%f deltaLambda:%f correctionLength:%f"
+                        , deltaTime
+                        , constraintParticles[i]->coordX
+                        , constraintParticles[i]->coordY
+                        , alpha
+                        , deltaLambda
+                        , dx::XMVectorGetX(correctionLength));
+                    logDebug(buffer);
+#endif//DEBUG_SOLVER
                     // 应用校正
                     dx::XMVECTOR newPos = dx::XMVectorAdd(pos, correction);
                     

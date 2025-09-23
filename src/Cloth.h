@@ -23,11 +23,11 @@ class Cloth : public Mesh
 public:
     // 构造函数：创建一个布料对象
     // 参数：
-    //   width - 布料宽度方向的粒子数
-    //   height - 布料高度方向的粒子数
+    //   widthResolution - 布料宽度方向的粒子数
+    //   heightResolution - 布料高度方向的粒子数
     //   size - 布料的实际物理尺寸（以米为单位）
     //   mass - 每个粒子的质量
-    Cloth(int width, int height, float size, float mass);
+    Cloth(int widthResolution, int heightResolution, float size, float mass);
     
     // 析构函数
     ~Cloth() override;
@@ -51,15 +51,15 @@ public:
     }
     
     // 获取布料的宽度（粒子数）
-    int GetWidth() const
+    int GetWidthResolution() const
     {
-        return m_width;
+        return m_widthResolution;
     }
     
     // 获取布料的高度（粒子数）
-    int GetHeight() const
+    int GetHeightResolution() const
     {
-        return m_height;
+        return m_heightResolution;
     }
     
     // 获取迭代次数
@@ -137,18 +137,20 @@ public:
 
 private:
     // 创建布料的粒子
-    void CreateParticles(float size, float mass);
+    void CreateParticles();
     
     // 创建布料的约束
-    void CreateConstraints(float size);
+    void CreateConstraints();
 
     // 计算法线
     void ComputeNormals();
 
 private:
     // 布料的尺寸参数
-    int m_width; // 宽度方向的粒子数
-    int m_height; // 高度方向的粒子数
+    int m_widthResolution; // 宽度方向的粒子数
+    int m_heightResolution; // 高度方向的粒子数
+    float m_size;
+    float m_mass;
     
     // 粒子和约束
     std::vector<Particle> m_particles; // 布料的所有粒子

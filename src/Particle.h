@@ -15,10 +15,16 @@ public:
     //   m - 粒子的质量
     //   isStatic - 粒子是否为固定（不可移动）
     Particle(const dx::XMFLOAT3& pos = dx::XMFLOAT3(0.0f, 0.0f, 0.0f), float m = 1.0f, bool isStatic = false)
-        : position(pos), oldPosition(pos), velocity(dx::XMFLOAT3(0.0f, 0.0f, 0.0f)), force(dx::XMFLOAT3(0.0f, 0.0f, 0.0f)),
-          mass(m), inverseMass(1.0f / m), isStatic(isStatic)
+        : position(pos)
+        , oldPosition(pos)
+        , velocity(dx::XMFLOAT3(0.0f, 0.0f, 0.0f))
+        , force(dx::XMFLOAT3(0.0f, 0.0f, 0.0f))
+        , mass(m)
+        , inverseMass(1.0f / m)
+        , isStatic(isStatic)
     {
-        if (isStatic) {
+        if (isStatic)
+        {
             inverseMass = 0.0f; // 固定粒子的质量倒数为0，表示不受力
         }
     }
@@ -56,6 +62,10 @@ public:
     float mass;                // 质量
     float inverseMass;         // 质量的倒数（用于加速度计算）
     bool isStatic;             // 是否为固定粒子
+#ifdef DEBUG_SOLVER
+    int coordX;
+    int coordY;
+#endif//DEBUG_SOLVER
 };
 
 #endif // PARTICLE_H
