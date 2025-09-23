@@ -98,6 +98,7 @@ ClothSimulator/
 | `-iteratorCount:X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 50 |
 | `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
 | `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
+| `-addLRAConstraint:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
 
 示例用法：
 ```

@@ -8,9 +8,6 @@
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-// 声明外部函数
-extern int& GetCollisionConstraintCount();
-
 // 构造函数：创建一个布料对象
 // 参数：
 //   widthResolution - 布料宽度方向的粒子数
@@ -23,9 +20,10 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_heightResolution(heightResolution)
     , m_size(size)
     , m_mass(mass)
-    , m_solver(m_particles, m_constraints)
     , m_useXPBDCollision(true)
+    , m_addLRAConstraint(true)
     , m_iteratorCount(80)
+    , m_solver(m_particles, m_constraints, m_iteratorCount)
 {
     // 设置重力为标准地球重力
     m_gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
@@ -37,7 +35,7 @@ Cloth::~Cloth()
 {
     // 清除球体碰撞约束
     ClearSphereCollisionConstraints();
-    
+
     // 清除距离约束
     for (auto& constraint : m_distanceConstraints) {
         // 注意：distanceConstraints中的对象是直接存储的，不需要delete
@@ -407,10 +405,49 @@ void Cloth::CreateConstraints()
             }
         }
     }
-    
+
     // 填充约束指针数组
     for (auto& constraint : m_distanceConstraints)
     {
         m_constraints.push_back(&constraint);
+    }
+
+    if (m_addLRAConstraint)
+    {
+        // 为除静止粒子外的所有粒子添加LRA约束
+        // 获取两个静止粒子的位置
+        int leftTopIndex = 0; // 左上角静止粒子索引
+        int rightTopIndex = m_widthResolution - 1; // 右上角静止粒子索引
+
+        // 为每个非静止粒子添加到两个静止粒子的LRA约束
+        for (int i = 0; i < m_particles.size(); ++i)
+        {
+            // 跳过静止粒子
+            if (i == leftTopIndex || i == rightTopIndex || m_particles[i].isStatic)
+                continue;
+
+            // 计算到左上角静止粒子的欧几里德距离作为测地线距离
+            dx::XMVECTOR pos = dx::XMLoadFloat3(&m_particles[i].position);
+            dx::XMVECTOR leftTopPos = dx::XMLoadFloat3(&m_particles[leftTopIndex].position);
+            dx::XMVECTOR diff = dx::XMVectorSubtract(pos, leftTopPos);
+            float distanceToLeftTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
+
+            // 添加到左上角静止粒子的LRA约束
+            m_lraConstraints.emplace_back(&m_particles[i], m_particles[leftTopIndex].position, distanceToLeftTop, compliance);
+
+            // 计算到右上角静止粒子的欧几里德距离作为测地线距离
+            dx::XMVECTOR rightTopPos = dx::XMLoadFloat3(&m_particles[rightTopIndex].position);
+            diff = dx::XMVectorSubtract(pos, rightTopPos);
+            float distanceToRightTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
+
+            // 添加到右上角静止粒子的LRA约束
+            m_lraConstraints.emplace_back(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, compliance);
+        }
+
+        // 填充约束指针数组
+        for (auto& constraint : m_lraConstraints)
+        {
+            m_constraints.push_back(&constraint);
+        }
     }
 }

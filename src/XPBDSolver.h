@@ -27,11 +27,12 @@ public:
     // 参数
     //   particles - 粒子数组引用
     //   constraints - 约束数组引用
-    //   dt - 时间步长
     //   iterations - 约束求解的迭代次数
-    XPBDSolver(std::vector<Particle>& particles, std::vector<Constraint*>& constraints,
-              float dt = 1.0f/60.0f, int iterations = 50)  // 增加迭代次数到50次，提高高分辨率布料的稳定性
-        : m_particles(particles), m_constraints(constraints), m_timeStep(dt), m_iterations(iterations)
+    XPBDSolver(std::vector<Particle>& particles, std::vector<Constraint*>& constraints, int iterations)
+        : m_particles(particles)
+        , m_constraints(constraints)
+        , m_iterations(iterations)
+        , m_timeStep(0.1f)
     {
         // 初始化重力
         m_gravity = dx::XMFLOAT3(0.0f, -9.81f, 0.0f);
@@ -40,13 +41,6 @@ public:
     // 析构函数
     ~XPBDSolver()
     {
-        // 调试输出已禁用，不需要关闭文件
-    }
-    
-    // 调试信息输出（已禁用）
-    void LogDebugInfo(float timeStep, size_t iteration, size_t constraintIndex, const std::vector<Particle*>& constraintParticles, float C, float deltaLambda)
-    {
-        // 调试输出已禁用
     }
     
     // 设置时间步长
@@ -370,7 +364,6 @@ private:
     float m_timeStep; // 时间步长
     int m_iterations; // 约束求解的迭代次数
     dx::XMFLOAT3 m_gravity; // 重力向量
-    // std::ofstream debugFile; // 调试输出文件流（已禁用）
 };
 
 #endif // XPBD_SOLVER_H

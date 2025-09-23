@@ -6,6 +6,7 @@
 #include "Particle.h"
 #include "Constraint.h"
 #include "DistanceConstraint.h"
+#include "LRAConstraint.h"
 #include "XPBDSolver.h"
 #include "Mesh.h"
 #include "RALResource.h"
@@ -123,6 +124,15 @@ public:
     // 获取是否使用XPBD碰撞约束
     bool GetUseXPBDCollision() const { return m_useXPBDCollision; }
 
+    // 获取是否增加LRA约束
+    void SetAddLRAConstraint(bool add)
+    {
+        m_addLRAConstraint = add;
+    }
+
+    // 获取是否增加LRA约束
+    bool GetAddLRAConstraint() const { return m_addLRAConstraint; }
+
     // 获取布料的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override { return m_positions; }
     
@@ -157,7 +167,9 @@ private:
     std::vector<DistanceConstraint> m_distanceConstraints; // 布料的所有距离约束
     std::vector<Constraint*> m_constraints; // 约束指针数组，用于传递给求解器
     std::vector<SphereCollisionConstraint*> m_sphereConstraints; // 球体碰撞约束
+    std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     bool m_useXPBDCollision; // 是否使用XPBD碰撞约束
+    bool m_addLRAConstraint; // 是否增加LRA约束
     
     // XPBD求解器
     XPBDSolver m_solver; // 用于求解布料的物理行为
