@@ -539,6 +539,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认50）" << std::endl;
         std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
         std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
+        std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "程序控制：" << std::endl;
         std::cout << "  F9                    切换调试输出开关" << std::endl;
@@ -662,6 +663,34 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 默认启用XPBD碰撞约束
     cloth->SetUseXPBDCollision(true);
     
+    // 解析-addLRAConstraint参数
+    bool addLRAConstraint = true; // 默认启用
+    size_t addLRAConstraintPos = cmdLine.find("-addLRAConstraint:");
+    if (addLRAConstraintPos != std::string::npos)
+    {
+        size_t start = addLRAConstraintPos + 18; // "-addLRAConstraint:" 长度为18
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string addLRAConstraintStr = cmdLine.substr(start, end - start);
+        
+        // 解析字符串为布尔值
+        if (addLRAConstraintStr == "false" || addLRAConstraintStr == "0" || addLRAConstraintStr == "no")
+        {
+            addLRAConstraint = false;
+        }
+        else if (addLRAConstraintStr == "true" || addLRAConstraintStr == "1" || addLRAConstraintStr == "yes")
+        {
+            addLRAConstraint = true;
+        }
+        
+        logDebug("LRA constraint set to: " + std::string(addLRAConstraint ? "true" : "false"));
+    }
+    
+    // 设置是否添加LRA约束
+    cloth->SetAddLRAConstraint(addLRAConstraint);
+    
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
 
@@ -742,9 +771,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             
             // 构造新的窗口标题
         std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
+        std::wstring lraStatus = cloth->GetAddLRAConstraint() ? L"LRA:ON" : L"LRA:OFF";
         std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                                 std::to_wstring(iteratorCount) + L" Iter, " + 
-                                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res]";
+                                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
+                                lraStatus + L"]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());

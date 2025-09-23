@@ -1,0 +1,47 @@
+// LRA约束类定义
+class LRAConstraint:
+    // 初始化LRA约束
+    function initialize(particle, attachment_point, geodesic_distance, alpha=0.0):
+        // particle: 受约束的布料粒子
+        // attachment_point: 附着点（固定在角色身上的点）
+        // geodesic_distance: 预计算的测地线距离（沿布料表面的最短路径）
+        // alpha: 柔度参数（0为硬约束，值越大约束越软）
+        
+        this.particle = particle  // 受约束的布料粒子
+        this.attachment_point = attachment_point  // 附着点
+        this.geodesic_distance = geodesic_distance  // 预计算的测地线距离
+        this.alpha = alpha  // 柔度参数
+        this.lambda = 0.0  // 拉格朗日乘子
+        
+        // 存储附着点的初始位置（用于计算相对位置）
+        this.attachment_initial_pos = attachment_point.x.copy()
+    
+    // 获取受影响的粒子
+    function get_affected_particles():
+        return [this.particle]  // LRA约束只影响一个布料粒子
+    
+    // 约束函数C(x)：计算约束偏差
+    function C():
+        // 计算粒子当前位置与附着点的欧几里得距离
+        current_distance = distance(this.particle.x, this.attachment_point.x)
+        
+        // 约束偏差：当粒子超出测地线距离时产生偏差
+        // C(x) = max(0, current_distance - geodesic_distance)
+        // 使用max函数确保只在超出时才产生约束力
+        return max(0.0, current_distance - this.geodesic_distance)
+    
+    // 约束梯度函数：计算∇C(x)
+    function gradient():
+        // 计算粒子到附着点的向量
+        delta = this.particle.x - this.attachment_point.x
+        current_distance = delta.length()
+        
+        // 如果当前距离小于等于测地线距离，梯度为0（无约束力）
+        if current_distance <= this.geodesic_distance + 1e-9:
+            return [vec3(0.0, 0.0, 0.0)]
+        
+        // 计算梯度：∇C = (delta / current_distance)
+        grad = delta / current_distance
+        
+        // 返回梯度向量（LRA约束只影响一个粒子）
+        return [grad]
