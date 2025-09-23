@@ -754,15 +754,8 @@ public:
 		m_nativeResource = resource;
 	}
 
-	// 设置原生渲染目标视图
-	void SetNativeRenderTargetView(void* rtv)
-	{
-		m_nativeRenderTargetView = rtv;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
-	void* m_nativeRenderTargetView;   // ID3D12DescriptorHeap中的RTV
 };
 
 // DX12实现的DepthStencil
@@ -788,15 +781,8 @@ public:
 		m_nativeResource = resource;
 	}
 
-	// 设置原生渲染目标视图
-	void SetNativeRenderTargetView(void* rtv)
-	{
-		m_nativeRenderTargetView = rtv;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
-	void* m_nativeRenderTargetView;   // ID3D12DescriptorHeap中的DTV
 };
 
 // DX12实现的根签名
