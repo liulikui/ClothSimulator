@@ -13,24 +13,20 @@ extern int& GetCollisionConstraintCount();
 
 // 构造函数：创建一个布料对象
 // 参数：
-//   width - 布料宽度方向的粒子数
-//   height - 布料高度方向的粒子数
+//   widthResolution - 布料宽度方向的粒子数
+//   heightResolution - 布料高度方向的粒子数
 //   size - 布料的实际物理尺寸（以米为单位）
 //   mass - 每个粒子的质量
-Cloth::Cloth(int width, int height, float size, float mass)
+Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     : Mesh()
-    , m_width(width)
-    , m_height(height)
+    , m_widthResolution(widthResolution)
+    , m_heightResolution(heightResolution)
+    , m_size(size)
+    , m_mass(mass)
     , m_solver(m_particles, m_constraints)
     , m_useXPBDCollision(true)
     , m_iteratorCount(80)
 {
-    // 创建粒子
-    CreateParticles(size, mass);
-    
-    // 创建布料的约束
-    CreateConstraints(size);
-    
     // 设置重力为标准地球重力
     m_gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
     m_solver.SetGravity(m_gravity);
@@ -61,26 +57,32 @@ bool Cloth::Initialize(IRALDevice* device)
         return false;
     }
 
+    // 创建粒子
+    CreateParticles();
+
+    // 创建布料的约束
+    CreateConstraints();
+
     // 生成布料的顶点和索引数据
     // 首先生成索引数据（如果尚未生成）
     if (m_indices.empty())
     {
         // 生成三角形面的索引数据
-        for (int y = 0; y < m_height - 1; ++y) {
-            for (int x = 0; x < m_width - 1; ++x) {
+        for (int y = 0; y < m_heightResolution - 1; ++y) {
+            for (int x = 0; x < m_widthResolution - 1; ++x) {
                 // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
-                int i1 = y * m_width + x;
-                int i2 = y * m_width + x + 1;
-                int i3 = (y + 1) * m_width + x + 1;
+                int i1 = y * m_widthResolution + x;
+                int i2 = y * m_widthResolution + x + 1;
+                int i3 = (y + 1) * m_widthResolution + x + 1;
 
                 m_indices.push_back(i1);
                 m_indices.push_back(i2);
                 m_indices.push_back(i3);
 
                 // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
-                i1 = y * m_width + x;
-                i2 = (y + 1) * m_width + x + 1;
-                i3 = (y + 1) * m_width + x;
+                i1 = y * m_widthResolution + x;
+                i2 = (y + 1) * m_widthResolution + x + 1;
+                i3 = (y + 1) * m_widthResolution + x;
 
                 m_indices.push_back(i1);
                 m_indices.push_back(i2);
@@ -188,12 +190,12 @@ void Cloth::ComputeNormals()
     std::vector<dx::XMFLOAT3> vertexNormals(m_particles.size(), dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
 
     // 计算顶点法线
-    for (int y = 0; y < m_height - 1; ++y) {
-        for (int x = 0; x < m_width - 1; ++x) {
+    for (int y = 0; y < m_heightResolution - 1; ++y) {
+        for (int x = 0; x < m_widthResolution - 1; ++x) {
             // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
-            int i1 = y * m_width + x;
-            int i2 = y * m_width + x + 1;
-            int i3 = (y + 1) * m_width + x + 1;
+            int i1 = y * m_widthResolution + x;
+            int i2 = y * m_widthResolution + x + 1;
+            int i3 = (y + 1) * m_widthResolution + x + 1;
 
             // 计算面法线 - 反转法线方向
             dx::XMVECTOR v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i2].position), dx::XMLoadFloat3(&m_particles[i1].position));
@@ -224,9 +226,9 @@ void Cloth::ComputeNormals()
             dx::XMStoreFloat3(&vertexNormals[i3], dx::XMVectorAdd(n3, normal));
 
             // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
-            i1 = y * m_width + x;
-            i2 = (y + 1) * m_width + x + 1;
-            i3 = (y + 1) * m_width + x;
+            i1 = y * m_widthResolution + x;
+            i2 = (y + 1) * m_widthResolution + x + 1;
+            i3 = (y + 1) * m_widthResolution + x;
 
             // 计算面法线 - 反转法线方向
             v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i2].position), dx::XMLoadFloat3(&m_particles[i1].position));
@@ -322,19 +324,19 @@ void Cloth::ClearSphereCollisionConstraints()
 }
 
 // 创建布料的粒子
-void Cloth::CreateParticles(float size, float mass)
+void Cloth::CreateParticles()
 {
-    m_particles.reserve(m_width * m_height);
+    m_particles.reserve(m_widthResolution * m_widthResolution);
     
-    float stepX = size / (m_width - 1);
-    float stepZ = size / (m_height - 1);
+    float stepX = m_size / (m_widthResolution - 1);
+    float stepZ = m_size / (m_heightResolution - 1);
     
     // 将位置转换为XMVECTOR进行计算
     dx::XMVECTOR posVector = dx::XMLoadFloat3(&dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
     
-    for (int y = 0; y < m_height; ++y)
+    for (int y = 0; y < m_heightResolution; ++y)
     {
-        for (int x = 0; x < m_width; ++x)
+        for (int x = 0; x < m_widthResolution; ++x)
         {
             // 计算粒子位置
             dx::XMVECTOR offset = dx::XMVectorSet(x * stepX, 0.0f, y * stepZ, 0.0f);
@@ -343,10 +345,10 @@ void Cloth::CreateParticles(float size, float mass)
             dx::XMStoreFloat3(&posFloat3, pos);
             
             // 左上角和右上角的粒子设为静态
-            bool isStatic = (x == 0 && y == 0) || (x == m_width - 1 && y == 0);
+            bool isStatic = (x == 0 && y == 0) || (x == m_widthResolution - 1 && y == 0);
             
             // 创建粒子
-            m_particles.emplace_back(posFloat3, mass, isStatic);
+            m_particles.emplace_back(posFloat3, m_mass, isStatic);
         }
     }
 
@@ -354,47 +356,47 @@ void Cloth::CreateParticles(float size, float mass)
 }
 
 // 创建布料的约束
-void Cloth::CreateConstraints(float size)
+void Cloth::CreateConstraints()
 {
     m_distanceConstraints.clear();
     m_constraints.clear();
     
-    float restLength = size / (m_width - 1);
+    float restLength = m_size / (m_widthResolution - 1);
     float compliance = 1e-7f; // 减小柔度值以增加布料刚性
     
     // 创建结构约束（相邻粒子之间）
-    for (int y = 0; y < m_height; ++y)
+    for (int y = 0; y < m_heightResolution; ++y)
     {
-        for (int x = 0; x < m_width; ++x)
+        for (int x = 0; x < m_widthResolution; ++x)
         {
             // 水平约束
-            if (x < m_width - 1)
+            if (x < m_widthResolution - 1)
             {
-                int idx1 = y * m_width + x;
-                int idx2 = y * m_width + (x + 1);
+                int idx1 = y * m_widthResolution + x;
+                int idx2 = y * m_widthResolution + (x + 1);
                 m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength, compliance);
             }
             
             // 垂直约束
-            if (y < m_height - 1)
+            if (y < m_heightResolution - 1)
             {
-                int idx1 = y * m_width + x;
-                int idx2 = (y + 1) * m_width + x;
+                int idx1 = y * m_widthResolution + x;
+                int idx2 = (y + 1) * m_widthResolution + x;
                 m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength, compliance);
             }
             
             // 对角约束（可选，增加稳定性）
-            if (x < m_width - 1 && y < m_height - 1)
+            if (x < m_widthResolution - 1 && y < m_heightResolution - 1)
             {
-                int idx1 = y * m_width + x;
-                int idx2 = (y + 1) * m_width + (x + 1);
+                int idx1 = y * m_widthResolution + x;
+                int idx2 = (y + 1) * m_widthResolution + (x + 1);
                 m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength * std::sqrt(2.0f), compliance);
             }
             
-            if (x < m_width - 1 && y > 0)
+            if (x < m_widthResolution - 1 && y > 0)
             {
-                int idx1 = y * m_width + x;
-                int idx2 = (y - 1) * m_width + (x + 1);
+                int idx1 = y * m_widthResolution + x;
+                int idx2 = (y - 1) * m_widthResolution + (x + 1);
                 m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength * std::sqrt(2.0f), compliance);
             }
         }

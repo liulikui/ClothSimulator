@@ -83,7 +83,7 @@ ClothSimulator/
   - 默认情况下，布料的左上角和右上角粒子是固定的
 - **窗口信息**：
   - 窗口尺寸：800×600像素
-  - 窗口标题会显示当前帧率和迭代次数（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter]"）
+  - 窗口标题会显示当前帧率、迭代次数和布料分辨率（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res]"），其中W和H分别表示布料的宽度和高度分辨率
 
 ## 命令行参数
 
@@ -95,11 +95,15 @@ ClothSimulator/
 | `-debug` | 启用调试模式，输出详细日志信息 | 禁用 |
 | `-maxFrames:X` | 设置最大帧数限制，达到后程序自动退出 | 无限制 |
 | `-iteratorCount:X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 50 |
+| `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
+| `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
 
 示例用法：
 ```
 XPBDClothSimulator.exe -debug -iteratorCount:100
 XPBDClothSimulator.exe -maxFrames:5000 -iteratorCount:30
+XPBDClothSimulator.exe -widthResolution:60 -heightResolution:60 -debug
+XPBDClothSimulator.exe -widthResolution:20 -heightResolution:20 -iteratorCount:10
 ```
 
 ## 许可证

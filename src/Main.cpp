@@ -64,6 +64,8 @@ bool f9Pressed = false;        // F9键按下标志，用于检测按键状态�
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
 int iteratorCount = 50;        // XPBD求解器迭代次数，默认50
+int widthResolution = 40;      // 布料宽度分辨率（粒子数），默认40
+int heightResolution = 40;     // 布料高度分辨率（粒子数），默认40
 
 // 相机对象
 Camera* camera = nullptr;
@@ -384,12 +386,12 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
     }
     
     const std::vector<Particle>& particles = cloth->GetParticles();
-    int width = cloth->GetWidth();
-    int height = cloth->GetHeight();
+    int widthResolution = cloth->GetWidthResolution();
+    int heightResolution = cloth->GetHeightResolution();
     
     if (debugOutputEnabled)
     {
-        std::cout << "UpdateClothRenderData: Frame " << globalRenderFrameCount << ", particles count = " << particles.size() << ", width = " << width << ", height = " << height << std::endl;
+        std::cout << "UpdateClothRenderData: Frame " << globalRenderFrameCount << ", particles count = " << particles.size() << ", widthResolution = " << widthResolution << ", heightResolution = " << heightResolution << std::endl;
         
         // 调试输出第一个粒子的位置和状态
         if (!particles.empty()) {
@@ -399,12 +401,12 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
         }
         
         // 每10帧输出一次特定行的粒子位置，以便观察布料变形情况
-        if (globalRenderFrameCount % 10 == 0 && width > 10 && height > 5) {
+        if (globalRenderFrameCount % 10 == 0 && widthResolution > 10 && heightResolution > 5) {
             std::cout << "\n--- Frame " << globalRenderFrameCount << " Selected Particle Positions ---" << std::endl;
             // 输出中间行的粒子位置
-            int middleRow = height / 2;
-            for (int x = 0; x < width; x += 5) { // 每隔5个粒子输出一个
-                int index = middleRow * width + x;
+            int middleRow = heightResolution / 2;
+            for (int x = 0; x < widthResolution; x += 5) { // 每隔5个粒子输出一个
+                int index = middleRow * widthResolution + x;
                 if (index < particles.size()) {
                     std::cout << "Particle (" << x << ", " << middleRow << "): ("
                               << particles[index].position.x << ", "
@@ -524,15 +526,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::string cmdLine(lpCmdLine);
     
     // 检查是否需要显示帮助信息
-    if (cmdLine.find("-help") != std::string::npos || cmdLine.find("-h") != std::string::npos)
+    if (cmdLine.find("-help") != std::string::npos)
     {
         std::cout << "XPBD Cloth Simulator (DirectX 12) - 命令行参数帮助" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "可用的命令行参数：" << std::endl;
-        std::cout << "  -help, -h            显示此帮助信息并退出" << std::endl;
-        std::cout << "  -debug, -d           启用调试输出模式" << std::endl;
+        std::cout << "  -help                 显示此帮助信息并退出" << std::endl;
+        std::cout << "  -debug                启用调试输出模式" << std::endl;
         std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
         std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认50）" << std::endl;
+        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
+        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "程序控制：" << std::endl;
         std::cout << "  F9                    切换调试输出开关" << std::endl;
@@ -573,7 +577,46 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         logDebug("Iterator count set to: " + std::to_string(iteratorCount));
     }
     
-    if (cmdLine.find("-debug") != std::string::npos || cmdLine.find("-d") != std::string::npos)
+    // 解析-widthResolution:xxx参数
+    size_t widthResPos = cmdLine.find("-widthResolution:");
+    if (widthResPos != std::string::npos)
+    {
+        size_t start = widthResPos + 17; // "-widthResolution:" 长度为18
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string widthResStr = cmdLine.substr(start, end - start);
+        widthResolution = std::stoi(widthResStr);
+
+        if (widthResolution < 10)
+        {
+            widthResolution = 10;
+        }
+        logDebug("Width resolution set to: " + std::to_string(widthResolution));
+    }
+    
+    // 解析-heightResolution:xxx参数
+    size_t heightResPos = cmdLine.find("-heightResolution:");
+    if (heightResPos != std::string::npos)
+    {
+        size_t start = heightResPos + 18; // "-heightResolution:" 长度为18
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string heightResStr = cmdLine.substr(start, end - start);
+        heightResolution = std::stoi(heightResStr);
+
+        if (heightResolution < 10)
+        {
+            heightResolution = 10;
+        }
+
+        logDebug("Height resolution set to: " + std::to_string(heightResolution));
+    }
+    
+    if (cmdLine.find("-debug") != std::string::npos)
     {
         debugOutputEnabled = true;
         std::cout << "[DEBUG] Debug output enabled via command line parameter: " << cmdLine << std::endl;
@@ -611,7 +654,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
 
-    cloth = new Cloth(40, 40, 10.0f, 1.0f); // 布料左上角位置，增加分辨率到40x40
+    cloth = new Cloth(widthResolution, heightResolution, 10.0f, 1.0f); // 使用命令行参数设置的分辨率
     
     // 默认启用XPBD碰撞约束
     cloth->SetUseXPBDCollision(true);
@@ -695,7 +738,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             // 构造新的窗口标题
         std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
         std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
-                                std::to_wstring(iteratorCount) + L" Iter]";
+                                std::to_wstring(iteratorCount) + L" Iter, " + 
+                                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());
