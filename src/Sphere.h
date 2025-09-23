@@ -37,25 +37,25 @@ public:
     // 获取球体的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override
     {
-        return positions;
+        return m_positions;
     }
 
     // 获取球体的顶点法线数据
     const std::vector<dx::XMFLOAT3>& GetNormals() const override
     {
-        return normals;
+        return m_normals;
     }
 
     // 获取球体的索引数据
     const std::vector<uint32_t>& GetIndices() const override
     {
-        return indices;
+        return m_indices;
     }
 
     // 获取球体半径
     float GetRadius() const
     {
-        return radius;
+        return m_radius;
     }
 
     // 设置球体半径
@@ -64,7 +64,7 @@ public:
     // 获取球体中心位置
     const dx::XMFLOAT3& GetCenter() const
     {
-        return center;
+        return m_center;
     }
 
     // 设置球体中心位置
@@ -73,26 +73,26 @@ public:
     // 获取经度分段数
     uint32_t GetSectors() const
     {
-        return sectors;
+        return m_sectors;
     }
 
     // 获取纬度分段数
     uint32_t GetStacks() const
     {
-        return stacks;
+        return m_stacks;
     }
 
 private:
     // 球体参数
-    dx::XMFLOAT3 center; // 球体中心位置
-    float radius;        // 球体半径
-    uint32_t sectors;    // 经度分段数
-    uint32_t stacks;     // 纬度分段数
+    dx::XMFLOAT3 m_center; // 球体中心位置
+    float m_radius;        // 球体半径
+    uint32_t m_sectors;    // 经度分段数
+    uint32_t m_stacks;     // 纬度分段数
 
     // 渲染数据
-    std::vector<dx::XMFLOAT3> positions; // 顶点位置数据
-    std::vector<dx::XMFLOAT3> normals;   // 顶点法线数据
-    std::vector<uint32_t> indices;       // 索引数据
+    std::vector<dx::XMFLOAT3> m_positions; // 顶点位置数据
+    std::vector<dx::XMFLOAT3> m_normals;   // 顶点法线数据
+    std::vector<uint32_t> m_indices;       // 索引数据
 
     // 生成球体的顶点和索引数据
     void GenerateSphereData();
