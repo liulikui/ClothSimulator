@@ -141,6 +141,9 @@ public:
 
     // 获取LRA约束最大拉伸量
     float GetLRAMaxStretch() const { return m_LRAMaxStrech; }
+    
+    // 获取每个粒子的质量
+    float GetMass() const { return m_mass; }
 
     // 获取布料的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override { return m_positions; }

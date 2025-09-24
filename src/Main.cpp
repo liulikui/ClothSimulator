@@ -541,6 +541,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
         std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
+        std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "程序控制：" << std::endl;
         std::cout << "  F9                    切换调试输出开关" << std::endl;
@@ -658,8 +659,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
+    
+    // 解析-mass参数
+    float particleMass = 1.0f; // 默认值
+    size_t massPos = cmdLine.find("-mass:");
+    if (massPos != std::string::npos)
+    {
+        size_t start = massPos + 6; // "-mass:" 长度为6
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string massStr = cmdLine.substr(start, end - start);
+        particleMass = std::stof(massStr);
+        
+        logDebug("Particle mass set to: " + std::to_string(particleMass));
+    }
 
-    cloth = new Cloth(widthResolution, heightResolution, 10.0f, 1.0f); // 使用命令行参数设置的分辨率
+    cloth = new Cloth(widthResolution, heightResolution, 10.0f, particleMass); // 使用命令行参数设置的分辨率和质量
     
     // 默认启用XPBD碰撞约束
     cloth->SetUseXPBDCollision(true);
@@ -795,7 +812,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                                 std::to_wstring(iteratorCount) + L" Iter, " + 
                                 std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
-                                lraStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L"]";
+                                lraStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());
