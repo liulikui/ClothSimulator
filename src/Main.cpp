@@ -52,7 +52,7 @@ void closeLogFile()
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-// 窗口尺寸常量 - 这里会被覆盖为全屏尺寸
+// 窗口尺寸常量 - 这里会被覆盖为全屏尺寸或自定义尺寸
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
@@ -62,6 +62,9 @@ HINSTANCE hInstance = NULL;    // 应用程序实例
 bool running = true;           // 运行标志
 bool debugOutputEnabled = false; // 调试输出开关，默认关闭
 bool f9Pressed = false;        // F9键按下标志，用于检测按键状态变化
+bool fullscreenMode = false;   // 全屏模式标志，默认false
+int customWindowWidth = 800;   // 自定义窗口宽度，默认800
+int customWindowHeight = 600;  // 自定义窗口高度，默认600
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
 int iteratorCount = 50;        // XPBD求解器迭代次数，默认50
@@ -273,21 +276,55 @@ BOOL CreateWindowApp(HINSTANCE hInstance)
         return FALSE;
     }
 
-    // 使用固定窗口尺寸800*600
-    int screenWidth = 800;
-    int screenHeight = 600;
+    DWORD windowStyle;
+    DWORD exStyle = 0; // 扩展窗口样式
+    int windowWidth, windowHeight;
+    int xPos, yPos;
 
-    // 创建窗口（使用窗口样式，不再是全屏模式）
-    hWnd = CreateWindow(
+    if (fullscreenMode)
+    {
+        // 获取系统分辨率
+        windowWidth = GetSystemMetrics(SM_CXSCREEN);
+        windowHeight = GetSystemMetrics(SM_CYSCREEN);
+        
+        // 全屏样式，WS_POPUP确保没有边框和标题栏
+        windowStyle = WS_POPUP;
+        // WS_EX_TOPMOST确保窗口在最顶层，覆盖任务栏
+        exStyle = WS_EX_TOPMOST;
+        
+        // 位置在屏幕最左上角
+        xPos = 0;
+        yPos = 0;
+        
+        logDebug("Creating fullscreen window: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
+    }
+    else
+    {
+        // 使用自定义窗口大小
+        windowWidth = customWindowWidth;
+        windowHeight = customWindowHeight;
+        windowStyle = WS_OVERLAPPEDWINDOW; // 窗口样式
+        exStyle = 0; // 默认扩展样式
+        
+        // 居中窗口
+        xPos = (GetSystemMetrics(SM_CXSCREEN) - windowWidth) / 2;
+        yPos = (GetSystemMetrics(SM_CYSCREEN) - windowHeight) / 2;
+        
+        logDebug("Creating window: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
+    }
+
+    // 创建窗口，使用CreateWindowEx以支持扩展样式
+    hWnd = CreateWindowEx(
+        exStyle,                  // 扩展窗口样式
         TEXT("DX12ClothSimulator"),  // 窗口类名称
         TEXT("XPBD Cloth Simulator (DirectX 12)"),  // 窗口标题
-        WS_OVERLAPPEDWINDOW,         // 窗口样式
-        CW_USEDEFAULT, CW_USEDEFAULT,// 窗口位置
-        screenWidth, screenHeight,   // 窗口尺寸（使用固定尺寸800*600）
-        NULL,                        // 父窗口
-        NULL,                        // 菜单
-        hInstance,                   // 实例句柄
-        NULL                         // 附加数据
+        windowStyle,                // 窗口样式
+        xPos, yPos,                 // 窗口位置
+        windowWidth, windowHeight,  // 窗口尺寸
+        NULL,                       // 父窗口
+        NULL,                       // 菜单
+        hInstance,                  // 实例句柄
+        NULL                        // 附加数据
     );
 
     if (!hWnd)
@@ -295,9 +332,25 @@ BOOL CreateWindowApp(HINSTANCE hInstance)
         MessageBox(NULL, TEXT("CreateWindow failed!"), TEXT("Error"), MB_ICONERROR);
         return FALSE;
     }
-
-    // 显示窗口
-    ShowWindow(hWnd, SW_SHOW);
+    
+    // 如果是全屏模式，确保窗口能够覆盖整个屏幕，包括系统任务栏
+    if (fullscreenMode)
+    {
+        // 使用SetWindowPos确保窗口能够完全覆盖整个屏幕
+        // SWP_NOZORDER: 保持窗口的Z顺序不变
+        // SWP_SHOWWINDOW: 显示窗口
+        // SWP_NOACTIVATE: 不激活窗口
+        SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, windowWidth, windowHeight, SWP_NOZORDER | SWP_SHOWWINDOW);
+        
+        // 使用SW_MAXIMIZE进一步确保窗口最大化
+        ShowWindow(hWnd, SW_MAXIMIZE);
+    }
+    else
+    {
+        // 显示窗口
+        ShowWindow(hWnd, SW_SHOW);
+    }
+    
     UpdateWindow(hWnd);
 
     return TRUE;
@@ -322,15 +375,29 @@ BOOL InitializeDevice()
     std::wstring windowName(L"XPBD Cloth Simulator");
 
     std::cout << "  - Creating DX12RALDevice object..." << std::endl;
-    // 使用固定窗口尺寸800*600
-    int screenWidth = 800;
-    int screenHeight = 600;
+    // 使用实际窗口尺寸参数，而不是硬编码值
+    int screenWidth, screenHeight;
+    
+    if (fullscreenMode)
+    {
+        // 使用系统分辨率
+        screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    }
+    else
+    {
+        // 使用自定义窗口尺寸
+        screenWidth = customWindowWidth;
+        screenHeight = customWindowHeight;
+    }
+    
+    logDebug("Initializing device with resolution: " + std::to_string(screenWidth) + "x" + std::to_string(screenHeight));
     
     // 创建渲染设备实例，传入正确顺序的参数和窗口尺寸
     device = new DX12RALDevice(screenWidth, screenHeight, windowName, hWnd);
     std::cout << "  - DX12RALDevice object created successfully" << std::endl;
     
-    // 创建相机对象，使用窗口尺寸800*600
+    // 创建相机对象，使用实际窗口尺寸
     camera = new Camera(screenWidth, screenHeight);
     std::cout << "  - Camera object created successfully" << std::endl;
     
@@ -542,6 +609,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
+        std::cout << "  -fullscreen          以全屏模式启动程序" << std::endl;
+        std::cout << "  -winWidth:xxx        设置窗口宽度（xxx为数字，默认800，不能超过系统分辨率）" << std::endl;
+        std::cout << "  -winHeight:xxx       设置窗口高度（xxx为数字，默认600，不能超过系统分辨率）" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "程序控制：" << std::endl;
         std::cout << "  F9                    切换调试输出开关" << std::endl;
@@ -620,6 +690,63 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
 
         logDebug("Height resolution set to: " + std::to_string(heightResolution));
+    }
+    
+    // 解析-fullscreen参数
+    if (cmdLine.find("-fullscreen") != std::string::npos)
+    {
+        fullscreenMode = true;
+        logDebug("Fullscreen mode enabled");
+    }
+    
+    // 解析-winWidth:xxx参数
+    size_t winWidthPos = cmdLine.find("-winWidth:");
+    if (winWidthPos != std::string::npos)
+    {
+        size_t start = winWidthPos + 10; // "-winWidth:" 长度为10
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string winWidthStr = cmdLine.substr(start, end - start);
+        customWindowWidth = std::stoi(winWidthStr);
+        
+        // 限制窗口宽度不超过系统分辨率
+        int systemWidth = GetSystemMetrics(SM_CXSCREEN);
+        if (customWindowWidth > systemWidth)
+        {
+            customWindowWidth = systemWidth;
+            logDebug("Window width exceeds system resolution, adjusted to: " + std::to_string(systemWidth));
+        }
+        else
+        {
+            logDebug("Window width set to: " + std::to_string(customWindowWidth));
+        }
+    }
+    
+    // 解析-winHeight:xxx参数
+    size_t winHeightPos = cmdLine.find("-winHeight:");
+    if (winHeightPos != std::string::npos)
+    {
+        size_t start = winHeightPos + 11; // "-winHeight:" 长度为11
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string winHeightStr = cmdLine.substr(start, end - start);
+        customWindowHeight = std::stoi(winHeightStr);
+        
+        // 限制窗口高度不超过系统分辨率
+        int systemHeight = GetSystemMetrics(SM_CYSCREEN);
+        if (customWindowHeight > systemHeight)
+        {
+            customWindowHeight = systemHeight;
+            logDebug("Window height exceeds system resolution, adjusted to: " + std::to_string(systemHeight));
+        }
+        else
+        {
+            logDebug("Window height set to: " + std::to_string(customWindowHeight));
+        }
     }
     
     if (cmdLine.find("-debug") != std::string::npos)
