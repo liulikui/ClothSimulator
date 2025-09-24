@@ -232,29 +232,6 @@ private:
     // 更新粒子的速度
     void UpdateVelocities(float deltaTime)
     {
-        // 临时存储碰撞粒子的梯度信息，用于后续速度反弹
-        std::unordered_map<Particle*, dx::XMVECTOR> collisionGradients;
-        
-        // 首先收集所有碰撞约束的梯度信息
-        for (auto& constraint : m_constraints)
-        {
-            float C = constraint->ComputeConstraintValue();
-            std::vector<Particle*> constraintParticles = constraint->GetParticles();
-            
-            // 只处理碰撞约束（单粒子约束且C < 0表示粒子在球内）
-            if (constraintParticles.size() == 1 && C < 0)
-            {
-                std::vector<dx::XMFLOAT3> gradients;
-                constraint->ComputeGradient(gradients);
-                
-                if (!gradients.empty() && !constraintParticles[0]->isStatic)
-                {
-                    collisionGradients[constraintParticles[0]] = dx::XMLoadFloat3(&gradients[0]);
-                }
-            }
-        }
-        const float maxVelocity = 100.0f; // 降低最大速度限制，提高稳定性
-        
         for (auto& particle : m_particles)
         {
             if (!particle.isStatic)
@@ -279,33 +256,6 @@ private:
                     // 速度无效，设置为零
                     vel = dx::XMVectorZero();
                 } 
-                else
-                {
-                    // 限制速度大小，防止速度过大
-                    float speed = dx::XMVectorGetX(dx::XMVector3Length(vel));
-                    if (speed > maxVelocity)
-                    {
-                        vel = dx::XMVectorScale(vel, maxVelocity / speed);
-                    }
-                }
-                
-                // 检查是否有碰撞发生，如果有，应用速度反弹
-                auto it = collisionGradients.find(&particle);
-                if (it != collisionGradients.end())
-                {
-                    dx::XMVECTOR normal = it->second;
-                    
-                    // 计算速度在法线上的投影
-                    float velocityAlongNormal = dx::XMVectorGetX(dx::XMVector3Dot(vel, normal));
-                    
-                    // 如果粒子向球体内部移动（法向速度分量为负），则应用反弹
-                    if (velocityAlongNormal < 0)
-                    {
-                        float restitution = 0.4f;  // 弹性系数，控制反弹强度
-                        dx::XMVECTOR reflection = dx::XMVectorScale(normal, (1.0f + restitution) * velocityAlongNormal);
-                        vel = dx::XMVectorSubtract(vel, reflection);
-                    }
-                }
                 
                 // 将结果转换回XMFLOAT3
                 dx::XMStoreFloat3(&particle.velocity, vel);
