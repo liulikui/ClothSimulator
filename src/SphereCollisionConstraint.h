@@ -34,7 +34,14 @@ public:
         dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
         float distance = dx::XMVectorGetX(dx::XMVector3Length(toCenter));
 
-        return distance - sphereRadius;
+        if (distance > sphereRadius)
+        {
+            return 0.0f;
+        }
+        else
+        {
+            return distance - sphereRadius;
+        }
     }
 
     void ComputeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
@@ -72,6 +79,11 @@ public:
         std::vector<const Particle*> result;
         result.push_back(particle);
         return result;
+    }
+
+    virtual const char* GetConstraintType() const override
+    {
+        return "SphereCollision";
     }
 
 private:

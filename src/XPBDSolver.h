@@ -132,29 +132,15 @@ private:
             {
                 continue;
             }
-            
-            // 判断是否为碰撞约束（单粒子约束且C < 0表示粒子在球内）
-            bool isCollisionConstraint = false;
-            std::vector<Particle*> constraintParticles = constraint->GetParticles();
-            
-            if (constraintParticles.size() == 1 && C < 0)
-            {
-                isCollisionConstraint = true;
-                
-                // 对于碰撞约束，我们只在粒子在球内时应用约束
-                // C < 0表示粒子在球内，需要被推回球外
-            }
-            else if (constraintParticles.size() == 1) 
-            {
-                // 碰撞约束但粒子在球外，不需要处理
-                continue;
-            }
-            else if (std::abs(C) < 1e-9f)
+
+            if (std::abs(C) < 1e-9f)
             {
                 // 其他约束，如果约束值很小，可以忽略
                 continue;
             }
             
+            std::vector<Particle*> constraintParticles = constraint->GetParticles();
+
             // 检查粒子位置是否有效
             bool hasInvalidParticle = false;
             for (auto* particle : constraintParticles)
@@ -220,7 +206,8 @@ private:
 #ifdef DEBUG_SOLVER
                     dx::XMVECTOR correctionLength = dx::XMVector3Length(correction);
                     char buffer[256];
-                    sprintf_s(buffer, "[DEBUG] deltaTime:%f coordX:%d,coordY:%d alpha:%f deltaLambda:%f correctionLength:%f"
+                    sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordX:%d,coordY:%d alpha:%f deltaLambda:%f correctionLength:%f"
+                        , constraint->GetConstraintType()
                         , deltaTime
                         , constraintParticles[i]->coordX
                         , constraintParticles[i]->coordY

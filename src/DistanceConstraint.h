@@ -120,6 +120,12 @@ public:
         return restLength;
     }
     
+    // 获取约束类型
+    virtual const char* GetConstraintType() const override
+    {
+        return "Distance";
+    }
+
 private:
     // 受约束的两个粒子
     Particle* particle1; // 第一个粒子
