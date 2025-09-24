@@ -53,6 +53,10 @@ public:
         return compliance;
     }
     
+    // 获取约束类型
+    virtual const char* GetConstraintType() const = 0;
+
+protected:
     // 约束的柔度参数
     float compliance; // 柔度（与刚度成反比）
 };

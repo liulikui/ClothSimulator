@@ -36,9 +36,13 @@ public:
         
         float constraintValue = currentDistance - this->geodesicDistance;
         if (constraintValue > 0.0f)
+        {
             return constraintValue;
+        }
         else
+        {
             return 0.0f;
+        }
     }
 
     // 计算约束梯度
@@ -105,6 +109,12 @@ public:
     const dx::XMFLOAT3& GetInitialAttachmentPoint() const
     {
         return this->attachmentInitialPos;
+    }
+
+    // 获取约束类型
+    virtual const char* GetConstraintType() const override
+    {
+        return "LRA";
     }
 
 private:
