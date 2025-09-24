@@ -14,7 +14,7 @@ class LRAConstraint : public Constraint
 {
 public:
     // 构造函数
-    LRAConstraint(Particle* particle, const dx::XMFLOAT3& attachmentPoint, float geodesicDistance, float compliance)
+    LRAConstraint(Particle* particle, const dx::XMFLOAT3& attachmentPoint, float geodesicDistance, float compliance, float maxStretch)
     {
         this->particle = particle;
         this->attachmentPoint = attachmentPoint;
@@ -22,6 +22,7 @@ public:
         this->lambda = 0.0f;
         this->compliance = compliance;
         this->attachmentInitialPos = attachmentPoint;
+        this->maxStretch = maxStretch;
     }
 
     // 计算约束偏差
@@ -34,7 +35,7 @@ public:
         dx::XMVECTOR diff = dx::XMVectorSubtract(pos, attachPos);
         float currentDistance = dx::XMVectorGetX(dx::XMVector3Length(diff));
         
-        float constraintValue = currentDistance - this->geodesicDistance;
+        float constraintValue = currentDistance - this->geodesicDistance * (1 + maxStretch);
         if (constraintValue > 0.0f)
         {
             return constraintValue;
@@ -56,7 +57,7 @@ public:
         dx::XMVECTOR delta = dx::XMVectorSubtract(pos, attachPos);
         float currentDistance = dx::XMVectorGetX(dx::XMVector3Length(delta));
         
-        if (currentDistance - this->geodesicDistance + 1e-9f < 0.0f)
+        if (currentDistance - geodesicDistance * (1 + maxStretch) + 1e-9f < 0.0f)
         {
             gradients.push_back(dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
             return;
@@ -122,6 +123,7 @@ private:
     dx::XMFLOAT3 attachmentPoint;
     dx::XMFLOAT3 attachmentInitialPos;
     float geodesicDistance;
+    float maxStretch;
 };
 
 #endif // LRA_CONSTRAINT_H

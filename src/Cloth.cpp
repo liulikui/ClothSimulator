@@ -22,7 +22,8 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_mass(mass)
     , m_useXPBDCollision(true)
     , m_addLRAConstraint(true)
-    , m_iteratorCount(80)
+    , m_LRAMaxStrech(0.01f)
+    , m_iteratorCount(40)
     , m_solver(m_particles, m_constraints, m_iteratorCount)
 {
     // 设置重力为标准地球重力
@@ -433,7 +434,7 @@ void Cloth::CreateConstraints()
             float distanceToLeftTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
 
             // 添加到左上角静止粒子的LRA约束
-            m_lraConstraints.emplace_back(&m_particles[i], m_particles[leftTopIndex].position, distanceToLeftTop, compliance);
+            m_lraConstraints.emplace_back(&m_particles[i], m_particles[leftTopIndex].position, distanceToLeftTop, compliance, m_LRAMaxStrech);
 
             // 计算到右上角静止粒子的欧几里德距离作为测地线距离
             dx::XMVECTOR rightTopPos = dx::XMLoadFloat3(&m_particles[rightTopIndex].position);
@@ -441,7 +442,7 @@ void Cloth::CreateConstraints()
             float distanceToRightTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
 
             // 添加到右上角静止粒子的LRA约束
-            m_lraConstraints.emplace_back(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, compliance);
+            m_lraConstraints.emplace_back(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, compliance, m_LRAMaxStrech);
         }
 
         // 填充约束指针数组

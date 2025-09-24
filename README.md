@@ -84,7 +84,7 @@ ClothSimulator/
   - 默认情况下，布料的左上角和右上角粒子是固定的
 - **窗口信息**：
   - 窗口尺寸：800×600像素
-  - 窗口标题会显示当前帧率、迭代次数、布料分辨率和LRA约束状态（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res, LRA:ON/OFF]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束
+  - 窗口标题会显示当前帧率、迭代次数、布料分辨率、LRA约束状态和LRAMaxStretch值（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res, LRA:ON/OFF, MaxStretch:Z]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束，Z表示LRA约束的最大拉伸量
 
 ## 命令行参数
 
@@ -99,6 +99,7 @@ ClothSimulator/
 | `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
 | `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
 | `-addLRAConstraint:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
+| `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
 
 示例用法：
 ```
@@ -106,6 +107,8 @@ XPBDClothSimulator.exe -debug -iteratorCount:100
 XPBDClothSimulator.exe -maxFrames:5000 -iteratorCount:30
 XPBDClothSimulator.exe -widthResolution:60 -heightResolution:60 -debug
 XPBDClothSimulator.exe -widthResolution:20 -heightResolution:20 -iteratorCount:10
+XPBDClothSimulator.exe -LRAMaxStretch:0.05
+XPBDClothSimulator.exe -addLRAConstraint:true -LRAMaxStretch:0.1
 ```
 
 ## 许可证

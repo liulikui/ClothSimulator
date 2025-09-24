@@ -540,6 +540,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
         std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
         std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
+        std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "===================================================" << std::endl;
         std::cout << "程序控制：" << std::endl;
         std::cout << "  F9                    切换调试输出开关" << std::endl;
@@ -691,6 +692,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 设置是否添加LRA约束
     cloth->SetAddLRAConstraint(addLRAConstraint);
     
+    // 解析-LRAMaxStretch参数
+    float lraMaxStretch = 0.01f; // 默认值
+    size_t lraMaxStretchPos = cmdLine.find("-LRAMaxStretch:");
+    if (lraMaxStretchPos != std::string::npos)
+    {
+        size_t start = lraMaxStretchPos + 15; // "-LRAMaxStretch:" 长度为15
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string lraMaxStretchStr = cmdLine.substr(start, end - start);
+        lraMaxStretch = std::stof(lraMaxStretchStr);
+        
+        logDebug("LRA max stretch set to: " + std::to_string(lraMaxStretch));
+    }
+    
+    // 设置LRA约束最大拉伸量
+    cloth->SetLRAMaxStretch(lraMaxStretch);
+    
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
 
@@ -775,7 +795,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                                 std::to_wstring(iteratorCount) + L" Iter, " + 
                                 std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
-                                lraStatus + L"]";
+                                lraStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L"]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());
