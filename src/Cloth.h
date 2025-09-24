@@ -124,7 +124,7 @@ public:
     // 获取是否使用XPBD碰撞约束
     bool GetUseXPBDCollision() const { return m_useXPBDCollision; }
 
-    // 获取是否增加LRA约束
+    // 设置是否增加LRA约束
     void SetAddLRAConstraint(bool add)
     {
         m_addLRAConstraint = add;
@@ -132,6 +132,15 @@ public:
 
     // 获取是否增加LRA约束
     bool GetAddLRAConstraint() const { return m_addLRAConstraint; }
+
+    // 设置LRA约束最大拉伸量
+    void SetLRAMaxStretch(float maxStretch)
+    {
+        m_LRAMaxStrech = maxStretch;
+    }
+
+    // 获取LRA约束最大拉伸量
+    float GetLRAMaxStretch() const { return m_LRAMaxStrech; }
 
     // 获取布料的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override { return m_positions; }
@@ -170,6 +179,7 @@ private:
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     bool m_useXPBDCollision; // 是否使用XPBD碰撞约束
     bool m_addLRAConstraint; // 是否增加LRA约束
+    float m_LRAMaxStrech;// LRA最大拉伸量
     
     // XPBD求解器
     XPBDSolver m_solver; // 用于求解布料的物理行为
