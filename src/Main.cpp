@@ -67,9 +67,10 @@ int customWindowWidth = 800;   // 自定义窗口宽度，默认800
 int customWindowHeight = 600;  // 自定义窗口高度，默认600
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
-int iteratorCount = 50;        // XPBD求解器迭代次数，默认50
-int widthResolution = 40;      // 布料宽度分辨率（粒子数），默认40
-int heightResolution = 40;     // 布料高度分辨率（粒子数），默认40
+int iteratorCount = 10;        // XPBD求解器迭代次数，默认10
+uint32_t subIteratorCount = 1; // XPBD求解器迭代次数，默认值1
+int widthResolution = 80;      // 布料宽度分辨率（粒子数），默认80
+int heightResolution = 80;     // 布料高度分辨率（粒子数），默认80
 
 // 相机对象
 Camera* camera = nullptr;
@@ -603,9 +604,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -help                 显示此帮助信息并退出" << std::endl;
         std::cout << "  -debug                启用调试输出模式" << std::endl;
         std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
-        std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认50）" << std::endl;
-        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
-        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认40）" << std::endl;
+        std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认10）" << std::endl;
+        std::cout << "  -subItereratorCount:xxx 设置子迭代次数（xxx为数字，默认1）" << std::endl;
+        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80）" << std::endl;
+        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80）" << std::endl;
         std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
@@ -657,7 +659,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     size_t widthResPos = cmdLine.find("-widthResolution:");
     if (widthResPos != std::string::npos)
     {
-        size_t start = widthResPos + 17; // "-widthResolution:" 长度为18
+        size_t start = widthResPos + 17; // "-widthResolution:" 长度为17
         size_t end = cmdLine.find(' ', start);
         if (end == std::string::npos) {
             end = cmdLine.length();
@@ -759,9 +761,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "[INFO] Running in normal mode (debug output disabled)" << std::endl;
     }
     
-    std::cout << "[INFO] Program started" << std::endl;
-    std::cout << "[INFO] Press F9 to toggle debug output" << std::endl;
-    std::cout.flush();
+    // 解析-subItereratorCount:xxx参数
+    size_t subIteratorCountPos = cmdLine.find("-subItereratorCount:");
+    if (subIteratorCountPos != std::string::npos)
+    {
+        size_t start = subIteratorCountPos + 20; // "-subItereratorCount:" 长度为20
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string subIteratorCountStr = cmdLine.substr(start, end - start);
+        subIteratorCount = std::stoi(subIteratorCountStr);
+        
+        if (subIteratorCount < 1)
+        {
+            subIteratorCount = 1;
+        }
+        
+        logDebug("Sub-iterator count set to: " + std::to_string(subIteratorCount));
+    }
     
     // 创建窗口
     std::cout << "Creating window..." << std::endl;
@@ -866,6 +884,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 设置XPBD求解器迭代次数
     cloth->SetIteratorCount(iteratorCount);
     logDebug("Cloth iterator count set to: " + std::to_string(iteratorCount));
+    
+    // 设置子迭代次数
+    cloth->SetSubIteratorCount(subIteratorCount);
+    logDebug("Cloth sub-iterator count set to: " + std::to_string(subIteratorCount));
 
     // 将布料添加到场景中
     scene->AddPrimitive(cloth);
@@ -938,6 +960,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wstring lraStatus = cloth->GetAddLRAConstraint() ? L"LRA:ON" : L"LRA:OFF";
         std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                                 std::to_wstring(iteratorCount) + L" Iter, " + 
+                                std::to_wstring(subIteratorCount) + L" SubIter, " +
                                 std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
                                 lraStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
             

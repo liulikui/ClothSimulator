@@ -1,0 +1,95 @@
+// 完整的XPBD求解器（包含子步数和帧结束处理）
+class XPBDSolver:
+    // 初始化：参数包含子步数和每子步迭代次数
+    function initialize(
+        particles,          // 粒子数组（x:位置, v:速度, m:质量）
+        constraints,        // 约束数组（C:偏差, gradient:梯度, alpha:柔度, lambda:乘子）
+        global_dt,          // 单帧总时间步（如1/60≈0.0167s）
+        iterations_per_substep,  // 每子步迭代次数
+        max_substeps        // 单帧子步数
+    ):
+        this.particles = particles
+        this.constraints = constraints
+        this.global_dt = global_dt
+        this.iterations = iterations_per_substep
+        this.max_substeps = max_substeps
+        // 初始化乘子
+        for each constraint in constraints:
+            constraint.lambda = 0.0
+
+    // 主循环：每帧执行一次模拟
+    function step():
+        // 1. 保存单帧初始位置（用于计算帧末总速度）
+        for each particle in particles:
+            particle.x_frame_initial = particle.x
+
+        // 2. 计算子步时间
+        substep_dt = this.global_dt / this.max_substeps
+
+        // 3. 子步循环：拆分单帧为多个子步
+        for substep in 0 to this.max_substeps - 1:
+            // 子步1：保存当前子步初始位置
+            for each particle in particles:
+                particle.x_substep_prev = particle.x
+
+            // 子步2：预测子步内无约束位置（用当前速度和子步dt）
+            for each particle in particles:
+                particle.x_pred = particle.x + substep_dt * particle.v
+
+            // 子步3：约束迭代（每子步执行多次迭代）
+            for k in 0 to this.iterations - 1:
+                for each constraint in constraints:
+                    affected_particles = constraint.get_affected_particles()
+                    C = constraint.C(affected_particles)
+                    gradients = constraint.gradient(affected_particles)
+                    
+                    // 基于子步dt计算α̃
+                    alpha_tilde = constraint.alpha / (substep_dt * substep_dt)
+                    
+                    // 计算分母：∇C·M⁻¹·∇Cᵀ + α̃
+                    denominator = 0.0
+                    for i in 0 to len(affected_particles) - 1:
+                        p = affected_particles[i]
+                        grad = gradients[i]
+                        denominator += dot(grad, grad) / p.mass
+                    denominator += alpha_tilde
+                    
+                    // 计算分子和乘子修正量
+                    numerator = -C - alpha_tilde * constraint.lambda
+                    delta_lambda = numerator / denominator
+                    
+                    // 计算并应用位置修正
+                    for i in 0 to len(affected_particles) - 1:
+                        p = affected_particles[i]
+                        grad = gradients[i]
+                        p.delta_x = (grad * delta_lambda) / p.mass
+                        p.x += p.delta_x
+                    
+                    // 更新乘子
+                    constraint.lambda += delta_lambda
+
+            // 子步4：更新子步内速度（基于子步位置变化）
+            for each particle in particles:
+                particle.v = (particle.x - particle.x_substep_prev) / substep_dt
+
+            // 子步5：应用外部力（如重力）
+            apply_external_forces(particles, substep_dt)
+
+        // 4. 计算单帧最终速度（整帧位移/单帧总时间）
+        for each particle in particles:
+            particle.v_frame_final = (particle.x - particle.x_frame_initial) / this.global_dt
+
+        // 5. 调用帧结束处理函数，传递速度到下一帧
+        this.end_frame()
+
+    // 帧结束处理：将当前帧最终速度作为下一帧初始速度
+    function end_frame():
+        for each particle in particles:
+            particle.v = particle.v_frame_final  // 速度在帧间传递，保证运动连续性
+
+// 外部力应用函数（如重力）
+function apply_external_forces(particles, dt):
+    gravity = [0, -9.81, 0]  // 重力加速度（m/s²）
+    for each particle in particles:
+        // 速度变化 = 加速度 × 时间（F=ma → a=F/m，此处F=mg → a=g）
+        particle.v += gravity * dt

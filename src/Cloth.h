@@ -75,6 +75,18 @@ public:
         m_iteratorCount = count;
     }
 
+    // 获取子迭代次数
+    uint32_t GetSubIteratorCount() const
+    {
+        return m_subIteratorCount;
+    }
+
+    // 设置子迭代次数
+    void SetSubIteratorCount(uint32_t count)
+    {
+        m_subIteratorCount = count;
+    }
+
     // 清除所有球体碰撞约束
     void ClearSphereCollisionConstraints();
     
@@ -196,6 +208,7 @@ private:
     std::vector<uint32_t> m_indices; // 布料索引数据
 
     uint32_t m_iteratorCount;   // 迭代次数
+    uint32_t m_subIteratorCount;   // 子迭代次数
 };
 
 #endif // CLOTH_H

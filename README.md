@@ -95,9 +95,10 @@ ClothSimulator/
 | `-help` | 显示帮助信息 | 无 |
 | `-debug` | 启用调试模式，输出详细日志信息 | 禁用 |
 | `-maxFrames:X` | 设置最大帧数限制，达到后程序自动退出 | 无限制 |
-| `-iteratorCount:X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 50 |
-| `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
-| `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
+| `-iteratorCount:X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 10 |
+| `-subItereratorCount:X` | 设置子迭代次数，X为数字 | 1 |
+| `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 80 |
+| `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 80 |
 | `-addLRAConstraint:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
 | `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
 | `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
@@ -118,6 +119,7 @@ XPBDClothSimulator.exe -addLRAConstraint:true -mass:0.5 -LRAMaxStretch:0.02
 XPBDClothSimulator.exe -fullscreen
 XPBDClothSimulator.exe -winWidth:1280 -winHeight:720
 XPBDClothSimulator.exe -fullscreen -debug
+XPBDClothSimulator.exe -subItereratorCount:8
 ```
 
 ## 许可证
