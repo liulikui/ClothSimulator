@@ -75,6 +75,18 @@ public:
         m_iteratorCount = count;
     }
 
+    // 获取子迭代次数
+    uint32_t GetSubIteratorCount() const
+    {
+        return m_subIteratorCount;
+    }
+
+    // 设置子迭代次数
+    void SetSubIteratorCount(uint32_t count)
+    {
+        m_subIteratorCount = count;
+    }
+
     // 清除所有球体碰撞约束
     void ClearSphereCollisionConstraints();
     
@@ -141,6 +153,9 @@ public:
 
     // 获取LRA约束最大拉伸量
     float GetLRAMaxStretch() const { return m_LRAMaxStrech; }
+    
+    // 获取每个粒子的质量
+    float GetMass() const { return m_mass; }
 
     // 获取布料的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override { return m_positions; }
@@ -193,6 +208,7 @@ private:
     std::vector<uint32_t> m_indices; // 布料索引数据
 
     uint32_t m_iteratorCount;   // 迭代次数
+    uint32_t m_subIteratorCount;   // 子迭代次数
 };
 
 #endif // CLOTH_H

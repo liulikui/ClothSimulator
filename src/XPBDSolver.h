@@ -26,11 +26,11 @@ public:
     //   particles - 粒子数组引用
     //   constraints - 约束数组引用
     //   iterations - 约束求解的迭代次数
-    XPBDSolver(std::vector<Particle>& particles, std::vector<Constraint*>& constraints, int iterations)
+    XPBDSolver(std::vector<Particle>& particles, std::vector<Constraint*>& constraints, int iterations, int subIterations)
         : m_particles(particles)
         , m_constraints(constraints)
         , m_iterations(iterations)
-        , m_timeStep(0.1f)
+        , m_subIterations(subIterations)
     {
         // 初始化重力
         m_gravity = dx::XMFLOAT3(0.0f, -9.81f, 0.0f);
@@ -41,20 +41,20 @@ public:
     {
     }
     
-    // 设置时间步长
-    // 参数
-    //   dt - 新的时间步长
-    void SetTimeStep(float dt)
-    {
-        m_timeStep = dt;
-    }
-    
     // 设置约束求解的迭代次数
     // 参数
     //   its - 新的迭代次数
     void SetIterations(int its)
     {
         m_iterations = its;
+    }
+
+    // 设置约束求解的子迭代次数
+    // 参数
+    //   its - 新的迭代次数
+    void SetSubIterations(int its)
+    {
+        m_subIterations = its;
     }
     
     // 设置重力
@@ -69,20 +69,26 @@ public:
     // 执行一次完整的XPBD模拟步骤，包括预测、约束求解和位置校正
     void Step(float deltaTime)
     {
-        // 1. 预测粒子的位置，考虑外力
-        PredictPositions(deltaTime);
-        
-        // 2. 求解约束多次以获得更准确的结果
-        for (int i = 0; i < m_iterations; ++i)
+        BeginStep();
+
+        float subDeltaTime = deltaTime / m_subIterations;
+
+        for (int i = 0; i < m_subIterations; ++i)
         {
-            SolveConstraints(deltaTime);
+            // 1. 预测粒子的位置，考虑外力
+            PredictPositions(subDeltaTime);
+
+            // 2. 求解约束多次以获得更准确的结果
+            for (int i = 0; i < m_iterations; ++i)
+            {
+                SolveConstraints(subDeltaTime);
+            }
+
+            // 3. 更新速度和位置
+            UpdateVelocities(subDeltaTime);
         }
-        
-        // 3. 更新速度和位置
-        UpdateVelocities(deltaTime);
-        
-        // 4. 应用阻尼（可选）
-        ApplyDamping();
+
+        EndStep(deltaTime);
     }
     
 private:
@@ -257,47 +263,66 @@ private:
                 
                 // 将结果转换回XMFLOAT3
                 dx::XMStoreFloat3(&particle.velocity, vel);
-                
-                // 清除力，为下一帧做准备
-                particle.force = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
             }
         }
     }
-    
-    // 应用阻尼
-    void ApplyDamping()
+
+    // 保存单帧初始位置（用于计算帧末总速度）
+    void BeginStep()
+    {
+        for (auto& particle : m_particles)
+        {
+            particle.positionInitial = particle.position;
+        }
+    }
+
+    // 将当前帧最终速度作为下一帧初始速度
+    void EndStep(float deltaTime)
     {
         const float velocityThreshold = 2.0f;
         const float defaultDampingFactor = 0.97f;
         const float highDampingFactor = 0.85f;
-        
+
         for (auto& particle : m_particles)
         {
             if (!particle.isStatic)
             {
-                // 将粒子的速度转换为XMVECTOR进行计算
-                dx::XMVECTOR vel = dx::XMLoadFloat3(&particle.velocity);
-                
+                dx::XMVECTOR pos = dx::XMLoadFloat3(&particle.position);
+                dx::XMVECTOR posInitial = dx::XMLoadFloat3(&particle.positionInitial);
+
+                // 检查位置是否有效
+                if (dx::XMVector3IsNaN(pos) || dx::XMVector3IsNaN(posInitial))
+                {
+                    // 位置无效，保留当前速度不变
+                    continue;
+                }
+
+                // 根据位置变化更新速度
+                dx::XMVECTOR velFinal = dx::XMVectorScale(dx::XMVectorSubtract(pos, posInitial), 1.0f / deltaTime);
+
+                dx::XMStoreFloat3(&particle.velocity, velFinal);
+
                 // 计算速度大小
-                float speed = dx::XMVectorGetX(dx::XMVector3Length(vel));
-                
+                float speed = dx::XMVectorGetX(dx::XMVector3Length(velFinal));
+
                 // 根据速度大小选择阻尼系数，实现自适应阻尼
                 float dampingFactor = (speed > velocityThreshold) ? highDampingFactor : defaultDampingFactor;
-                
+
                 // 应用阻尼
-                vel = dx::XMVectorScale(vel, dampingFactor);
-                
-                // 将结果转换回XMFLOAT3
-                dx::XMStoreFloat3(&particle.velocity, vel);
+                velFinal = dx::XMVectorScale(velFinal, dampingFactor);
+
+                dx::XMStoreFloat3(&particle.velocity, velFinal);
+
+                particle.ResetForce();
             }
         }
     }
-    
+protected:
     // 成员变量
     std::vector<Particle>& m_particles; // 粒子数组的引用
     std::vector<Constraint*>& m_constraints; // 约束数组的引用
-    float m_timeStep; // 时间步长
     int m_iterations; // 约束求解的迭代次数
+    int m_subIterations; // 约束求解的子迭代次数
     dx::XMFLOAT3 m_gravity; // 重力向量
 };
 

@@ -23,8 +23,9 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_useXPBDCollision(true)
     , m_addLRAConstraint(true)
     , m_LRAMaxStrech(0.01f)
-    , m_iteratorCount(40)
-    , m_solver(m_particles, m_constraints, m_iteratorCount)
+    , m_iteratorCount(10)
+    , m_subIteratorCount(4)
+    , m_solver(m_particles, m_constraints, m_iteratorCount, m_subIteratorCount)
 {
     // 设置重力为标准地球重力
     m_gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
@@ -285,6 +286,7 @@ void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 {
     // 设置求解器参数
     m_solver.SetIterations(m_iteratorCount);
+    m_solver.SetSubIterations(m_subIteratorCount);
 
     // 添加重力
     m_solver.SetGravity(m_gravity);

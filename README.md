@@ -83,8 +83,8 @@ ClothSimulator/
   - 程序启动后，布料会在重力作用下掉落到球体上
   - 默认情况下，布料的左上角和右上角粒子是固定的
 - **窗口信息**：
-  - 窗口尺寸：800×600像素
-  - 窗口标题会显示当前帧率、迭代次数、布料分辨率、LRA约束状态和LRAMaxStretch值（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res, LRA:ON/OFF, MaxStretch:Z]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束，Z表示LRA约束的最大拉伸量
+    - 窗口尺寸：默认800×600像素，可通过命令行参数自定义或切换至全屏模式
+    - 窗口标题会显示当前帧率、迭代次数、布料分辨率、LRA约束状态、LRAMaxStretch值和粒子质量（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res, LRA:ON/OFF, MaxStretch:Z, Mass:M]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束，Z表示LRA约束的最大拉伸量，M表示每个粒子的质量
 
 ## 命令行参数
 
@@ -95,11 +95,16 @@ ClothSimulator/
 | `-help` | 显示帮助信息 | 无 |
 | `-debug` | 启用调试模式，输出详细日志信息 | 禁用 |
 | `-maxFrames:X` | 设置最大帧数限制，达到后程序自动退出 | 无限制 |
-| `-iteratorCount:X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 50 |
-| `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
-| `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 40 |
+| `-iteratorCount:X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 10 |
+| `-subItereratorCount:X` | 设置子迭代次数，X为数字 | 1 |
+| `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 80 |
+| `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 80 |
 | `-addLRAConstraint:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
 | `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
+| `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
+| `-fullscreen` | 以全屏模式启动程序 | 禁用 |
+| `-winWidth:X` | 设置窗口宽度，X为数字，不能超过系统分辨率 | 800 |
+| `-winHeight:X` | 设置窗口高度，X为数字，不能超过系统分辨率 | 600 |
 
 示例用法：
 ```
@@ -108,7 +113,13 @@ XPBDClothSimulator.exe -maxFrames:5000 -iteratorCount:30
 XPBDClothSimulator.exe -widthResolution:60 -heightResolution:60 -debug
 XPBDClothSimulator.exe -widthResolution:20 -heightResolution:20 -iteratorCount:10
 XPBDClothSimulator.exe -LRAMaxStretch:0.05
-XPBDClothSimulator.exe -addLRAConstraint:true -LRAMaxStretch:0.1
+XPBDClothSimulator.exe -addLRAConstraint:true -LRAMaxStretch:0.05
+XPBDClothSimulator.exe -mass:2.5
+XPBDClothSimulator.exe -addLRAConstraint:true -mass:0.5 -LRAMaxStretch:0.02
+XPBDClothSimulator.exe -fullscreen
+XPBDClothSimulator.exe -winWidth:1280 -winHeight:720
+XPBDClothSimulator.exe -fullscreen -debug
+XPBDClothSimulator.exe -subItereratorCount:8
 ```
 
 ## 许可证
