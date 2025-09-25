@@ -64,8 +64,8 @@ public:
     float inverseMass;                  // 质量的倒数（用于加速度计算）
     bool isStatic;                      // 是否为固定粒子
 #ifdef DEBUG_SOLVER
-    int coordX;
-    int coordY;
+    int coordW;
+    int coordH;
 #endif//DEBUG_SOLVER
 };
 

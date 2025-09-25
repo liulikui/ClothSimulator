@@ -126,9 +126,9 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
         if (isnan(particle->position.x) || isnan(particle->position.y) || isnan(particle->position.z))
         {
             char buffer[256];
-            sprintf_s(buffer, "[DEBUG] InvalidParticle coordX:%d,coordY:%d"
-                , particle->coordX
-                , particle->coordY);
+            sprintf_s(buffer, "[DEBUG] InvalidParticle coordW:%d,coordH:%d"
+                , particle->coordW
+                , particle->coordH);
             logDebug(buffer);
         }
     }
@@ -196,11 +196,11 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 #ifdef DEBUG_SOLVER
             dx::XMVECTOR correctionLength = dx::XMVector3Length(correction);
             char buffer[256];
-            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordX:%d,coordY:%d alpha:%f deltaLambda:%f correctionLength:%f"
+            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordW:%d,coordH:%d alpha:%f deltaLambda:%f correctionLength:%f"
                 , constraint->GetConstraintType()
                 , deltaTime
-                , particle->coordX
-                , particle->coordY
+                , particle->coordW
+                , particle->coordH
                 , alpha
                 , deltaLambda
                 , dx::XMVectorGetX(correctionLength));

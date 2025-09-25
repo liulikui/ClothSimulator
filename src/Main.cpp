@@ -606,8 +606,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
         std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认10）" << std::endl;
         std::cout << "  -subItereratorCount:xxx 设置子迭代次数（xxx为数字，默认1）" << std::endl;
-        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80）" << std::endl;
-        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80）" << std::endl;
+        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80，最小为4）" << std::endl;
+        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80，最小为4）" << std::endl;
         std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "  -addBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
@@ -668,9 +668,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::string widthResStr = cmdLine.substr(start, end - start);
         widthResolution = std::stoi(widthResStr);
 
-        if (widthResolution < 10)
+        if (widthResolution < 4)
         {
-            widthResolution = 10;
+            widthResolution = 4;
         }
         logDebug("Width resolution set to: " + std::to_string(widthResolution));
     }
@@ -687,9 +687,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::string heightResStr = cmdLine.substr(start, end - start);
         heightResolution = std::stoi(heightResStr);
 
-        if (heightResolution < 10)
+        if (heightResolution < 4)
         {
-            heightResolution = 10;
+            heightResolution = 4;
         }
 
         logDebug("Height resolution set to: " + std::to_string(heightResolution));
