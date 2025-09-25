@@ -609,6 +609,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80）" << std::endl;
         std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80）" << std::endl;
         std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
+        std::cout << "  -addBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
         std::cout << "  -fullscreen          以全屏模式启动程序" << std::endl;
@@ -873,6 +874,34 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 设置LRA约束最大拉伸量
     cloth->SetLRAMaxStretch(lraMaxStretch);
     
+    // 解析-addBendingConstraints参数
+    bool addBendingConstraints = false; // 默认禁用
+    size_t addBendingConstraintsPos = cmdLine.find("-addBendingConstraints:");
+    if (addBendingConstraintsPos != std::string::npos)
+    {
+        size_t start = addBendingConstraintsPos + 23; // "-addBendingConstraints:" 长度为23
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string addBendingConstraintsStr = cmdLine.substr(start, end - start);
+        
+        // 解析字符串为布尔值
+        if (addBendingConstraintsStr == "false" || addBendingConstraintsStr == "0" || addBendingConstraintsStr == "no")
+        {
+            addBendingConstraints = false;
+        }
+        else if (addBendingConstraintsStr == "true" || addBendingConstraintsStr == "1" || addBendingConstraintsStr == "yes")
+        {
+            addBendingConstraints = true;
+        }
+        
+        logDebug("Bending constraints set to: " + std::string(addBendingConstraints ? "true" : "false"));
+    }
+    
+    // 设置是否添加二面角约束
+    cloth->SetAddBendingConstraints(addBendingConstraints);
+    
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
 
@@ -976,11 +1005,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             // 构造新的窗口标题
             std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
             std::wstring lraStatus = cloth->GetAddLRAConstraint() ? L"LRA:ON" : L"LRA:OFF";
+            std::wstring bendingStatus = cloth->GetAddBendingConstraints() ? L"Bending:ON" : L"Bending:OFF";
             std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                 std::to_wstring(iteratorCount) + L" Iter, " + 
                 std::to_wstring(subIteratorCount) + L" SubIter, " +
                 std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
-                lraStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
+                lraStatus + L", " + bendingStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());

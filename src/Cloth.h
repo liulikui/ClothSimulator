@@ -7,6 +7,7 @@
 #include "Constraint.h"
 #include "DistanceConstraint.h"
 #include "LRAConstraint.h"
+#include "DihedralBendingConstraint.h"
 #include "XPBDSolver.h"
 #include "Mesh.h"
 #include "RALResource.h"
@@ -109,6 +110,15 @@ public:
     // 获取是否增加LRA约束
     bool GetAddLRAConstraint() const { return m_addLRAConstraint; }
 
+    // 设置是否增加二面角约束
+    void SetAddBendingConstraints(bool add)
+    {
+        m_addBendingConstraints = add;
+    }
+
+    // 获取是否增加二面角约束
+    bool GetAddBendingConstraints() const { return m_addBendingConstraints; }
+
     // 设置LRA约束最大拉伸量
     void SetLRAMaxStretch(float maxStretch)
     {
@@ -155,8 +165,10 @@ private:
     std::vector<DistanceConstraint> m_distanceConstraints; // 布料的所有距离约束
     std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
+    std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
     bool m_useXPBDCollision;    // 是否使用XPBD碰撞约束
     bool m_addLRAConstraint;    // 是否增加LRA约束
+    bool m_addBendingConstraints; // 是否增加二面角约束
     float m_LRAMaxStrech;       // LRA最大拉伸量
     
     // XPBD求解器

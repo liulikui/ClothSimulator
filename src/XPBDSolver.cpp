@@ -63,16 +63,25 @@ void XPBDSolver::Step(float deltaTime)
 
 void XPBDSolver::SolveConstraints(float deltaTime)
 {
+    // 处理距离约束
     for (auto& constraint : m_cloth->m_distanceConstraints)
     {
         SolveConstraint(&constraint, deltaTime);
     }
 
+    // 处理弯曲约束
+    for (auto& constraint : m_cloth->m_dihedralBendingConstraints)
+    {
+        SolveConstraint(&constraint, deltaTime);
+    }
+
+    // 处理LRA约束
     for (auto& constraint : m_cloth->m_lraConstraints)
     {
         SolveConstraint(&constraint, deltaTime);
     }
 
+    // 处理碰撞约束
     for (auto& constraint : m_cloth->m_CollisionConstraints)
     {
         SolveConstraint(constraint, deltaTime);

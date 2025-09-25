@@ -22,6 +22,7 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_mass(mass)
     , m_useXPBDCollision(true)
     , m_addLRAConstraint(true)
+    , m_addBendingConstraints(false)
     , m_LRAMaxStrech(0.01f)
     , m_iteratorCount(10)
     , m_subIteratorCount(4)
@@ -307,7 +308,8 @@ void Cloth::CreateParticles()
     float stepZ = m_size / (m_heightResolution - 1);
     
     // 将位置转换为XMVECTOR进行计算
-    dx::XMVECTOR posVector = dx::XMLoadFloat3(&dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    dx::XMFLOAT3 origin = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    dx::XMVECTOR posVector = dx::XMLoadFloat3(&origin);
     
     for (int y = 0; y < m_heightResolution; ++y)
     {
@@ -412,6 +414,101 @@ void Cloth::CreateConstraints()
 
             // 添加到右上角静止粒子的LRA约束
             m_lraConstraints.emplace_back(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, compliance, m_LRAMaxStrech);
+        }
+    }
+
+    // 如果启用了二面角约束，则添加它们
+    if (m_addBendingConstraints)
+    {
+        m_dihedralBendingConstraints.clear();
+        float bendingCompliance = compliance * 10.0f; // 二面角约束使用稍大的柔度值
+        float restDihedralAngle = dx::XM_PI; // 初始静止二面角设为XM_PI（平面）
+        
+        // 遍历布料，为每对相邻的三角形创建二面角约束
+        
+        // 1. 处理水平方向的边（y方向），为每对水平相邻的三角形创建约束
+        for (int y = 0; y < m_heightResolution - 1; ++y)
+        {
+            for (int x = 0; x < m_widthResolution - 1; ++x)
+            {
+                // 对于每个内部顶点，创建水平方向的二面角约束
+                // 两个三角形共享边 (x,y)-(x+1,y)
+                // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
+                // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
+                // 注意：根据m_indices中的三角形定义，第二个三角形的顶点顺序是(p0,p2,p3)而不是(p0,p1,p3)
+                int p0 = y * m_widthResolution + x;            // 共享顶点1
+                int p1 = y * m_widthResolution + (x + 1);      // 共享顶点2
+                int p2 = (y + 1) * m_widthResolution + (x + 1); // 三角形1的第三个顶点
+                int p3 = (y + 1) * m_widthResolution + x;      // 三角形2的第三个顶点
+                
+                // 创建二面角约束，使用与m_indices中一致的顶点顺序
+                // 三角形1: (p0,p1,p2)
+                // 三角形2: (p0,p2,p3)
+                m_dihedralBendingConstraints.emplace_back(
+                    &m_particles[p0],  // 公共顶点1
+                    &m_particles[p2],  // 公共顶点2（注意这里使用p2作为第二个公共顶点）
+                    &m_particles[p1],  // 三角形1的第三个顶点
+                    &m_particles[p3],  // 三角形2的第三个顶点
+                    restDihedralAngle,
+                    bendingCompliance
+                );
+            }
+        }
+        
+        // 2. 处理垂直方向的边（x方向），为每对垂直相邻的三角形创建约束
+        for (int y = 0; y < m_heightResolution - 1; ++y)
+        {
+            for (int x = 0; x < m_widthResolution - 1; ++x)
+            {
+                // 对于每个内部顶点，创建垂直方向的二面角约束
+                // 两个三角形共享边 (x,y)-(x,y+1)
+                // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
+                // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
+                int p0 = y * m_widthResolution + x;            // 共享顶点1
+                int p1 = (y + 1) * m_widthResolution + x;      // 共享顶点2
+                int p2 = y * m_widthResolution + (x + 1);      // 三角形1的第三个顶点
+                int p3 = (y + 1) * m_widthResolution + (x + 1); // 三角形2的第三个顶点
+                
+                // 创建二面角约束，使用与m_indices中一致的顶点顺序
+                // 三角形1: (p0,p2,p3)
+                // 三角形2: (p0,p3,p1)
+                m_dihedralBendingConstraints.emplace_back(
+                    &m_particles[p0],  // 公共顶点1
+                    &m_particles[p3],  // 公共顶点2
+                    &m_particles[p2],  // 三角形1的第三个顶点
+                    &m_particles[p1],  // 三角形2的第三个顶点
+                    restDihedralAngle,
+                    bendingCompliance
+                );
+            }
+        }
+        
+        // 3. 处理主对角线方向的边（从左上到右下）
+        // 注意：这里只添加一种对角线方向的约束，避免重复约束导致过度刚硬
+        for (int y = 0; y < m_heightResolution - 1; ++y)
+        {
+            for (int x = 0; x < m_widthResolution - 1; ++x)
+            {
+                // 两个三角形共享主对角线 (x,y)-(x+1,y+1)
+                // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
+                // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
+                int p0 = y * m_widthResolution + x;            // 共享顶点1
+                int p1 = (y + 1) * m_widthResolution + (x + 1); // 共享顶点2
+                int p2 = y * m_widthResolution + (x + 1);      // 三角形1的第三个顶点
+                int p3 = (y + 1) * m_widthResolution + x;      // 三角形2的第三个顶点
+                
+                // 创建二面角约束，使用与m_indices中一致的顶点顺序
+                // 三角形1: (p0,p2,p1)
+                // 三角形2: (p0,p1,p3)
+                m_dihedralBendingConstraints.emplace_back(
+                    &m_particles[p0],  // 公共顶点1
+                    &m_particles[p1],  // 公共顶点2
+                    &m_particles[p2],  // 三角形1的第三个顶点
+                    &m_particles[p3],  // 三角形2的第三个顶点
+                    restDihedralAngle,
+                    bendingCompliance
+                );
+            }
         }
     }
 }

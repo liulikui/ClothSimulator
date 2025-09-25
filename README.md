@@ -15,6 +15,9 @@ ClothSimulator/
 │   ├── Particle.h       # 粒子类定义
 │   ├── Constraint.h     # 约束基类定义
 │   ├── DistanceConstraint.h # 距离约束实现
+│   ├── DihedralBendingConstraint.h # 二面角弯曲约束实现
+│   ├── BendingConstraint.h # 弯曲约束实现（备用）
+│   ├── LRAConstraint.h  # 低秩模态约束实现
 │   ├── SphereCollisionConstraint.h # 球体碰撞约束实现
 │   ├── XPBDSolver.h     # XPBD求解器实现
 │   ├── Cloth.h          # 布料类定义
@@ -100,6 +103,7 @@ ClothSimulator/
 | `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 80 |
 | `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 80 |
 | `-addLRAConstraint:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
+| `-addBendingConstraints:X` | 设置是否添加二面角约束，X可以是true/false/1/0/yes/no | false |
 | `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
 | `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
 | `-fullscreen` | 以全屏模式启动程序 | 禁用 |
