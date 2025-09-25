@@ -25,11 +25,10 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_LRAMaxStrech(0.01f)
     , m_iteratorCount(10)
     , m_subIteratorCount(4)
-    , m_solver(m_particles, m_constraints, m_iteratorCount, m_subIteratorCount)
+    , m_solver(this)
 {
     // 设置重力为标准地球重力
     m_gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
-    m_solver.SetGravity(m_gravity);
 }
 
 // 析构函数
@@ -37,14 +36,6 @@ Cloth::~Cloth()
 {
     // 清除球体碰撞约束
     ClearSphereCollisionConstraints();
-
-    // 清除距离约束
-    for (auto& constraint : m_distanceConstraints) {
-        // 注意：distanceConstraints中的对象是直接存储的，不需要delete
-    }
-    
-    // 清除约束指针数组中的其他约束（如果有）
-    m_constraints.clear();
 }
 
 // 初始化布料的顶点和索引缓冲区
@@ -172,13 +163,8 @@ void Cloth::InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCente
         {
             SphereCollisionConstraint* constraint = new SphereCollisionConstraint(
                 &particle, relativeCenter, sphereRadius, 1e-9f); // 减小柔度值以增加刚性
-            m_sphereConstraints.push_back(constraint);
+            m_CollisionConstraints.push_back(constraint);
         }
-    }
-    
-    for (auto constraint : m_sphereConstraints)
-    {
-        m_constraints.push_back(reinterpret_cast<Constraint*>(constraint));
     }
 }
 
@@ -284,13 +270,6 @@ void Cloth::ComputeNormals()
 // 更新布料状态
 void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 {
-    // 设置求解器参数
-    m_solver.SetIterations(m_iteratorCount);
-    m_solver.SetSubIterations(m_subIteratorCount);
-
-    // 添加重力
-    m_solver.SetGravity(m_gravity);
-    
     // 使用XPBD求解器更新布料状态
     m_solver.Step(deltaTime);
     
@@ -310,18 +289,13 @@ void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 // 清除所有球体碰撞约束
 void Cloth::ClearSphereCollisionConstraints()
 {
-    // 从总约束列表中移除球体碰撞约束
-    auto it = std::remove_if(m_constraints.begin(), m_constraints.end(), [this](Constraint* constraint){
-        return std::find(m_sphereConstraints.begin(), m_sphereConstraints.end(), constraint) != m_sphereConstraints.end();
-    });
-    m_constraints.erase(it, m_constraints.end());
-    
     // 释放球体碰撞约束的内存
-    for (auto constraint : m_sphereConstraints)
+    for (auto constraint : m_CollisionConstraints)
     {
         delete constraint;
     }
-    m_sphereConstraints.clear();
+
+    m_CollisionConstraints.clear();
 }
 
 // 创建布料的粒子
@@ -366,7 +340,6 @@ void Cloth::CreateParticles()
 void Cloth::CreateConstraints()
 {
     m_distanceConstraints.clear();
-    m_constraints.clear();
     
     float restLength = m_size / (m_widthResolution - 1);
     float compliance = 1e-7f; // 减小柔度值以增加布料刚性
@@ -409,12 +382,6 @@ void Cloth::CreateConstraints()
         }
     }
 
-    // 填充约束指针数组
-    for (auto& constraint : m_distanceConstraints)
-    {
-        m_constraints.push_back(&constraint);
-    }
-
     if (m_addLRAConstraint)
     {
         // 为除静止粒子外的所有粒子添加LRA约束
@@ -445,12 +412,6 @@ void Cloth::CreateConstraints()
 
             // 添加到右上角静止粒子的LRA约束
             m_lraConstraints.emplace_back(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, compliance, m_LRAMaxStrech);
-        }
-
-        // 填充约束指针数组
-        for (auto& constraint : m_lraConstraints)
-        {
-            m_constraints.push_back(&constraint);
         }
     }
 }

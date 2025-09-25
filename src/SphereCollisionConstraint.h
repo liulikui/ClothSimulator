@@ -44,11 +44,8 @@ public:
         }
     }
 
-    void ComputeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
+    void ComputeGradient(dx::XMFLOAT3* gradients) const override
     {
-        gradients.clear();
-        if (particle->isStatic) return;
-
         dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
         dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
         dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
@@ -59,26 +56,22 @@ public:
             dx::XMVECTOR gradient = dx::XMVectorScale(toCenter, 1.0f / distance);
             dx::XMFLOAT3 gradientFloat3;
             dx::XMStoreFloat3(&gradientFloat3, gradient);
-            gradients.push_back(gradientFloat3);
+            gradients[0] = gradientFloat3;
         }
         else
         {
-            gradients.push_back(dx::XMFLOAT3(0.0f, 1.0f, 0.0f));
+            gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
         }
     }
 
-    std::vector<Particle*> GetParticles() override
+    virtual uint32_t GetParticlesCount() const override
     {
-        std::vector<Particle*> result;
-        result.push_back(particle);
-        return result;
+        return 1;
     }
 
-    std::vector<const Particle*> GetParticles() const override
+    virtual Particle** GetParticles()
     {
-        std::vector<const Particle*> result;
-        result.push_back(particle);
-        return result;
+        return &particle;
     }
 
     virtual const char* GetConstraintType() const override

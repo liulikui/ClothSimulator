@@ -44,11 +44,8 @@ public:
     // 计算约束梯度
     // 参数：
     //   gradients - 存储每个受约束粒子的梯度向量的向量
-    void ComputeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
+    void ComputeGradient(dx::XMFLOAT3* gradients) const override
     {
-        gradients.clear();
-        gradients.reserve(2);
-        
         // 将XMFLOAT3转换为XMVECTOR进行计算
         dx::XMVECTOR pos1 = dx::XMLoadFloat3(&particle1->position);
         dx::XMVECTOR pos2 = dx::XMLoadFloat3(&particle2->position);
@@ -69,42 +66,34 @@ public:
             
             // 对第一个粒子的梯度
             dx::XMStoreFloat3(&gradient1, normalizedDiff);
-            gradients.push_back(gradient1);
+            gradients[0] = gradient1;
             
             // 对第二个粒子的梯度（方向相反）
             dx::XMStoreFloat3(&gradient2, dx::XMVectorNegate(normalizedDiff));
-            gradients.push_back(gradient2);
+            gradients[1] = gradient2;
         } 
         else 
         {
             // 避免除以零，当两个粒子重合时使用任意方向
-            gradients.push_back(dx::XMFLOAT3(1.0f, 0.0f, 0.0f));
-            gradients.push_back(dx::XMFLOAT3(-1.0f, 0.0f, 0.0f));
+            gradients[0] = dx::XMFLOAT3(1.0f, 0.0f, 0.0f);
+            gradients[1] = dx::XMFLOAT3(-1.0f, 0.0f, 0.0f);
         }
     }
     
+    // 获取受此约束影响的所有粒子的数量
+    // 返回：受约束影响的粒子数量
+    virtual uint32_t GetParticlesCount() const override
+    {
+        return 2;
+    }
+
     // 获取受此约束影响的所有粒子
-    // 返回：包含两个粒子指针的向量
-    std::vector<Particle*> GetParticles() override
+    // 返回：受约束影响的粒子的数组
+    virtual Particle** GetParticles()
     {
-        std::vector<Particle*> result;
-        result.reserve(2);
-        result.push_back(particle1);
-        result.push_back(particle2);
-        return result;
+        return &particle1;
     }
-    
-    // 获取受此约束影响的所有粒子（const版本）
-    // 返回：包含两个const粒子指针的向量
-    std::vector<const Particle*> GetParticles() const override
-    {
-        std::vector<const Particle*> result;
-        result.reserve(2);
-        result.push_back(particle1);
-        result.push_back(particle2);
-        return result;
-    }
-    
+
     // 设置约束的静止长度
     // 参数：
     //   length - 新的静止长度

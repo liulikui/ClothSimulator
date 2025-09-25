@@ -956,13 +956,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             float fps = static_cast<float>(fpsCounter) / fpsUpdateTimer;
             
             // 构造新的窗口标题
-        std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
-        std::wstring lraStatus = cloth->GetAddLRAConstraint() ? L"LRA:ON" : L"LRA:OFF";
-        std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
-                                std::to_wstring(iteratorCount) + L" Iter, " + 
-                                std::to_wstring(subIteratorCount) + L" SubIter, " +
-                                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
-                                lraStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
+            std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
+            std::wstring lraStatus = cloth->GetAddLRAConstraint() ? L"LRA:ON" : L"LRA:OFF";
+            std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
+                std::to_wstring(iteratorCount) + L" Iter, " + 
+                std::to_wstring(subIteratorCount) + L" SubIter, " +
+                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
+                lraStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());
@@ -996,12 +996,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // 更新场景
         scene->Update(deltaTime);
-
-        // 渲染场景
-        static int renderCount = 0;
-        renderCount++;
-        logDebug("[DEBUG] Rendering scene, render count: " + std::to_string(renderCount));
-        logDebug("[DEBUG] Scene has " + std::to_string(scene->GetMeshCount()) + " meshes");
 
         scene->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
