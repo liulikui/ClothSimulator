@@ -939,6 +939,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
         deltaTime = static_cast<float>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<float>(frequency.QuadPart);
+        
+        // 帧率限制：最大240FPS
+        const float maxFPS = 240.0f;
+        const float targetFrameTime = 1.0f / maxFPS;
+        if (deltaTime < targetFrameTime)
+        {
+            // 计算需要等待的毫秒数
+            float waitTimeMs = (targetFrameTime - deltaTime) * 1000.0f;
+            if (waitTimeMs > 0.1f) // 只在需要等待足够时间时才调用Sleep
+            {
+                Sleep(static_cast<DWORD>(waitTimeMs - 0.1f)); // 减去一点时间作为安全边际
+                
+                // 再次获取计时器值，确保deltaTime准确
+                QueryPerformanceCounter(&currentCounter);
+                deltaTime = static_cast<float>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<float>(frequency.QuadPart);
+            }
+        }
+        
         lastCounter = currentCounter;
         
         // 增加帧计数器

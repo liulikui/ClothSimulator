@@ -14,7 +14,7 @@ public:
         particle = p;
         sphereCenter = center;
         sphereRadius = radius;
-        compliance = 1e-7f;
+        compliance = 1e-2f;
     }
     
     SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius, float customCompliance)

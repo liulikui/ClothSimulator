@@ -56,7 +56,7 @@ public:
         // 计算向量的长度（距离）
         float distance = dx::XMVectorGetX(dx::XMVector3Length(diff));
         
-        if (distance > 0.0f)
+        if (distance > 1e-9f)
         {
             // 归一化向量
             dx::XMVECTOR normalizedDiff = dx::XMVector3Normalize(diff);

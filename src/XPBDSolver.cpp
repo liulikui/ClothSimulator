@@ -131,7 +131,7 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
     constraint->ComputeGradient(gradients);
 
     // 计算分母项
-    float sum = 0.0f;
+    double sum = 0.0f;
     for (uint32_t i = 0; i < particleCount; ++i)
     {
         Particle* particle = constraintParticles[i];
@@ -149,7 +149,13 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
     }
 
     // 添加柔度项
-    float alpha = constraint->GetCompliance() / (deltaTime * deltaTime);
+    double alpha = constraint->GetCompliance() / ((double)deltaTime * (double)deltaTime);
+
+    if (alpha > 1e6f)
+    {
+        alpha = 1e6f;
+    }
+
     sum += alpha;
 
     // 防止除零
@@ -159,7 +165,7 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
     }
 
     // 计算拉格朗日乘子增量
-    float deltaLambda = (-C - alpha * constraint->lambda) / sum;
+    double deltaLambda = (double(-C - alpha * constraint->lambda) / sum);
 
     // 更新约束的拉格朗日乘子
     constraint->lambda += deltaLambda;
@@ -205,6 +211,10 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 
 void XPBDSolver::UpdateVelocities(float deltaTime)
 {
+    const float velocityThreshold = 2.0f;
+    const float defaultDampingFactor = 0.99f;
+    const float highDampingFactor = 0.95f;
+
     for (auto& particle : m_cloth->m_particles)
     {
         if (!particle.isStatic)
@@ -230,18 +240,23 @@ void XPBDSolver::UpdateVelocities(float deltaTime)
                 vel = dx::XMVectorZero();
             }
 
+            // 计算速度大小
+            float speed = dx::XMVectorGetX(dx::XMVector3Length(vel));
+
+            // 根据速度大小选择阻尼系数，实现自适应阻尼
+            float dampingFactor = (speed > velocityThreshold) ? highDampingFactor : defaultDampingFactor;
+
+            // 应用阻尼
+            dx::XMVECTOR velDampled = dx::XMVectorScale(vel, dampingFactor);
+
             // 将结果转换回XMFLOAT3
-            dx::XMStoreFloat3(&particle.velocity, vel);
+            dx::XMStoreFloat3(&particle.velocity, velDampled);
         }
     }
 }
 
 void XPBDSolver::EndStep(float deltaTime)
 {
-    const float velocityThreshold = 2.0f;
-    const float defaultDampingFactor = 0.97f;
-    const float highDampingFactor = 0.85f;
-
     for (auto& particle : m_cloth->m_particles)
     {
         if (!particle.isStatic)
@@ -258,17 +273,6 @@ void XPBDSolver::EndStep(float deltaTime)
 
             // 根据位置变化更新速度
             dx::XMVECTOR velFinal = dx::XMVectorScale(dx::XMVectorSubtract(pos, posInitial), 1.0f / deltaTime);
-
-            dx::XMStoreFloat3(&particle.velocity, velFinal);
-
-            // 计算速度大小
-            float speed = dx::XMVectorGetX(dx::XMVector3Length(velFinal));
-
-            // 根据速度大小选择阻尼系数，实现自适应阻尼
-            float dampingFactor = (speed > velocityThreshold) ? highDampingFactor : defaultDampingFactor;
-
-            // 应用阻尼
-            velFinal = dx::XMVectorScale(velFinal, dampingFactor);
 
             dx::XMStoreFloat3(&particle.velocity, velFinal);
 

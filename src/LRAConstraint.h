@@ -35,7 +35,7 @@ public:
         dx::XMVECTOR diff = dx::XMVectorSubtract(pos, attachPos);
         float currentDistance = dx::XMVectorGetX(dx::XMVector3Length(diff));
         
-        float constraintValue = currentDistance - this->geodesicDistance * (1 + maxStretch);
+        float constraintValue = currentDistance - geodesicDistance * (1 + maxStretch);
         if (constraintValue > 0.0f)
         {
             return constraintValue;
