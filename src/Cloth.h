@@ -102,13 +102,13 @@ public:
     }
 
     // 设置是否增加LRA约束
-    void SetAddLRAConstraint(bool add)
+    void SetAddLRAConstraints(bool add)
     {
-        m_addLRAConstraint = add;
+        m_addLRAConstraints = add;
     }
 
     // 获取是否增加LRA约束
-    bool GetAddLRAConstraint() const { return m_addLRAConstraint; }
+    bool GetAddLRAConstraints() const { return m_addLRAConstraints; }
 
     // 设置是否增加二面角约束
     void SetAddBendingConstraints(bool add)
@@ -153,6 +153,15 @@ private:
     // 计算法线
     void ComputeNormals();
 
+    // 增加距离约束
+    void AddDistanceConstraint(const DistanceConstraint& constraint);
+
+    // 增加LRA约束
+    void AddLRAConstraint(const LRAConstraint& constraint);
+
+    // 增加二面角约束
+    void AddDihedralBendingConstraint(const DihedralBendingConstraint& constraint);
+
 private:
     // 布料的尺寸参数
     int m_widthResolution; // 宽度方向的粒子数
@@ -167,7 +176,7 @@ private:
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
     bool m_useXPBDCollision;    // 是否使用XPBD碰撞约束
-    bool m_addLRAConstraint;    // 是否增加LRA约束
+    bool m_addLRAConstraints;    // 是否增加LRA约束
     bool m_addBendingConstraints; // 是否增加二面角约束
     float m_LRAMaxStrech;       // LRA最大拉伸量
     

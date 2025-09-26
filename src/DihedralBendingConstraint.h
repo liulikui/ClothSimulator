@@ -151,6 +151,12 @@ public:
         return &particle0;
     }
 
+    // 获取受此约束影响的所有粒子
+    virtual const Particle** GetParticles() const override
+    {
+        return (const Particle**)(&particle0);
+    }
+
     // 设置约束的静止二面角
     void SetRestDihedralAngle(float angle)
     {

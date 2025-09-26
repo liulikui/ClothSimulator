@@ -89,9 +89,16 @@ public:
 
     // 获取受此约束影响的所有粒子
     // 返回：受约束影响的粒子的数组
-    virtual Particle** GetParticles()
+    virtual Particle** GetParticles() override
     {
         return &particle1;
+    }
+
+    // 获取受此约束影响的所有粒子
+    // 返回：受约束影响的粒子的数组
+    virtual const Particle** GetParticles() const override
+    {
+        return (const Particle**)(&particle1);
     }
 
     // 设置约束的静止长度

@@ -608,7 +608,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -subItereratorCount:xxx 设置子迭代次数（xxx为数字，默认1）" << std::endl;
         std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80，最小为4）" << std::endl;
         std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80，最小为4）" << std::endl;
-        std::cout << "  -addLRAConstraint:true/false 设置是否添加LRA约束（默认true）" << std::endl;
+        std::cout << "  -addLRAConstraints:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "  -addBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
@@ -827,33 +827,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 默认启用XPBD碰撞约束
     cloth->SetUseXPBDCollision(true);
     
-    // 解析-addLRAConstraint参数
-    bool addLRAConstraint = true; // 默认启用
-    size_t addLRAConstraintPos = cmdLine.find("-addLRAConstraint:");
-    if (addLRAConstraintPos != std::string::npos)
+    // 解析-addLRAConstraints参数
+    bool addLRAConstraints = true; // 默认启用
+    size_t addLRAConstraintsPos = cmdLine.find("-addLRAConstraints:");
+    if (addLRAConstraintsPos != std::string::npos)
     {
-        size_t start = addLRAConstraintPos + 18; // "-addLRAConstraint:" 长度为18
+        size_t start = addLRAConstraintsPos + 19; // "-addLRAConstraint:" 长度为19
         size_t end = cmdLine.find(' ', start);
         if (end == std::string::npos) {
             end = cmdLine.length();
         }
-        std::string addLRAConstraintStr = cmdLine.substr(start, end - start);
+        std::string addLRAConstraintsStr = cmdLine.substr(start, end - start);
         
         // 解析字符串为布尔值
-        if (addLRAConstraintStr == "false" || addLRAConstraintStr == "0" || addLRAConstraintStr == "no")
+        if (addLRAConstraintsStr == "false" || addLRAConstraintsStr == "0" || addLRAConstraintsStr == "no")
         {
-            addLRAConstraint = false;
+            addLRAConstraints = false;
         }
-        else if (addLRAConstraintStr == "true" || addLRAConstraintStr == "1" || addLRAConstraintStr == "yes")
+        else if (addLRAConstraintsStr == "true" || addLRAConstraintsStr == "1" || addLRAConstraintsStr == "yes")
         {
-            addLRAConstraint = true;
+            addLRAConstraints = true;
         }
         
-        logDebug("LRA constraint set to: " + std::string(addLRAConstraint ? "true" : "false"));
+        logDebug("LRA constraint set to: " + std::string(addLRAConstraints ? "true" : "false"));
     }
     
     // 设置是否添加LRA约束
-    cloth->SetAddLRAConstraint(addLRAConstraint);
+    cloth->SetAddLRAConstraints(addLRAConstraints);
     
     // 解析-LRAMaxStretch参数
     float lraMaxStretch = 0.01f; // 默认值
@@ -1004,7 +1004,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             
             // 构造新的窗口标题
             std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
-            std::wstring lraStatus = cloth->GetAddLRAConstraint() ? L"LRA:ON" : L"LRA:OFF";
+            std::wstring lraStatus = cloth->GetAddLRAConstraints() ? L"LRA:ON" : L"LRA:OFF";
             std::wstring bendingStatus = cloth->GetAddBendingConstraints() ? L"Bending:ON" : L"Bending:OFF";
             std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                 std::to_wstring(iteratorCount) + L" Iter, " + 

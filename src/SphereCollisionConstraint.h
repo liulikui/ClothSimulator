@@ -74,6 +74,11 @@ public:
         return &particle;
     }
 
+    virtual const Particle** GetParticles() const override
+    {
+        return (const Particle**)(&particle);
+    }
+
     virtual const char* GetConstraintType() const override
     {
         return "SphereCollision";

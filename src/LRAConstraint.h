@@ -89,6 +89,13 @@ public:
         return &particle;
     }
 
+    // 获取受此约束影响的所有粒子
+     // 返回：受约束影响的粒子的数组
+    virtual const Particle** GetParticles() const override
+    {
+        return (const Particle**)(&particle);
+    }
+
     // 更新附着点位置
     void UpdateAttachmentPoint(const dx::XMFLOAT3& newPosition)
     {

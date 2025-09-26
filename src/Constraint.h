@@ -38,6 +38,10 @@ public:
     // 返回：受约束影响的粒子的数组
     virtual Particle** GetParticles() = 0;
 
+    // 获取受此约束影响的所有粒子
+    // 返回：受约束影响的粒子的数组
+    virtual const Particle** GetParticles() const = 0;
+
     // 设置约束的柔度
     // 参数：
     //   c - 新的柔度值
