@@ -104,6 +104,7 @@ ClothSimulator/
 | `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 80 |
 | `-addLRAConstraints:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
 | `-addBendingConstraints:X` | 设置是否添加二面角约束，X可以是true/false/1/0/yes/no | false |
+| `-addDiagonalConstraints:X` | 设置是否添加对角线约束，X可以是true/false/1/0/yes/no | true |
 | `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
 | `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
 | `-fullscreen` | 以全屏模式启动程序 | 禁用 |
@@ -112,18 +113,7 @@ ClothSimulator/
 
 示例用法：
 ```
-XPBDClothSimulator.exe -debug -iteratorCount:100
-XPBDClothSimulator.exe -maxFrames:5000 -iteratorCount:30
-XPBDClothSimulator.exe -widthResolution:60 -heightResolution:60 -debug
-XPBDClothSimulator.exe -widthResolution:20 -heightResolution:20 -iteratorCount:10
-XPBDClothSimulator.exe -LRAMaxStretch:0.05
-XPBDClothSimulator.exe -addLRAConstraints:true -LRAMaxStretch:0.05
-XPBDClothSimulator.exe -mass:2.5
-XPBDClothSimulator.exe -addLRAConstraints:true -mass:0.5 -LRAMaxStretch:0.02
-XPBDClothSimulator.exe -fullscreen
-XPBDClothSimulator.exe -winWidth:1280 -winHeight:720
-XPBDClothSimulator.exe -fullscreen -debug
-XPBDClothSimulator.exe -subItereratorCount:8
+XPBDClothSimulator.exe -debug -iteratorCount:100 -widthResolution:60 -heightResolution:60 -addLRAConstraints:true -addBendingConstraints:true -addDiagonalConstraints:true -LRAMaxStretch:0.02 -mass:0.5 -winWidth:1280 -winHeight:720
 ```
 
 ## 许可证

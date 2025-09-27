@@ -11,7 +11,7 @@
 #include "XPBDSolver.h"
 #include "Mesh.h"
 #include "RALResource.h"
-#include "DX12RALDevice.h"
+#include "IRALDevice.h"
 #include <cstdint> // For uint32_t
 
 
@@ -88,17 +88,23 @@ public:
 
     // 清除所有球体碰撞约束
     void ClearSphereCollisionConstraints();
-    
-    // 设置是否使用XPBD碰撞约束
-    void SetUseXPBDCollision(bool use)
+
+    // 获取是否增加对角约束
+    bool GetAddDiagonalConstraints() const
     {
-        m_useXPBDCollision = use;
+        return m_addDiagonalConstraints;
     }
-    
-    // 获取是否使用XPBD碰撞约束
-    bool GetUseXPBDCollision() const 
-    { 
-        return m_useXPBDCollision; 
+
+    // 设置是否增加对角约束
+    void SetAddDiagonalConstraints(bool add)
+    {
+        m_addDiagonalConstraints = add;
+    }
+
+    // 获取是否增加LRA约束
+    bool GetAddLRAConstraints() const
+    {
+        return m_addLRAConstraints;
     }
 
     // 设置是否增加LRA约束
@@ -107,8 +113,11 @@ public:
         m_addLRAConstraints = add;
     }
 
-    // 获取是否增加LRA约束
-    bool GetAddLRAConstraints() const { return m_addLRAConstraints; }
+    // 获取是否增加二面角约束
+    bool GetAddBendingConstraints() const
+    { 
+        return m_addBendingConstraints; 
+    }
 
     // 设置是否增加二面角约束
     void SetAddBendingConstraints(bool add)
@@ -116,20 +125,23 @@ public:
         m_addBendingConstraints = add;
     }
 
-    // 获取是否增加二面角约束
-    bool GetAddBendingConstraints() const { return m_addBendingConstraints; }
+    // 获取LRA约束最大拉伸量
+    float GetLRAMaxStretch() const
+    { 
+        return m_LRAMaxStrech; 
+    }
 
     // 设置LRA约束最大拉伸量
     void SetLRAMaxStretch(float maxStretch)
     {
         m_LRAMaxStrech = maxStretch;
     }
-
-    // 获取LRA约束最大拉伸量
-    float GetLRAMaxStretch() const { return m_LRAMaxStrech; }
     
     // 获取每个粒子的质量
-    float GetMass() const { return m_mass; }
+    float GetMass() const 
+    { 
+        return m_mass;
+    }
 
     // 获取布料的顶点位置数据
     const std::vector<dx::XMFLOAT3>& GetPositions() const override { return m_positions; }
@@ -175,7 +187,7 @@ private:
     std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
-    bool m_useXPBDCollision;    // 是否使用XPBD碰撞约束
+	bool m_addDiagonalConstraints; // 是否增加对角线约束
     bool m_addLRAConstraints;    // 是否增加LRA约束
     bool m_addBendingConstraints; // 是否增加二面角约束
     float m_LRAMaxStrech;       // LRA最大拉伸量

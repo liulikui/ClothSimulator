@@ -196,11 +196,12 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 #ifdef DEBUG_SOLVER
             dx::XMVECTOR correctionLength = dx::XMVector3Length(correction);
             char buffer[256];
-            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordW:%d,coordH:%d alpha:%f deltaLambda:%f correctionLength:%f"
+            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordW:%d,coordH:%d C:%f alpha:%f deltaLambda:%f correctionLength:%f"
                 , constraint->GetConstraintType()
                 , deltaTime
                 , particle->coordW
                 , particle->coordH
+                , C
                 , alpha
                 , deltaLambda
                 , dx::XMVectorGetX(correctionLength));
