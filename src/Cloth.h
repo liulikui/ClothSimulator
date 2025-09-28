@@ -137,6 +137,42 @@ public:
         m_LRAMaxStrech = maxStretch;
     }
     
+    // 获取距离约束的弹性系数
+    float GetDistanceConstraintCompliance() const
+    {
+        return m_distanceConstraintCompliance;
+    }
+
+    // 设置距离约束的弹性系数
+    void SetDistanceConstraintCompliance(float compliance)
+    {
+        m_distanceConstraintCompliance = compliance;
+    }
+
+    // 获取LRA约束的弹性系数
+    float GetLRAConstraintCompliance() const
+    {
+        return m_LRAConstraintCompliance;
+    }
+
+    // 设置LRA约束的弹性系数
+    void SetLRAConstraintCompliance(float compliance)
+    {
+        m_LRAConstraintCompliance = compliance;
+    }
+
+    // 获取二面角约束的弹性系数
+    float GetDihedralBendingConstraintCompliance() const
+    {
+        return m_dihedralBendingConstraintCompliance;
+    }
+
+    // 设置二面角约束的弹性系数
+    void SetDihedralBendingConstraintCompliance(float compliance)
+    {
+        m_dihedralBendingConstraintCompliance = compliance;
+    }
+    
     // 获取每个粒子的质量
     float GetMass() const 
     { 
@@ -187,6 +223,9 @@ private:
     std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
+    float m_distanceConstraintCompliance; // 距离约束的弹性系数
+    float m_LRAConstraintCompliance; // LRA约束的弹性系数
+    float m_dihedralBendingConstraintCompliance; // 二面角约束的弹性系数
 	bool m_addDiagonalConstraints; // 是否增加对角线约束
     bool m_addLRAConstraints;    // 是否增加LRA约束
     bool m_addBendingConstraints; // 是否增加二面角约束

@@ -218,10 +218,6 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 
 void XPBDSolver::UpdateVelocities(float deltaTime)
 {
-    const float velocityThreshold = 2.0f;
-    const float defaultDampingFactor = 0.59f;
-    const float highDampingFactor = 0.5f;
-
     for (auto& particle : m_cloth->m_particles)
     {
         if (!particle.isStatic)
@@ -230,34 +226,14 @@ void XPBDSolver::UpdateVelocities(float deltaTime)
             dx::XMVECTOR pos = dx::XMLoadFloat3(&particle.position);
             dx::XMVECTOR oldPos = dx::XMLoadFloat3(&particle.oldPosition);
 
-            // 检查位置是否有效
-            if (dx::XMVector3IsNaN(pos) || dx::XMVector3IsNaN(oldPos))
-            {
-                // 位置无效，保留当前速度不变
-                continue;
-            }
-
             // 根据位置变化更新速度
             dx::XMVECTOR vel = dx::XMVectorScale(dx::XMVectorSubtract(pos, oldPos), 1.0f / deltaTime);
 
-            // 检查速度是否有效
-            if (dx::XMVector3IsNaN(vel))
-            {
-                // 速度无效，设置为零
-                vel = dx::XMVectorZero();
-            }
-
-            // 计算速度大小
-            float speed = dx::XMVectorGetX(dx::XMVector3Length(vel));
-
-            // 根据速度大小选择阻尼系数，实现自适应阻尼
-            float dampingFactor = (speed > velocityThreshold) ? highDampingFactor : defaultDampingFactor;
-
-            // 应用阻尼
-            dx::XMVECTOR velDampled = dx::XMVectorScale(vel, dampingFactor);
-
             // 将结果转换回XMFLOAT3
-            dx::XMStoreFloat3(&particle.velocity, velDampled);
+            dx::XMStoreFloat3(&particle.velocity, vel);
+
+			// 重置力
+            particle.ResetForce();
         }
     }
 }
@@ -275,8 +251,6 @@ void XPBDSolver::EndStep(float deltaTime)
             dx::XMVECTOR velFinal = dx::XMVectorScale(dx::XMVectorSubtract(pos, posInitial), 1.0f / deltaTime);
 
             dx::XMStoreFloat3(&particle.velocity, velFinal);
-
-            particle.ResetForce();
         }
     }
 }

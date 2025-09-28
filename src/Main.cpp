@@ -67,10 +67,10 @@ int customWindowWidth = 800;   // 自定义窗口宽度，默认800
 int customWindowHeight = 600;  // 自定义窗口高度，默认600
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
-int iteratorCount = 10;        // XPBD求解器迭代次数，默认10
+int iteratorCount = 20;        // XPBD求解器迭代次数，默认20
 uint32_t subIteratorCount = 1; // XPBD求解器迭代次数，默认值1
-int widthResolution = 80;      // 布料宽度分辨率（粒子数），默认80
-int heightResolution = 80;     // 布料高度分辨率（粒子数），默认80
+int widthResolution = 100;      // 布料宽度分辨率（粒子数），默认100
+int heightResolution = 100;     // 布料高度分辨率（粒子数），默认100
 
 // 相机对象
 Camera* camera = nullptr;
@@ -611,6 +611,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -addLRAConstraints:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "  -addBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
         std::cout << "  -addDiagonalConstraints:true/false 设置是否添加对角线约束（默认false）" << std::endl;
+        std::cout << "  -distanceCompliance:xxx 设置距离约束的弹性系数（xxx为浮点数，默认0.0001）" << std::endl;
+        std::cout << "  -LRACompliance:xxx 设置LRA约束的弹性系数（xxx为浮点数，默认0.0001）" << std::endl;
+        std::cout << "  -bendingCompliance:xxx 设置二面角约束的弹性系数（xxx为浮点数，默认0.0001）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
         std::cout << "  -fullscreen          以全屏模式启动程序" << std::endl;
@@ -931,6 +934,63 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 设置是否添加对角线约束
     cloth->SetAddDiagonalConstraints(addDiagonalConstraints);
     
+    // 解析-distanceCompliance参数
+    float distanceCompliance = 0.00000001f; // 默认值
+    size_t distanceCompliancePos = cmdLine.find("-distanceCompliance:");
+    if (distanceCompliancePos != std::string::npos)
+    {
+        size_t start = distanceCompliancePos + 20; // "-distanceCompliance:" 长度为20
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string distanceComplianceStr = cmdLine.substr(start, end - start);
+        distanceCompliance = std::stof(distanceComplianceStr);
+        
+        logDebug("Distance constraint compliance set to: " + std::to_string(distanceCompliance));
+    }
+    
+    // 设置距离约束的弹性系数
+    cloth->SetDistanceConstraintCompliance(distanceCompliance);
+    
+    // 解析-LRACompliance参数
+    float lraCompliance = 0.00000001f; // 默认值
+    size_t lraCompliancePos = cmdLine.find("-LRACompliance:");
+    if (lraCompliancePos != std::string::npos)
+    {
+        size_t start = lraCompliancePos + 15; // "-LRACompliance:" 长度为15
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string lraComplianceStr = cmdLine.substr(start, end - start);
+        lraCompliance = std::stof(lraComplianceStr);
+        
+        logDebug("LRA constraint compliance set to: " + std::to_string(lraCompliance));
+    }
+    
+    // 设置LRA约束的弹性系数
+    cloth->SetLRAConstraintCompliance(lraCompliance);
+    
+    // 解析-bendingCompliance参数
+    float bendingCompliance = 0.0001f; // 默认值
+    size_t bendingCompliancePos = cmdLine.find("-bendingCompliance:");
+    if (bendingCompliancePos != std::string::npos)
+    {
+        size_t start = bendingCompliancePos + 19; // "-bendingCompliance:" 长度为19
+        size_t end = cmdLine.find(' ', start);
+        if (end == std::string::npos) {
+            end = cmdLine.length();
+        }
+        std::string bendingComplianceStr = cmdLine.substr(start, end - start);
+        bendingCompliance = std::stof(bendingComplianceStr);
+        
+        logDebug("Bending constraint compliance set to: " + std::to_string(bendingCompliance));
+    }
+    
+    // 设置二面角约束的弹性系数
+    cloth->SetDihedralBendingConstraintCompliance(bendingCompliance);
+    
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
 
@@ -972,7 +1032,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     sphere->Initialize(device);
 
     // 初始化球体碰撞约束（一次性创建，避免每帧重建）
-    //cloth->InitializeSphereCollisionConstraints(sphere->GetPosition(), sphereRadius);
+    cloth->InitializeSphereCollisionConstraints(sphere->GetPosition(), sphereRadius);
 
     // 将球体添加到场景中
     scene->AddPrimitive(sphere);
