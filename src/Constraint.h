@@ -15,20 +15,17 @@ public:
     virtual ~Constraint() = default;
     
     // 构造函数
-    Constraint() : lambda(0.0f), compliance(1e-6f)
+    Constraint() : lambda(0.0f), compliance(1e-6f), damping(0.01)
     {}
     
     // 拉格朗日乘子
     float lambda;
-    
-    // 计算约束偏差（约束函数的值）
-    // 返回：约束偏差值C(x)
-    virtual float ComputeConstraintValue() const = 0;
-    
-    // 计算约束梯度
+
+    // 计算约束偏差和约束梯度
     // 参数：
     //   gradients - 存储每个受约束粒子的梯度向量的向量
-    virtual void ComputeGradient(dx::XMFLOAT3* gradients) const = 0;
+    // 返回：约束偏差值C(x)
+    virtual float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const = 0;
     
     // 获取受此约束影响的所有粒子的数量
     // 返回：受约束影响的粒子数量
@@ -57,12 +54,27 @@ public:
         return compliance;
     }
     
+    // 设置约束的阻尼系数
+    // 参数：
+    //   d - 新的阻尼系数
+    void SetDamping(float d)
+    {
+        damping = d;
+    }
+
+    // 获取阻尼系数
+    // 返回：阻尼系数
+    float GetDamping() const
+    {
+        return compliance;
+    }
+
     // 获取约束类型
     virtual const char* GetConstraintType() const = 0;
 
 protected:
-    // 约束的柔度参数
-    float compliance; // 柔度（与刚度成反比）
+    float compliance;   // 柔度（与刚度成反比）
+    float damping;      // 阻尼系数，控制约束方向的阻尼强度，0为无阻尼
 };
 
 #endif // CONSTRAINT_H

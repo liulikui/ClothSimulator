@@ -972,7 +972,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     sphere->Initialize(device);
 
     // 初始化球体碰撞约束（一次性创建，避免每帧重建）
-    cloth->InitializeSphereCollisionConstraints(sphere->GetPosition(), sphereRadius);
+    //cloth->InitializeSphereCollisionConstraints(sphere->GetPosition(), sphereRadius);
 
     // 将球体添加到场景中
     scene->AddPrimitive(sphere);
@@ -996,25 +996,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // 使用高精度计时器计算帧时间
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
-        deltaTime = static_cast<float>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<float>(frequency.QuadPart);
+        deltaTime = (float)(static_cast<double>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<double>(frequency.QuadPart));
         
+        //std::cout << "deltaTime:" << deltaTime << std::endl;
+
         // 帧率限制：最大240FPS
         const float maxFPS = 240.0f;
         const float targetFrameTime = 1.0f / maxFPS;
         if (deltaTime < targetFrameTime)
         {
             // 计算需要等待的毫秒数
-            float waitTimeMs = (targetFrameTime - deltaTime) * 1000.0f;
-            if (waitTimeMs > 0.1f) // 只在需要等待足够时间时才调用Sleep
+            float waitTimeMs = targetFrameTime - deltaTime;
+            if (waitTimeMs > 0.0f)
             {
-                Sleep(static_cast<DWORD>(waitTimeMs - 0.1f)); // 减去一点时间作为安全边际
-                
+                Sleep(static_cast<DWORD>(waitTimeMs * 1000));
+
                 // 再次获取计时器值，确保deltaTime准确
                 QueryPerformanceCounter(&currentCounter);
                 deltaTime = static_cast<float>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<float>(frequency.QuadPart);
             }
         }
-        
+
         lastCounter = currentCounter;
         
         // 增加帧计数器
@@ -1078,9 +1080,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         scene->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
 
         device->EndFrame();
+
 #ifdef DEBUG_SOLVER
         logDebug("[DEBUG] EndFrame" + std::to_string(frameCount));
 #endif//DEBUG_SOLVER
+
     }
     
     logDebug("Exiting main loop");

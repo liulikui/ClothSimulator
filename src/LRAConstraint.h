@@ -25,54 +25,45 @@ public:
         this->maxStretch = maxStretch;
     }
 
-    // 计算约束偏差
-    float ComputeConstraintValue() const override
+    // 计算约束偏差和约束梯度
+    float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
-        if (particle->isStatic) return 0.0f;
-        
-        dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
-        dx::XMVECTOR attachPos = dx::XMLoadFloat3(&attachmentPoint);
-        dx::XMVECTOR diff = dx::XMVectorSubtract(pos, attachPos);
-        float currentDistance = dx::XMVectorGetX(dx::XMVector3Length(diff));
-        
-        float constraintValue = currentDistance - geodesicDistance * (1 + maxStretch);
-        if (constraintValue > 0.0f)
+        if (particle->isStatic)
         {
-            return constraintValue;
-        }
-        else
-        {
+            gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
             return 0.0f;
         }
-    }
 
-    // 计算约束梯度
-    void ComputeGradient(dx::XMFLOAT3* gradients) const override
-    {
         dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
         dx::XMVECTOR attachPos = dx::XMLoadFloat3(&attachmentPoint);
         dx::XMVECTOR delta = dx::XMVectorSubtract(pos, attachPos);
         float currentDistance = dx::XMVectorGetX(dx::XMVector3Length(delta));
         
-        if (currentDistance - geodesicDistance * (1 + maxStretch) + 1e-9f < 0.0f)
+        float constraintValue = currentDistance - geodesicDistance * (1 + maxStretch);
+
+        if (constraintValue > 0.0f)
         {
-            gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
-            return;
-        }
-        
-        dx::XMVECTOR gradient;
-        if (currentDistance > 1e-9f)
-        {
-            gradient = dx::XMVectorScale(delta, 1.0f / currentDistance);
-        }
+			dx::XMVECTOR gradient;
+            if (currentDistance > 1e-9f)
+            {
+                gradient = dx::XMVectorScale(delta, 1.0f / currentDistance);
+            }
+            else
+            {
+                gradient = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            }
+
+            dx::XMFLOAT3 gradientFloat3;
+            dx::XMStoreFloat3(&gradientFloat3, gradient);
+            gradients[0] = gradientFloat3;
+			
+			return constraintValue;
+ 		}
         else
         {
-            gradient = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+			gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+            return 0.0f;
         }
-        
-        dx::XMFLOAT3 gradientFloat3;
-        dx::XMStoreFloat3(&gradientFloat3, gradient);
-        gradients[0] = gradientFloat3;
     }
 
     // 获取受此约束影响的所有粒子的数量

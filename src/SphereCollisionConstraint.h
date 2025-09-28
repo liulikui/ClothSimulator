@@ -25,42 +25,45 @@ public:
         compliance = customCompliance;
     }
 
-    float ComputeConstraintValue() const override
+    float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
-        if (particle->isStatic) return 0.0f;
-        
-        dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
-        dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
-        dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
-        float distance = dx::XMVectorGetX(dx::XMVector3Length(toCenter));
-
-        if (distance > sphereRadius)
+        if (particle->isStatic)
         {
+            gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
             return 0.0f;
         }
         else
         {
-            return distance - sphereRadius;
-        }
-    }
+            dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
+            dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
+            dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
+            float distance = dx::XMVectorGetX(dx::XMVector3Length(toCenter));
 
-    void ComputeGradient(dx::XMFLOAT3* gradients) const override
-    {
-        dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
-        dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
-        dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
-        float distance = dx::XMVectorGetX(dx::XMVector3Length(toCenter));
+            if (distance > sphereRadius)
+            {
+                gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
 
-        if (distance > 1e-9f)
-        {
-            dx::XMVECTOR gradient = dx::XMVectorScale(toCenter, 1.0f / distance);
-            dx::XMFLOAT3 gradientFloat3;
-            dx::XMStoreFloat3(&gradientFloat3, gradient);
-            gradients[0] = gradientFloat3;
-        }
-        else
-        {
-            gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+                return 0.0f;
+            }
+            else
+            {
+                if (distance > 1e-6f)
+                {
+                    dx::XMVECTOR gradient = dx::XMVectorScale(toCenter, 1.0f / distance);
+                    dx::XMFLOAT3 gradientFloat3;
+                    dx::XMStoreFloat3(&gradientFloat3, gradient);
+
+                    gradients[0] = gradientFloat3;
+
+                    return distance - sphereRadius;
+                }
+                else
+                {
+                    gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+
+                    return 0.0f;
+                }
+            }
         }
     }
 

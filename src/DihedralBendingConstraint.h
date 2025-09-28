@@ -4,9 +4,12 @@
 #include "Constraint.h"
 #include <DirectXMath.h>
 #include <cmath>  // 用于dx::XM_PI（需确保编译器支持，若不支持可手动定义#define dx::XM_PI 3.14159265358979323846）
+#include <string>
 
 // 命名空间别名简化使用
 namespace dx = DirectX;
+
+extern void logDebug(const std::string& message);
 
 // 基于二面角的弯曲约束类，继承自约束基类
 // 适配DirectX左手坐标系，严格遵循"二面角=180°-法向量夹角"的几何关系
@@ -26,14 +29,11 @@ public:
         restDihedralAngle(restDihedralAngle)
     {
         this->compliance = compliance;
-        // 预计算静止二面角的正弦和余弦（用于梯度计算优化）
-        sinRestAngle = sinf(restDihedralAngle);
-        cosRestAngle = cosf(restDihedralAngle);
     }
 
     // 计算约束偏差
     // 返回：约束偏差值C = 当前二面角 - 静止二面角（二面角范围[0, dx::XM_PI]）
-    float ComputeConstraintValue() const override
+    float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
         dx::XMVECTOR n1 = ComputeTriangleNormal(particle1, particle2, particle3);
         dx::XMVECTOR n2 = ComputeTriangleNormal(particle1, particle2, particle4);
@@ -52,94 +52,114 @@ public:
 
         // 计算法向量点积（法向量夹角的余弦值）
         float dotNN = dx::XMVectorGetX(dx::XMVector3Dot(n1Norm, n2Norm));
+
         // 钳位避免acos输入越界（浮点误差导致）
         dotNN = dx::XMVectorClamp(dx::XMVectorReplicate(dotNN),
             dx::XMVectorReplicate(-1.0f),
             dx::XMVectorReplicate(1.0f)).m128_f32[0];
 
+        // 计算法向量夹角（范围[0, M_PI]）
+        float normalAngle = acosf(dotNN);
+
         // 公共边向量（p2 - p1）
         dx::XMVECTOR edge = dx::XMVectorSubtract(dx::XMLoadFloat3(&particle2->position), dx::XMLoadFloat3(&particle1->position));
-        dx::XMVECTOR crossNN = dx::XMVector3Cross(n1Norm, n2Norm);
+        dx::XMVECTOR crossNN = dx::XMVector3Normalize(dx::XMVector3Cross(n1Norm, n2Norm));
         float dir = dx::XMVectorGetX(dx::XMVector3Dot(crossNN, edge));
-        float sign = (dir > 0) ? -1.0f : 1.0f;
 
-        float currentAngle = sign * acosf(dotNN);
-        return currentAngle - restDihedralAngle;
-    }
+        float currentDihedralAngle;
 
-    // 计算约束梯度
-    // 参数：
-    //   gradients - 存储每个受约束粒子的梯度向量的数组（大小为4）
-    void ComputeGradient(dx::XMFLOAT3* gradients) const override
-    {
-        // 计算两个三角形的法向量（未归一化）及长度
-        dx::XMVECTOR n1 = ComputeTriangleNormal(particle1, particle2, particle3);
-        dx::XMVECTOR n2 = ComputeTriangleNormal(particle1, particle2, particle4);
-        float len1 = dx::XMVectorGetX(dx::XMVector3Length(n1));
-        float len2 = dx::XMVectorGetX(dx::XMVector3Length(n2));
-
-        // 处理退化三角形（法向量为零）
-        if (len1 < 1e-6f || len2 < 1e-6f)
+        if (dir > 0.0f)
         {
-            gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
-            gradients[1] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
-            gradients[2] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
-            gradients[3] = dx::XMFLOAT3(0.0f, -1.0f, 0.0f);
-            return;
+            currentDihedralAngle = normalAngle;
+        }
+        else
+        {
+            currentDihedralAngle = dx::XM_2PI - normalAngle;
         }
 
-        // 归一化法向量
-        dx::XMVECTOR n1Norm = dx::XMVectorDivide(n1, dx::XMVectorReplicate(len1));
-        dx::XMVECTOR n2Norm = dx::XMVectorDivide(n2, dx::XMVectorReplicate(len2));
+#ifdef DEBUG_SOLVER
+        char buffer[256];
+        sprintf_s(buffer, "[DEBUG] dir:%f, normalAngle:%f currentDihedralAngle:%f", dir, normalAngle, currentDihedralAngle);
+        logDebug(buffer);
+#endif//DEBUG_SOLVER
 
-        // 公共边向量（p2 - p1）
-        dx::XMVECTOR e = dx::XMVectorSubtract(dx::XMLoadFloat3(&particle2->position),
-            dx::XMLoadFloat3(&particle1->position));
-        dx::XMVECTOR eNorm = dx::XMVector3Normalize(e);
-
-        // 计算二面角的正弦值（用于梯度归一化，避免除零）
-        dx::XMVECTOR crossNN = dx::XMVector3Cross(n1Norm, n2Norm);
-        float sinTheta = dx::XMVectorGetX(dx::XMVector3Length(crossNN));
-        sinTheta = (sinTheta < 1e-6f) ? 1e-6f : sinTheta;
-
-        // 计算每个顶点对两个法向量的梯度贡献
-        dx::XMVECTOR dn1_dp1, dn1_dp2, dn1_dp3;
-        ComputeNormalGradients(particle1, particle2, particle3, n1, len1,
-            dn1_dp1, dn1_dp2, dn1_dp3);
-
-        dx::XMVECTOR dn2_dp1, dn2_dp2, dn2_dp4;
-        ComputeNormalGradients(particle1, particle2, particle4, n2, len2,
-            dn2_dp1, dn2_dp2, dn2_dp4);
-
-        // 二面角对法向量的导数（链式法则中间量）
-        dx::XMVECTOR dTheta_dn1 = dx::XMVectorMultiply(
-            dx::XMVector3Cross(eNorm, n2Norm),
-            dx::XMVectorReplicate(1.0f / sinTheta)
-        );
-
-        dx::XMVECTOR dTheta_dn2 = dx::XMVectorMultiply(
-            dx::XMVector3Cross(n1Norm, eNorm),
-            dx::XMVectorReplicate(1.0f / sinTheta)
-        );
-
-        // 计算原始梯度（基于法向量夹角推导）
-        dx::XMVECTOR grad1Raw = dx::XMVectorAdd(
-            dx::XMVector3Dot(dn1_dp1, dTheta_dn1),
-            dx::XMVector3Dot(dn2_dp1, dTheta_dn2)
-        );
-        dx::XMVECTOR grad2Raw = dx::XMVectorAdd(
-            dx::XMVector3Dot(dn1_dp2, dTheta_dn1),
-            dx::XMVector3Dot(dn2_dp2, dTheta_dn2)
-        );
-        dx::XMVECTOR grad3Raw = dx::XMVector3Dot(dn1_dp3, dTheta_dn1);
-        dx::XMVECTOR grad4Raw = dx::XMVector3Dot(dn2_dp4, dTheta_dn2);
-
-        // 核心修正：梯度整体取反，匹配"二面角=180°-法向量夹角"的逻辑
-        gradients[0] = XMVectorToFloat3(dx::XMVectorNegate(grad1Raw));
-        gradients[1] = XMVectorToFloat3(dx::XMVectorNegate(grad2Raw));
-        gradients[2] = XMVectorToFloat3(dx::XMVectorNegate(grad3Raw));
-        gradients[3] = XMVectorToFloat3(dx::XMVectorNegate(grad4Raw));
+        // 约束偏差：当前二面角 - 静止二面角
+        return currentDihedralAngle - restDihedralAngle;
     }
+
+    //// 计算约束梯度
+    //// 参数：
+    ////   gradients - 存储每个受约束粒子的梯度向量的数组（大小为4）
+    //void ComputeGradient(dx::XMFLOAT3* gradients) const override
+    //{
+    //    // 计算两个三角形的法向量（未归一化）及长度
+    //    dx::XMVECTOR n1 = ComputeTriangleNormal(particle1, particle2, particle3);
+    //    dx::XMVECTOR n2 = ComputeTriangleNormal(particle1, particle2, particle4);
+    //    float len1 = dx::XMVectorGetX(dx::XMVector3Length(n1));
+    //    float len2 = dx::XMVectorGetX(dx::XMVector3Length(n2));
+
+    //    // 处理退化三角形（法向量为零）
+    //    if (len1 < 1e-6f || len2 < 1e-6f)
+    //    {
+    //        gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    //        gradients[1] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    //        gradients[2] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+    //        gradients[3] = dx::XMFLOAT3(0.0f, -1.0f, 0.0f);
+    //        return;
+    //    }
+
+    //    // 归一化法向量
+    //    dx::XMVECTOR n1Norm = dx::XMVectorDivide(n1, dx::XMVectorReplicate(len1));
+    //    dx::XMVECTOR n2Norm = dx::XMVectorDivide(n2, dx::XMVectorReplicate(len2));
+
+    //    // 公共边向量（p2 - p1）
+    //    dx::XMVECTOR e = dx::XMVectorSubtract(dx::XMLoadFloat3(&particle2->position),
+    //        dx::XMLoadFloat3(&particle1->position));
+    //    dx::XMVECTOR eNorm = dx::XMVector3Normalize(e);
+
+    //    // 计算二面角的正弦值（用于梯度归一化，避免除零）
+    //    dx::XMVECTOR crossNN = dx::XMVector3Cross(n1Norm, n2Norm);
+    //    float sinTheta = dx::XMVectorGetX(dx::XMVector3Length(crossNN));
+    //    sinTheta = (sinTheta < 1e-6f) ? 1e-6f : sinTheta;
+
+    //    // 计算每个顶点对两个法向量的梯度贡献
+    //    dx::XMVECTOR dn1_dp1, dn1_dp2, dn1_dp3;
+    //    ComputeNormalGradients(particle1, particle2, particle3, n1, len1,
+    //        dn1_dp1, dn1_dp2, dn1_dp3);
+
+    //    dx::XMVECTOR dn2_dp1, dn2_dp2, dn2_dp4;
+    //    ComputeNormalGradients(particle1, particle2, particle4, n2, len2,
+    //        dn2_dp1, dn2_dp2, dn2_dp4);
+
+    //    // 二面角对法向量的导数（链式法则中间量）
+    //    dx::XMVECTOR dTheta_dn1 = dx::XMVectorMultiply(
+    //        dx::XMVector3Cross(eNorm, n2Norm),
+    //        dx::XMVectorReplicate(1.0f / sinTheta)
+    //    );
+
+    //    dx::XMVECTOR dTheta_dn2 = dx::XMVectorMultiply(
+    //        dx::XMVector3Cross(n1Norm, eNorm),
+    //        dx::XMVectorReplicate(1.0f / sinTheta)
+    //    );
+
+    //    // 计算原始梯度（基于法向量夹角推导）
+    //    dx::XMVECTOR grad1Raw = dx::XMVectorAdd(
+    //        dx::XMVector3Dot(dn1_dp1, dTheta_dn1),
+    //        dx::XMVector3Dot(dn2_dp1, dTheta_dn2)
+    //    );
+    //    dx::XMVECTOR grad2Raw = dx::XMVectorAdd(
+    //        dx::XMVector3Dot(dn1_dp2, dTheta_dn1),
+    //        dx::XMVector3Dot(dn2_dp2, dTheta_dn2)
+    //    );
+    //    dx::XMVECTOR grad3Raw = dx::XMVector3Dot(dn1_dp3, dTheta_dn1);
+    //    dx::XMVECTOR grad4Raw = dx::XMVector3Dot(dn2_dp4, dTheta_dn2);
+
+    //    // 核心修正：梯度整体取反，匹配"二面角=180°-法向量夹角"的逻辑
+    //    gradients[0] = XMVectorToFloat3(dx::XMVectorNegate(grad1Raw));
+    //    gradients[1] = XMVectorToFloat3(dx::XMVectorNegate(grad2Raw));
+    //    gradients[2] = XMVectorToFloat3(dx::XMVectorNegate(grad3Raw));
+    //    gradients[3] = XMVectorToFloat3(dx::XMVectorNegate(grad4Raw));
+    //}
 
     // 获取受此约束影响的粒子数量
     uint32_t GetParticlesCount() const override
@@ -166,8 +186,6 @@ public:
         restDihedralAngle = dx::XMVectorClamp(dx::XMVectorReplicate(angle),
             dx::XMVectorReplicate(0.0f),
             dx::XMVectorReplicate((float)dx::XM_PI)).m128_f32[0];
-        sinRestAngle = sinf(restDihedralAngle);
-        cosRestAngle = cosf(restDihedralAngle);
     }
 
     // 获取约束的静止二面角
@@ -245,8 +263,6 @@ private:
 
     // 约束参数
     float restDihedralAngle;  // 静止二面角（弧度，范围[0, dx::XM_PI]）
-    float sinRestAngle;       // 静止二面角的正弦值（缓存）
-    float cosRestAngle;       // 静止二面角的余弦值（缓存）
 };
 
 #endif // DIHEDRAL_BENDING_CONSTRAINT_H

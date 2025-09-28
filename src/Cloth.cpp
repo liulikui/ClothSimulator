@@ -497,7 +497,7 @@ void Cloth::CreateConstraints()
 #endif//DEBUG_SOLVER
 
         m_dihedralBendingConstraints.clear();
-        float bendingCompliance = compliance * 10.0f;   // 二面角约束使用稍大的柔度值
+        float bendingCompliance = compliance;
         float restDihedralAngle = dx::XM_PI;            // 初始静止二面角设为XM_PI（平面）
         
         // 遍历布料，为每对相邻的三角形创建二面角约束

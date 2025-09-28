@@ -58,6 +58,7 @@ public:
     dx::XMFLOAT3 position;              // 当前位置
     dx::XMFLOAT3 positionInitial;       // 单帧初始位置（用于计算帧末总速度）
     dx::XMFLOAT3 oldPosition;           // 迭代前的位置
+    dx::XMFLOAT3 predPosition;          // 预测位置
     dx::XMFLOAT3 velocity;              // 速度
     dx::XMFLOAT3 force;                 // 作用在粒子上的力
     float mass;                         // 质量

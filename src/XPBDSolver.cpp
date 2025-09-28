@@ -2,6 +2,10 @@
 #include "Cloth.h"
 #include "AutoMem.h"
 
+#ifdef DEBUG_SOLVER
+extern void logDebug(const std::string& message);
+#endif//DEBUG_SOLVER
+
 void XPBDSolver::BeginStep()
 {
     for (auto& particle : m_cloth->m_particles)
@@ -19,7 +23,7 @@ void XPBDSolver::PredictPositions(float deltaTime)
             // 保存当前位置作为旧位置
             particle.oldPosition = particle.position;
 
-            // 应用重力：重力本身就是力，不需要再乘以质量
+            // 应用重力
             particle.ApplyForce(m_cloth->m_gravity);
 
             // 将粒子的位置和速度转换为XMVECTOR进行计算
@@ -31,7 +35,10 @@ void XPBDSolver::PredictPositions(float deltaTime)
             pos = dx::XMVectorAdd(pos, dx::XMVectorScale(vel, deltaTime));
             pos = dx::XMVectorAdd(pos, dx::XMVectorScale(dx::XMVectorScale(force, particle.inverseMass), 0.5f * deltaTime * deltaTime));
 
-            // 将结果转换回XMFLOAT3
+            // 保存预测位置
+            dx::XMStoreFloat3(&particle.predPosition, pos);
+
+            // 初始位置设置为预测位置
             dx::XMStoreFloat3(&particle.position, pos);
         }
     }
@@ -90,8 +97,20 @@ void XPBDSolver::SolveConstraints(float deltaTime)
 
 void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 {
-    // 计算约束值
-    float C = constraint->ComputeConstraintValue();
+    uint32_t particleCount = constraint->GetParticlesCount();
+
+    if (particleCount == 0)
+    {
+        return;
+    }
+
+    Particle** constraintParticles = constraint->GetParticles();
+
+    TAutoMem<dx::XMFLOAT3, 16> gradientsBuffer(particleCount);
+    dx::XMFLOAT3* gradients = gradientsBuffer.GetBuffer();
+
+    // 计算约束值和梯度
+    float C = constraint->ComputeConstraintAndGradient(gradients);
 
 #ifdef DEBUG_SOLVER
     // 检查约束值是否有效
@@ -104,43 +123,14 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 
     if (std::abs(C) < 1e-9f)
     {
-        // 其他约束，如果约束值很小，可以忽略
+        // 如果约束值很小，可以忽略
         return;
     }
-
-    uint32_t particleCount = constraint->GetParticlesCount();
-    Particle** constraintParticles = constraint->GetParticles();
-
-    if (particleCount == 0)
-    {
-        return;
-    }
-
-#ifdef DEBUG_SOLVER
-    // 检查粒子位置是否有效
-    bool hasInvalidParticle = false;
-    for (uint32_t i = 0; i < particleCount; ++i)
-    {
-        Particle* particle = constraintParticles[i];
-
-        if (isnan(particle->position.x) || isnan(particle->position.y) || isnan(particle->position.z))
-        {
-            char buffer[256];
-            sprintf_s(buffer, "[DEBUG] InvalidParticle coordW:%d,coordH:%d"
-                , particle->coordW
-                , particle->coordH);
-            logDebug(buffer);
-        }
-    }
-#endif//DEBUG_SOLVER
-
-    TAutoMem<dx::XMFLOAT3, 16> gradientsBuffer(particleCount);
-    dx::XMFLOAT3* gradients = gradientsBuffer.GetBuffer();
-
-    constraint->ComputeGradient(gradients);
 
     // 计算分母项
-    double sum = 0.0f;
+    double sum = 0.0;
+    double delta_pos_total = 0.0;
+
     for (uint32_t i = 0; i < particleCount; ++i)
     {
         Particle* particle = constraintParticles[i];
@@ -152,20 +142,26 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 
             // 计算梯度的点积
             float dotProduct = dx::XMVectorGetX(dx::XMVector3Dot(gradient, gradient));
-
             sum += dotProduct * particle->inverseMass;
+
+            // 计算梯度与delta_pos的点积
+            dx::XMVECTOR delta_pos = dx::XMVectorSubtract(dx::XMLoadFloat3(&particle->position), 
+                dx::XMLoadFloat3(&particle->predPosition));
+            delta_pos_total += dx::XMVectorGetX(dx::XMVector3Dot(gradient, delta_pos));
         }
     }
 
     // 添加柔度项
-    double alpha = constraint->GetCompliance() / ((double)deltaTime * (double)deltaTime);
+    double alpha_tilde = constraint->GetCompliance() / ((double)deltaTime * (double)deltaTime);
 
-    if (alpha > 1e6f)
+    if (alpha_tilde > 1e6f)
     {
-        alpha = 1e6f;
+        alpha_tilde = 1e6f;
     }
 
-    sum += alpha;
+    double gamma = constraint->GetDamping() * (double)deltaTime;
+
+    sum = (1 + gamma) * sum + alpha_tilde;
 
     // 防止除零
     if (sum < 1e-9f)
@@ -174,10 +170,7 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
     }
 
     // 计算拉格朗日乘子增量
-    double deltaLambda = (double(-C - alpha * constraint->lambda) / sum);
-
-    // 更新约束的拉格朗日乘子
-    constraint->lambda += deltaLambda;
+    double deltaLambda = (double(-C - alpha_tilde * constraint->lambda - gamma * delta_pos_total) / sum);
 
     // 应用位置校正
     for (uint32_t i = 0; i < particleCount; ++i)
@@ -196,17 +189,18 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 #ifdef DEBUG_SOLVER
             dx::XMVECTOR correctionLength = dx::XMVector3Length(correction);
             char buffer[256];
-            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordW:%d,coordH:%d C:%f alpha:%f deltaLambda:%f correctionLength:%f"
+            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordW:%d,coordH:%d C:%f alpha_tilde:%f deltaLambda:%f correctionLength:%f"
                 , constraint->GetConstraintType()
                 , deltaTime
                 , particle->coordW
                 , particle->coordH
                 , C
-                , alpha
+                , alpha_tilde
                 , deltaLambda
                 , dx::XMVectorGetX(correctionLength));
             logDebug(buffer);
 #endif//DEBUG_SOLVER
+
             // 应用校正
             dx::XMVECTOR newPos = dx::XMVectorAdd(pos, correction);
 
@@ -217,13 +211,16 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
             }
         }
     }
+
+    // 更新约束的拉格朗日乘子
+    constraint->lambda += deltaLambda;
 }
 
 void XPBDSolver::UpdateVelocities(float deltaTime)
 {
     const float velocityThreshold = 2.0f;
-    const float defaultDampingFactor = 0.99f;
-    const float highDampingFactor = 0.95f;
+    const float defaultDampingFactor = 0.59f;
+    const float highDampingFactor = 0.5f;
 
     for (auto& particle : m_cloth->m_particles)
     {
@@ -273,13 +270,6 @@ void XPBDSolver::EndStep(float deltaTime)
         {
             dx::XMVECTOR pos = dx::XMLoadFloat3(&particle.position);
             dx::XMVECTOR posInitial = dx::XMLoadFloat3(&particle.positionInitial);
-
-            // 检查位置是否有效
-            if (dx::XMVector3IsNaN(pos) || dx::XMVector3IsNaN(posInitial))
-            {
-                // 位置无效，保留当前速度不变
-                continue;
-            }
 
             // 根据位置变化更新速度
             dx::XMVECTOR velFinal = dx::XMVectorScale(dx::XMVectorSubtract(pos, posInitial), 1.0f / deltaTime);

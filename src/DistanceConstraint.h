@@ -4,6 +4,11 @@
 #include "Constraint.h"
 #include <DirectXMath.h>
 
+#ifdef DEBUG_SOLVER
+#include <string>
+extern void logDebug(const std::string& message);
+#endif//DEBUG_SOLVER
+
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
@@ -24,27 +29,10 @@ public:
         this->compliance = compliance;
     }
     
-    // 计算约束偏差
-    // 返回：约束偏差值C(x) = |x1 - x2| - restLength
-    float ComputeConstraintValue() const override 
-    {
-        // 将XMFLOAT3转换为XMVECTOR进行计算
-        dx::XMVECTOR pos1 = dx::XMLoadFloat3(&particle1->position);
-        dx::XMVECTOR pos2 = dx::XMLoadFloat3(&particle2->position);
-        
-        // 计算两个粒子之间的向量差
-        dx::XMVECTOR diff = dx::XMVectorSubtract(pos1, pos2);
-        
-        // 计算向量的长度（距离）
-        float distance = dx::XMVectorGetX(dx::XMVector3Length(diff));
-        
-        return distance - restLength;
-    }
-    
     // 计算约束梯度
     // 参数：
     //   gradients - 存储每个受约束粒子的梯度向量的向量
-    void ComputeGradient(dx::XMFLOAT3* gradients) const override
+    float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
         // 将XMFLOAT3转换为XMVECTOR进行计算
         dx::XMVECTOR pos1 = dx::XMLoadFloat3(&particle1->position);
@@ -56,7 +44,7 @@ public:
         // 计算向量的长度（距离）
         float distance = dx::XMVectorGetX(dx::XMVector3Length(diff));
         
-        if (distance > 1e-9f)
+        if (distance > 0.0f)
         {
             // 归一化向量
             dx::XMVECTOR normalizedDiff = dx::XMVector3Normalize(diff);
@@ -78,6 +66,27 @@ public:
             gradients[0] = dx::XMFLOAT3(1.0f, 0.0f, 0.0f);
             gradients[1] = dx::XMFLOAT3(-1.0f, 0.0f, 0.0f);
         }
+		
+        float C = distance - restLength;
+
+#ifdef DEBUG_SOLVER
+        char buffer[256];
+        sprintf_s(buffer, "[DEBUG] C is large. C:%f,P1.coordW:%d,p1.coordH:%d,P1.x:%f, P1.y:%f,P1.z:%f,P2.coordW:%d,p2.coordH:%d,P2.x:%f, P2.y:%f,P2.z:%f"
+            , C
+            , particle1->coordW
+            , particle1->coordH
+            , particle1->position.x
+            , particle1->position.y
+            , particle1->position.z
+            , particle2->coordW
+            , particle2->coordH
+            , particle2->position.x
+            , particle2->position.y
+            , particle2->position.z);
+        logDebug(buffer);
+#endif
+        
+		return C;
     }
     
     // 获取受此约束影响的所有粒子的数量

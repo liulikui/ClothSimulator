@@ -16,8 +16,6 @@ class Constraint;
 // 为了方便使用，创建一个命名空间别名
 namespace dx = DirectX;
 
-extern void logDebug(const std::string& message);
-
 // XPBD (Extended Position Based Dynamics) 求解器
 // 一种基于位置的物理模拟系统，特别适合处理约束
 class XPBDSolver
