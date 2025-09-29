@@ -403,8 +403,6 @@ void Cloth::AddDihedralBendingConstraint(const DihedralBendingConstraint& constr
 void Cloth::CreateConstraints()
 {
     m_distanceConstraints.clear();
-    
-    float restLength = m_size / (m_widthResolution - 1);
 
 #ifdef DEBUG_SOLVER
     logDebug("[DEBUG] Begin adding distance constraints");
@@ -420,7 +418,7 @@ void Cloth::CreateConstraints()
             {
                 int id1 = h * m_widthResolution + w;
                 int id2 = h * m_widthResolution + (w + 1);
-                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength, m_distanceConstraintCompliance, m_distanceConstraintDamping));
+                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
             }
             
             // 垂直约束
@@ -428,7 +426,7 @@ void Cloth::CreateConstraints()
             {
                 int id1 = h * m_widthResolution + w;
                 int id2 = (h + 1) * m_widthResolution + w;
-                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength, m_distanceConstraintCompliance, m_distanceConstraintDamping));
+                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
             }
             
             if (m_addDiagonalConstraints)
@@ -438,14 +436,14 @@ void Cloth::CreateConstraints()
                 {
                     int id1 = h * m_widthResolution + w;
                     int id2 = (h + 1) * m_widthResolution + (w + 1);
-                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength * std::sqrt(2.0f), m_distanceConstraintCompliance, m_distanceConstraintDamping));
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
                 }
 
                 if (w < m_widthResolution - 1 && h > 0)
                 {
                     int id1 = h * m_widthResolution + w;
                     int id2 = (h - 1) * m_widthResolution + (w + 1);
-                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength * std::sqrt(2.0f), m_distanceConstraintCompliance, m_distanceConstraintDamping));
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
                 }
             }
         }
@@ -503,9 +501,6 @@ void Cloth::CreateConstraints()
 #endif//DEBUG_SOLVER
 
         m_dihedralBendingConstraints.clear();
-
-		// 初始静止二面角设为XM_PI（平面），实际应该通过初始网格计算
-        float restDihedralAngle = dx::XM_PI;            
         
         // 遍历布料，为每对相邻的三角形创建二面角约束
         
@@ -534,7 +529,6 @@ void Cloth::CreateConstraints()
                     &m_particles[p2], // 公共顶点2
                     &m_particles[p3], // 三角形1的第三个顶点
                     &m_particles[p4], // 三角形2的第三个顶点
-                    restDihedralAngle, 
                     m_dihedralBendingConstraintCompliance, 
                     m_dihedralBendingConstraintDamping));
             }
@@ -569,7 +563,6 @@ void Cloth::CreateConstraints()
                     &m_particles[p2], // 公共顶点2
                     &m_particles[p3], // 三角形1的第三个顶点
                     &m_particles[p4], // 三角形2的第三个顶点
-                    restDihedralAngle,
                     m_dihedralBendingConstraintCompliance,
                     m_dihedralBendingConstraintDamping));
             }
@@ -597,7 +590,6 @@ void Cloth::CreateConstraints()
                     &m_particles[p2], // 公共顶点2
                     &m_particles[p3], // 三角形1的第三个顶点
                     &m_particles[p4], // 三角形2的第三个顶点
-                    restDihedralAngle,
                     m_dihedralBendingConstraintCompliance,
                     m_dihedralBendingConstraintDamping));
             }

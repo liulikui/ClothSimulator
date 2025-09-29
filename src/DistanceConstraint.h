@@ -21,15 +21,15 @@ public:
     // 参数：
     //   p1 - 第一个粒子的指针
     //   p2 - 第二个粒子的指针
-    //   restLength - 约束的静止长度（两个粒子之间的目标距离）
     //   compliance - 约束的柔度（与刚度成反比）
     //   damping - 阻尼系数
-    DistanceConstraint(Particle* p1, Particle* p2, float restLength, float compliance, float damping)
+    DistanceConstraint(Particle* p1, Particle* p2, float compliance, float damping)
         : Constraint(compliance, damping)
         , m_particle1(p1)
         , m_particle2(p2)
-        , m_restLength(restLength)
     {
+		dx::XMVECTOR diff = dx::XMVectorSubtract(dx::XMLoadFloat3(&p2->position), dx::XMLoadFloat3(&p1->position));
+        m_restLength = dx::XMVectorGetX(dx::XMVector3Length(diff));
     }
     
     // 计算约束梯度

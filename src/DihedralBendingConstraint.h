@@ -19,30 +19,28 @@ class DihedralBendingConstraint : public Constraint
 public:
     // 构造函数
     // 参数：
-    //   p0, p1 - 两个三角形共享边的顶点（公共边为p0-p1）
-    //   p2 - 第一个三角形的第三个顶点（三角形1：p0-p1-p2）
-    //   p3 - 第二个三角形的第三个顶点（三角形2：p0-p1-p3）
-    //   restDihedralAngle - 约束的静止二面角（弧度，范围[0, dx::XM_PI]，水平共面时设为dx::XM_PI）
+    //   p1, p2 - 两个三角形共享边的顶点（公共边为p1-p2）
+    //   p3 - 第一个三角形的第三个顶点（三角形1：p1-p2-p3）
+    //   p4 - 第二个三角形的第三个顶点（三角形2：p1-p2-p4）
     //   compliance - 约束的柔度
-    DihedralBendingConstraint(Particle* p0, Particle* p1, Particle* p2, Particle* p3,
-        float restDihedralAngle, float compliance, float damping)
+    DihedralBendingConstraint(Particle* p1, Particle* p2, Particle* p3, Particle* p4, 
+        float compliance, float damping)
         : Constraint(compliance, damping)
-        , m_particle1(p0)
-        , m_particle2(p1)
-        , m_particle3(p2)
-        , m_particle4(p3)
-        , m_restDihedralAngle(restDihedralAngle)
+        , m_particle1(p1)
+        , m_particle2(p2)
+        , m_particle3(p3)
+        , m_particle4(p4)
     {
+        m_restDihedralAngle = GetDihedralAngle(p1, p2, p3, p4);
     }
 
     // 计算约束偏差
-    // 返回：约束偏差值C = 当前二面角 - 静止二面角（二面角范围[0, dx::XM_PI]）
+    // 返回：约束偏差值C = 当前二面角 - 静止二面角（二面角范围[0, dx::XM_2PI]）
     float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
         dx::XMVECTOR p2_x_p3 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle2->position), dx::XMLoadFloat3(&m_particle3->position));
         float len_p2_x_p3 = dx::XMVectorGetX(dx::XMVector3Length(p2_x_p3));
 
-        // 避免法向量为零（三角形退化）
         if (len_p2_x_p3 < 1e-6f)
         {
             gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -55,7 +53,6 @@ public:
         dx::XMVECTOR p2_x_p4 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle2->position), dx::XMLoadFloat3(&m_particle4->position));
         float len_p2_x_p4 = dx::XMVectorGetX(dx::XMVector3Length(p2_x_p4));
 
-        // 避免法向量为零（三角形退化）
         if (len_p2_x_p4 < 1e-6f)
         {
             gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -235,6 +232,36 @@ private:
         return dx::XMVector3Cross(v1, v2);
     }
 
+    float GetDihedralAngle(Particle* a, Particle* b, Particle* c, Particle* d) const
+    {
+        dx::XMVECTOR n1 = ComputeTriangleNormal(a, b, c);
+        dx::XMVECTOR n2 = ComputeTriangleNormal(a, b, d);
+        // 归一化法向量
+        dx::XMVECTOR n1Norm = dx::XMVector3Normalize(n1);
+        dx::XMVECTOR n2Norm = dx::XMVector3Normalize(n2);
+        // 计算法向量点积（法向量夹角的余弦值）
+        float dDot = dx::XMVectorGetX(dx::XMVector3Dot(n1Norm, n2Norm));
+        // 钳位避免acos输入越界（浮点误差导致）
+        dDot = dx::XMVectorClamp(dx::XMVectorReplicate(dDot),
+            dx::XMVectorReplicate(-1.0f),
+            dx::XMVectorReplicate(1.0f)).m128_f32[0];
+        // 计算法向量夹角（范围[0, M_PI]）
+        float normalAngle = acosf(dDot);
+        // 公共边向量（p2 - p1）
+        dx::XMVECTOR edge = dx::XMVectorSubtract(dx::XMLoadFloat3(&b->position),
+            dx::XMLoadFloat3(&a->position));
+        dx::XMVECTOR crossNN = dx::XMVector3Normalize(dx::XMVector3Cross(n1Norm, n2Norm));
+        float dir = dx::XMVectorGetX(dx::XMVector3Dot(crossNN, edge));
+
+        if (dir > 0.0f)
+        {
+            return normalAngle;
+        }
+        else
+        {
+            return dx::XM_2PI - normalAngle;
+        }
+	}
 private:
     // 受约束的四个顶点（两个相邻三角形：(p0,p1,p2)和(p0,p1,p3)，共享边p0-p1）
     Particle* m_particle1;
