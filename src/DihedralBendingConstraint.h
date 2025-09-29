@@ -22,21 +22,24 @@ public:
     //   p2 - 第一个三角形的第三个顶点（三角形1：p0-p1-p2）
     //   p3 - 第二个三角形的第三个顶点（三角形2：p0-p1-p3）
     //   restDihedralAngle - 约束的静止二面角（弧度，范围[0, dx::XM_PI]，水平共面时设为dx::XM_PI）
-    //   compliance - 约束的柔度（与刚度成反比，值越小刚度越大）
+    //   compliance - 约束的柔度
     DihedralBendingConstraint(Particle* p0, Particle* p1, Particle* p2, Particle* p3,
-        float restDihedralAngle, float compliance = 1e-6)
-        : particle1(p0), particle2(p1), particle3(p2), particle4(p3),
-        restDihedralAngle(restDihedralAngle)
+        float restDihedralAngle, float compliance, float damping)
+        : Constraint(compliance, damping)
+        , m_particle1(p0)
+        , m_particle2(p1)
+        , m_particle3(p2)
+        , m_particle4(p3)
+        , m_restDihedralAngle(restDihedralAngle)
     {
-        this->compliance = compliance;
     }
 
     // 计算约束偏差
     // 返回：约束偏差值C = 当前二面角 - 静止二面角（二面角范围[0, dx::XM_PI]）
     float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
-        dx::XMVECTOR n1 = ComputeTriangleNormal(particle1, particle2, particle3);
-        dx::XMVECTOR n2 = ComputeTriangleNormal(particle1, particle2, particle4);
+        dx::XMVECTOR n1 = ComputeTriangleNormal(m_particle1, m_particle2, m_particle3);
+        dx::XMVECTOR n2 = ComputeTriangleNormal(m_particle1, m_particle2, m_particle4);
 
         // 法向量长度（用于归一化）
         float len1 = dx::XMVectorGetX(dx::XMVector3Length(n1));
@@ -44,7 +47,13 @@ public:
 
         // 避免法向量为零（三角形退化）
         if (len1 < 1e-6f || len2 < 1e-6f)
+        {
+            gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+            gradients[1] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+            gradients[2] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+            gradients[3] = dx::XMFLOAT3(0.0f, -1.0f, 0.0f);
             return 0.0f;
+        }
 
         // 归一化法向量
         dx::XMVECTOR n1Norm = dx::XMVectorDivide(n1, dx::XMVectorReplicate(len1));
@@ -62,7 +71,9 @@ public:
         float normalAngle = acosf(dotNN);
 
         // 公共边向量（p2 - p1）
-        dx::XMVECTOR edge = dx::XMVectorSubtract(dx::XMLoadFloat3(&particle2->position), dx::XMLoadFloat3(&particle1->position));
+        dx::XMVECTOR edge = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particle2->position), 
+            dx::XMLoadFloat3(&m_particle1->position));
+
         dx::XMVECTOR crossNN = dx::XMVector3Normalize(dx::XMVector3Cross(n1Norm, n2Norm));
         float dir = dx::XMVectorGetX(dx::XMVector3Dot(crossNN, edge));
 
@@ -83,83 +94,11 @@ public:
         logDebug(buffer);
 #endif//DEBUG_SOLVER
 
+        ComputeGradient(gradients);
+
         // 约束偏差：当前二面角 - 静止二面角
-        return currentDihedralAngle - restDihedralAngle;
+        return currentDihedralAngle - m_restDihedralAngle;
     }
-
-    //// 计算约束梯度
-    //// 参数：
-    ////   gradients - 存储每个受约束粒子的梯度向量的数组（大小为4）
-    //void ComputeGradient(dx::XMFLOAT3* gradients) const override
-    //{
-    //    // 计算两个三角形的法向量（未归一化）及长度
-    //    dx::XMVECTOR n1 = ComputeTriangleNormal(particle1, particle2, particle3);
-    //    dx::XMVECTOR n2 = ComputeTriangleNormal(particle1, particle2, particle4);
-    //    float len1 = dx::XMVectorGetX(dx::XMVector3Length(n1));
-    //    float len2 = dx::XMVectorGetX(dx::XMVector3Length(n2));
-
-    //    // 处理退化三角形（法向量为零）
-    //    if (len1 < 1e-6f || len2 < 1e-6f)
-    //    {
-    //        gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
-    //        gradients[1] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
-    //        gradients[2] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
-    //        gradients[3] = dx::XMFLOAT3(0.0f, -1.0f, 0.0f);
-    //        return;
-    //    }
-
-    //    // 归一化法向量
-    //    dx::XMVECTOR n1Norm = dx::XMVectorDivide(n1, dx::XMVectorReplicate(len1));
-    //    dx::XMVECTOR n2Norm = dx::XMVectorDivide(n2, dx::XMVectorReplicate(len2));
-
-    //    // 公共边向量（p2 - p1）
-    //    dx::XMVECTOR e = dx::XMVectorSubtract(dx::XMLoadFloat3(&particle2->position),
-    //        dx::XMLoadFloat3(&particle1->position));
-    //    dx::XMVECTOR eNorm = dx::XMVector3Normalize(e);
-
-    //    // 计算二面角的正弦值（用于梯度归一化，避免除零）
-    //    dx::XMVECTOR crossNN = dx::XMVector3Cross(n1Norm, n2Norm);
-    //    float sinTheta = dx::XMVectorGetX(dx::XMVector3Length(crossNN));
-    //    sinTheta = (sinTheta < 1e-6f) ? 1e-6f : sinTheta;
-
-    //    // 计算每个顶点对两个法向量的梯度贡献
-    //    dx::XMVECTOR dn1_dp1, dn1_dp2, dn1_dp3;
-    //    ComputeNormalGradients(particle1, particle2, particle3, n1, len1,
-    //        dn1_dp1, dn1_dp2, dn1_dp3);
-
-    //    dx::XMVECTOR dn2_dp1, dn2_dp2, dn2_dp4;
-    //    ComputeNormalGradients(particle1, particle2, particle4, n2, len2,
-    //        dn2_dp1, dn2_dp2, dn2_dp4);
-
-    //    // 二面角对法向量的导数（链式法则中间量）
-    //    dx::XMVECTOR dTheta_dn1 = dx::XMVectorMultiply(
-    //        dx::XMVector3Cross(eNorm, n2Norm),
-    //        dx::XMVectorReplicate(1.0f / sinTheta)
-    //    );
-
-    //    dx::XMVECTOR dTheta_dn2 = dx::XMVectorMultiply(
-    //        dx::XMVector3Cross(n1Norm, eNorm),
-    //        dx::XMVectorReplicate(1.0f / sinTheta)
-    //    );
-
-    //    // 计算原始梯度（基于法向量夹角推导）
-    //    dx::XMVECTOR grad1Raw = dx::XMVectorAdd(
-    //        dx::XMVector3Dot(dn1_dp1, dTheta_dn1),
-    //        dx::XMVector3Dot(dn2_dp1, dTheta_dn2)
-    //    );
-    //    dx::XMVECTOR grad2Raw = dx::XMVectorAdd(
-    //        dx::XMVector3Dot(dn1_dp2, dTheta_dn1),
-    //        dx::XMVector3Dot(dn2_dp2, dTheta_dn2)
-    //    );
-    //    dx::XMVECTOR grad3Raw = dx::XMVector3Dot(dn1_dp3, dTheta_dn1);
-    //    dx::XMVECTOR grad4Raw = dx::XMVector3Dot(dn2_dp4, dTheta_dn2);
-
-    //    // 核心修正：梯度整体取反，匹配"二面角=180°-法向量夹角"的逻辑
-    //    gradients[0] = XMVectorToFloat3(dx::XMVectorNegate(grad1Raw));
-    //    gradients[1] = XMVectorToFloat3(dx::XMVectorNegate(grad2Raw));
-    //    gradients[2] = XMVectorToFloat3(dx::XMVectorNegate(grad3Raw));
-    //    gradients[3] = XMVectorToFloat3(dx::XMVectorNegate(grad4Raw));
-    //}
 
     // 获取受此约束影响的粒子数量
     uint32_t GetParticlesCount() const override
@@ -170,20 +109,20 @@ public:
     // 获取受此约束影响的粒子数组
     Particle** GetParticles() override
     {
-        return &particle1;
+        return &m_particle1;
     }
 
     // 获取受此约束影响的所有粒子（const版本）
     virtual const Particle** GetParticles() const override
     {
-        return (const Particle**)(&particle1);
+        return (const Particle**)(&m_particle1);
     }
 
     // 设置约束的静止二面角
     void SetRestDihedralAngle(float angle)
     {
         // 确保静止角在[0, dx::XM_PI]范围内（避免无效值）
-        restDihedralAngle = dx::XMVectorClamp(dx::XMVectorReplicate(angle),
+        m_restDihedralAngle = dx::XMVectorClamp(dx::XMVectorReplicate(angle),
             dx::XMVectorReplicate(0.0f),
             dx::XMVectorReplicate((float)dx::XM_PI)).m128_f32[0];
     }
@@ -191,7 +130,7 @@ public:
     // 获取约束的静止二面角
     float GetRestDihedralAngle() const
     {
-        return restDihedralAngle;
+        return m_restDihedralAngle;
     }
 
     // 获取约束类型
@@ -201,6 +140,79 @@ public:
     }
 
 private:
+    // 计算约束梯度
+    // 参数：
+    //   gradients - 存储每个受约束粒子的梯度向量的数组（大小为4）
+    void ComputeGradient(dx::XMFLOAT3* gradients) const
+    {
+        // 计算两个三角形的法向量（未归一化）及长度
+        dx::XMVECTOR n1 = ComputeTriangleNormal(m_particle1, m_particle2, m_particle3);
+        dx::XMVECTOR n2 = ComputeTriangleNormal(m_particle1, m_particle2, m_particle4);
+        float len1 = dx::XMVectorGetX(dx::XMVector3Length(n1));
+        float len2 = dx::XMVectorGetX(dx::XMVector3Length(n2));
+
+        // 处理退化三角形（法向量为零）
+        if (len1 < 1e-6f || len2 < 1e-6f)
+        {
+            gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+            gradients[1] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+            gradients[2] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+            gradients[3] = dx::XMFLOAT3(0.0f, -1.0f, 0.0f);
+            return;
+        }
+
+        // 归一化法向量
+        dx::XMVECTOR n1Norm = dx::XMVectorDivide(n1, dx::XMVectorReplicate(len1));
+        dx::XMVECTOR n2Norm = dx::XMVectorDivide(n2, dx::XMVectorReplicate(len2));
+
+        // 公共边向量（p2 - p1）
+        dx::XMVECTOR e = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particle2->position),
+            dx::XMLoadFloat3(&m_particle1->position));
+        dx::XMVECTOR eNorm = dx::XMVector3Normalize(e);
+
+        // 计算二面角的正弦值（用于梯度归一化，避免除零）
+        dx::XMVECTOR crossNN = dx::XMVector3Cross(n1Norm, n2Norm);
+        float sinTheta = dx::XMVectorGetX(dx::XMVector3Length(crossNN));
+        sinTheta = (sinTheta < 1e-6f) ? 1e-6f : sinTheta;
+
+        // 计算每个顶点对两个法向量的梯度贡献
+        dx::XMVECTOR dn1_dp1, dn1_dp2, dn1_dp3;
+        ComputeNormalGradients(m_particle1, m_particle2, m_particle3, n1, len1,
+            dn1_dp1, dn1_dp2, dn1_dp3);
+
+        dx::XMVECTOR dn2_dp1, dn2_dp2, dn2_dp4;
+        ComputeNormalGradients(m_particle1, m_particle2, m_particle4, n2, len2,
+            dn2_dp1, dn2_dp2, dn2_dp4);
+
+        // 二面角对法向量的导数（链式法则中间量）
+        dx::XMVECTOR dTheta_dn1 = dx::XMVectorMultiply(
+            dx::XMVector3Cross(eNorm, n2Norm),
+            dx::XMVectorReplicate(1.0f / sinTheta)
+        );
+
+        dx::XMVECTOR dTheta_dn2 = dx::XMVectorMultiply(
+            dx::XMVector3Cross(n1Norm, eNorm),
+            dx::XMVectorReplicate(1.0f / sinTheta)
+        );
+
+        // 计算原始梯度（基于法向量夹角推导）
+        dx::XMVECTOR grad1Raw = dx::XMVectorAdd(
+            dx::XMVector3Dot(dn1_dp1, dTheta_dn1),
+            dx::XMVector3Dot(dn2_dp1, dTheta_dn2)
+        );
+        dx::XMVECTOR grad2Raw = dx::XMVectorAdd(
+            dx::XMVector3Dot(dn1_dp2, dTheta_dn1),
+            dx::XMVector3Dot(dn2_dp2, dTheta_dn2)
+        );
+        dx::XMVECTOR grad3Raw = dx::XMVector3Dot(dn1_dp3, dTheta_dn1);
+        dx::XMVECTOR grad4Raw = dx::XMVector3Dot(dn2_dp4, dTheta_dn2);
+
+        gradients[0] = XMVectorToFloat3(dx::XMVectorNegate(grad1Raw));
+        gradients[1] = XMVectorToFloat3(dx::XMVectorNegate(grad2Raw));
+        gradients[2] = XMVectorToFloat3(dx::XMVectorNegate(grad3Raw));
+        gradients[3] = XMVectorToFloat3(dx::XMVectorNegate(grad4Raw));
+    }
+
     // 辅助函数：计算三角形法向量
     dx::XMVECTOR ComputeTriangleNormal(Particle* a, Particle* b, Particle* c) const
     {
@@ -256,13 +268,13 @@ private:
 
 private:
     // 受约束的四个顶点（两个相邻三角形：(p0,p1,p2)和(p0,p1,p3)，共享边p0-p1）
-    Particle* particle1;
-    Particle* particle2;
-    Particle* particle3;
-    Particle* particle4;
+    Particle* m_particle1;
+    Particle* m_particle2;
+    Particle* m_particle3;
+    Particle* m_particle4;
 
     // 约束参数
-    float restDihedralAngle;  // 静止二面角（弧度，范围[0, dx::XM_PI]）
+    float m_restDihedralAngle;  // 静止二面角（弧度，范围[0, dx::XM_PI]）
 };
 
 #endif // DIHEDRAL_BENDING_CONSTRAINT_H

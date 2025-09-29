@@ -14,13 +14,12 @@ class LRAConstraint : public Constraint
 {
 public:
     // 构造函数
-    LRAConstraint(Particle* particle, const dx::XMFLOAT3& attachmentPoint, float geodesicDistance, float compliance, float maxStretch)
+    LRAConstraint(Particle* particle, const dx::XMFLOAT3& attachmentPoint, float geodesicDistance, float compliance, float damping, float maxStretch)
+        : Constraint(compliance, damping)
     {
         this->particle = particle;
         this->attachmentPoint = attachmentPoint;
         this->geodesicDistance = geodesicDistance;
-        this->lambda = 0.0f;
-        this->compliance = compliance;
         this->attachmentInitialPos = attachmentPoint;
         this->maxStretch = maxStretch;
     }

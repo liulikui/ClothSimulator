@@ -19,9 +19,14 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_heightResolution(heightResolution)
     , m_size(size)
     , m_mass(mass)
-    , m_distanceConstraintCompliance(0.00000001f)
-    , m_LRAConstraintCompliance(0.00000001f)
-    , m_dihedralBendingConstraintCompliance(0.00000001f)
+    , m_distanceConstraintCompliance(1e-7f)
+    , m_distanceConstraintDamping(1e-2f)
+    , m_LRAConstraintCompliance(1e-7f)
+    , m_LRAConstraintDamping(1e-2f)
+    , m_dihedralBendingConstraintCompliance(1e-7f)
+    , m_dihedralBendingConstraintDamping(1e-2f)
+    , m_sphereCollisionConstraintCompliance(1e-9f)
+    , m_sphereCollisionConstraintDamping(1e-2f)
     , m_addDiagonalConstraints(true)
     , m_addLRAConstraints(true)
     , m_addBendingConstraints(false)
@@ -137,7 +142,7 @@ void Cloth::InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCente
         if (!particle.isStatic)
         {
             SphereCollisionConstraint* constraint = new SphereCollisionConstraint(
-                &particle, relativeCenter, sphereRadius, 1e-9f); // 减小柔度值以增加刚性
+                &particle, relativeCenter, sphereRadius, m_sphereCollisionConstraintCompliance, m_sphereCollisionConstraintDamping);
             m_CollisionConstraints.push_back(constraint);
         }
     }
@@ -415,7 +420,7 @@ void Cloth::CreateConstraints()
             {
                 int id1 = h * m_widthResolution + w;
                 int id2 = h * m_widthResolution + (w + 1);
-                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength, m_distanceConstraintCompliance));
+                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength, m_distanceConstraintCompliance, m_distanceConstraintDamping));
             }
             
             // 垂直约束
@@ -423,7 +428,7 @@ void Cloth::CreateConstraints()
             {
                 int id1 = h * m_widthResolution + w;
                 int id2 = (h + 1) * m_widthResolution + w;
-                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength, m_distanceConstraintCompliance));
+                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength, m_distanceConstraintCompliance, m_distanceConstraintDamping));
             }
             
             if (m_addDiagonalConstraints)
@@ -433,14 +438,14 @@ void Cloth::CreateConstraints()
                 {
                     int id1 = h * m_widthResolution + w;
                     int id2 = (h + 1) * m_widthResolution + (w + 1);
-                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength * std::sqrt(2.0f), m_distanceConstraintCompliance));
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength * std::sqrt(2.0f), m_distanceConstraintCompliance, m_distanceConstraintDamping));
                 }
 
                 if (w < m_widthResolution - 1 && h > 0)
                 {
                     int id1 = h * m_widthResolution + w;
                     int id2 = (h - 1) * m_widthResolution + (w + 1);
-                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength * std::sqrt(2.0f), m_distanceConstraintCompliance));
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], restLength * std::sqrt(2.0f), m_distanceConstraintCompliance, m_distanceConstraintDamping));
                 }
             }
         }
@@ -474,7 +479,7 @@ void Cloth::CreateConstraints()
             float distanceToLeftTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
 
             // 添加到左上角静止粒子的LRA约束
-            AddLRAConstraint(LRAConstraint(&m_particles[i], m_particles[leftTopIndex].position, distanceToLeftTop, m_LRAConstraintCompliance, m_LRAMaxStrech));
+            AddLRAConstraint(LRAConstraint(&m_particles[i], m_particles[leftTopIndex].position, distanceToLeftTop, m_LRAConstraintCompliance, m_LRAConstraintDamping, m_LRAMaxStrech));
 
             // 计算到右上角静止粒子的欧几里德距离作为测地线距离
             dx::XMVECTOR rightTopPos = dx::XMLoadFloat3(&m_particles[rightTopIndex].position);
@@ -482,7 +487,7 @@ void Cloth::CreateConstraints()
             float distanceToRightTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
 
             // 添加到右上角静止粒子的LRA约束
-            AddLRAConstraint(LRAConstraint(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, m_LRAConstraintCompliance, m_LRAMaxStrech));
+            AddLRAConstraint(LRAConstraint(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, m_LRAConstraintCompliance, m_LRAConstraintDamping, m_LRAMaxStrech));
         }
 
 #ifdef DEBUG_SOLVER
@@ -524,7 +529,8 @@ void Cloth::CreateConstraints()
                     &m_particles[p3], // 三角形1的第三个顶点
                     &m_particles[p4], // 三角形2的第三个顶点
                     restDihedralAngle, 
-                    m_dihedralBendingConstraintCompliance));
+                    m_dihedralBendingConstraintCompliance, 
+                    m_dihedralBendingConstraintDamping));
             }
         }
         

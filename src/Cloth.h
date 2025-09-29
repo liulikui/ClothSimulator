@@ -223,9 +223,14 @@ private:
     std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
-    float m_distanceConstraintCompliance; // 距离约束的弹性系数
-    float m_LRAConstraintCompliance; // LRA约束的弹性系数
-    float m_dihedralBendingConstraintCompliance; // 二面角约束的弹性系数
+    float m_distanceConstraintCompliance; // 距离约束的柔度系数
+    float m_distanceConstraintDamping;  // 距离约束的阻尼系数
+    float m_LRAConstraintCompliance; // LRA约束的柔度系数
+    float m_LRAConstraintDamping; // LRA约束的阻尼系数
+    float m_dihedralBendingConstraintCompliance; // 二面角约束的柔度系数
+    float m_dihedralBendingConstraintDamping; // 二面角约束的阻尼系数
+    float m_sphereCollisionConstraintCompliance; // 球面碰撞约束的柔度系数
+    float m_sphereCollisionConstraintDamping; // 球面碰撞约束的阻尼系数
 	bool m_addDiagonalConstraints; // 是否增加对角线约束
     bool m_addLRAConstraints;    // 是否增加LRA约束
     bool m_addBendingConstraints; // 是否增加二面角约束

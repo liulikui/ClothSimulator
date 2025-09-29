@@ -170,7 +170,7 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
     }
 
     // 计算拉格朗日乘子增量
-    double deltaLambda = (double(-C - alpha_tilde * constraint->lambda - gamma * delta_pos_total) / sum);
+    double deltaLambda = (double(-C - alpha_tilde * constraint->GetLambda() - gamma * delta_pos_total) / sum);
 
     // 应用位置校正
     for (uint32_t i = 0; i < particleCount; ++i)
@@ -213,7 +213,7 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
     }
 
     // 更新约束的拉格朗日乘子
-    constraint->lambda += deltaLambda;
+    constraint->SetLambda(constraint->GetLambda() + deltaLambda);
 }
 
 void XPBDSolver::UpdateVelocities(float deltaTime)

@@ -11,15 +11,21 @@ namespace dx = DirectX;
 class Constraint
 {
 public:
+    // 构造函数
+    // 参数：
+    //   compliance - 柔度（与刚度成反比，值越小刚度越大）
+    //   damping - 阻尼系数
+    Constraint(float compliance, float damping)
+        : m_lambda(0.0f)
+        , m_compliance(compliance)
+        , m_damping(damping)
+    {}
+
     // 虚析构函数
     virtual ~Constraint() = default;
-    
-    // 构造函数
-    Constraint() : lambda(0.0f), compliance(1e-6f), damping(0.01)
-    {}
-    
-    // 拉格朗日乘子
-    float lambda;
+
+    // 获取约束类型
+    virtual const char* GetConstraintType() const = 0;
 
     // 计算约束偏差和约束梯度
     // 参数：
@@ -42,39 +48,52 @@ public:
     // 设置约束的柔度
     // 参数：
     //   c - 新的柔度值
-    void SetCompliance(float c)
+    inline void SetCompliance(float c)
     {
-        compliance = c;
+        m_compliance = c;
     }
     
     // 获取约束的柔度
     // 返回：柔度值
-    float GetCompliance() const
+    inline float GetCompliance() const
     {
-        return compliance;
+        return m_compliance;
     }
     
     // 设置约束的阻尼系数
     // 参数：
     //   d - 新的阻尼系数
-    void SetDamping(float d)
+    inline void SetDamping(float d)
     {
-        damping = d;
+        m_damping = d;
     }
 
     // 获取阻尼系数
     // 返回：阻尼系数
-    float GetDamping() const
+    inline float GetDamping() const
     {
-        return compliance;
+        return m_compliance;
     }
 
-    // 获取约束类型
-    virtual const char* GetConstraintType() const = 0;
+    // 设置拉格朗日乘子
+    // 参数：
+    //   l - 新的拉格朗日乘子
+    inline void SetLambda(float l)
+    {
+        m_lambda = l;
+    }
+
+    // 获取拉格朗日乘子
+    // 返回：拉格朗日乘子
+    inline float GetLambda() const
+    {
+        return m_lambda;
+    }
 
 protected:
-    float compliance;   // 柔度（与刚度成反比）
-    float damping;      // 阻尼系数，控制约束方向的阻尼强度，0为无阻尼
+    float m_lambda;         // 拉格朗日乘子
+    float m_compliance;     // 柔度（与刚度成反比）
+    float m_damping;        // 阻尼系数，控制约束方向的阻尼强度，0为无阻尼
 };
 
 #endif // CONSTRAINT_H
