@@ -172,6 +172,22 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
     // 计算拉格朗日乘子增量
     double deltaLambda = (double(-C - alpha_tilde * constraint->GetLambda() - gamma * delta_pos_total) / sum);
 
+#ifdef DEBUG_SOLVER
+    // 检查约束值是否有效
+    if (isnan(deltaLambda) || isinf(deltaLambda))
+    {
+        char buffer[256];
+        sprintf_s(buffer, "[DEBUG] deltaLambda is invalid:%f C:%f alpha_tilde:%f Lambda:%f gamma:%f delta_pos_total:%f"
+            , deltaLambda
+            , C
+            , alpha_tilde
+            , constraint->GetLambda()
+            , gamma
+            , delta_pos_total);
+        logDebug(buffer);
+    }
+#endif//DEBUG_SOLVER
+
     // 应用位置校正
     for (uint32_t i = 0; i < particleCount; ++i)
     {

@@ -72,7 +72,7 @@ public:
     // 返回：阻尼系数
     inline float GetDamping() const
     {
-        return m_compliance;
+        return m_damping;
     }
 
     // 设置拉格朗日乘子

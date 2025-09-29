@@ -23,7 +23,7 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_distanceConstraintDamping(1e-2f)
     , m_LRAConstraintCompliance(1e-7f)
     , m_LRAConstraintDamping(1e-2f)
-    , m_dihedralBendingConstraintCompliance(1e-7f)
+    , m_dihedralBendingConstraintCompliance(1e-5f)
     , m_dihedralBendingConstraintDamping(1e-2f)
     , m_sphereCollisionConstraintCompliance(1e-9f)
     , m_sphereCollisionConstraintDamping(1e-2f)
@@ -503,7 +503,9 @@ void Cloth::CreateConstraints()
 #endif//DEBUG_SOLVER
 
         m_dihedralBendingConstraints.clear();
-        float restDihedralAngle = dx::XM_PI;            // 初始静止二面角设为XM_PI（平面）
+
+		// 初始静止二面角设为XM_PI（平面），实际应该通过初始网格计算
+        float restDihedralAngle = dx::XM_PI;            
         
         // 遍历布料，为每对相邻的三角形创建二面角约束
         
@@ -585,10 +587,10 @@ void Cloth::CreateConstraints()
                 int p1 = h * m_widthResolution + w;
                 // 公共顶点2 (w+1,h+1)
                 int p2 = (h + 1) * m_widthResolution + (w + 1);
-                // 第一个三角形的第三个顶点 (w,h)
-                int p3 = (h + 2) * m_widthResolution + (w + 1);
-                // 第二个三角形的第三个顶点 (w+1,h+2)
-                int p4 = h * m_widthResolution + w;
+                // 第一个三角形的第三个顶点 (w + 1,h)
+                int p3 = h * m_widthResolution + (w + 1);
+                // 第二个三角形的第三个顶点 (w,h+1)
+                int p4 = (h + 1) * m_widthResolution + w;
 
                 AddDihedralBendingConstraint(DihedralBendingConstraint(
                     &m_particles[p1], // 公共顶点1
