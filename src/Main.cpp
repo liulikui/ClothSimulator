@@ -11,6 +11,7 @@
 #include "Sphere.h"
 #include "Scene.h"
 #include <windowsx.h>
+#include "Commandline.h"
 
 // 日志文件
 std::ofstream logFile;
@@ -592,11 +593,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 无条件输出一些基本信息
     logDebug("[TEST] Console window created");
     
-    // 解析命令行参数
-    std::string cmdLine(lpCmdLine);
+    // 创建Commandline对象解析命令行参数
+    Commandline cmdLine(lpCmdLine);
     
     // 检查是否需要显示帮助信息
-    if (cmdLine.find("-help") != std::string::npos)
+    if (cmdLine.Find("-help"))
     {
         std::cout << "XPBD Cloth Simulator (DirectX 12) - 命令行参数帮助" << std::endl;
         std::cout << "===================================================" << std::endl;
@@ -632,157 +633,70 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 0; // 直接退出程序，不创建其他对象
     }
 
-    // 简单解析命令行参数，寻找 -maxFrames:xxx 格式的参数
-    size_t maxFramesPos = cmdLine.find("-maxFrames:");
-    if (maxFramesPos != std::string::npos)
+    // 使用Commandline类解析参数，并利用返回值判断参数是否存在
+    if (cmdLine.Get("-maxFrames:", maxFrames, -1))
     {
-        size_t start = maxFramesPos + 11; // "-maxFrames:" 长度为11
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string maxFramesStr = cmdLine.substr(start, end - start);
-        maxFrames = std::stoi(maxFramesStr);
         logDebug("Max frames set to: " + std::to_string(maxFrames));
     }
 
-    // 解析-iteratorCount:xxx参数
-    size_t iteratorCountPos = cmdLine.find("-iteratorCount:");
-    if (iteratorCountPos != std::string::npos)
+    if (cmdLine.Get("-iteratorCount:", iteratorCount, 20))
     {
-        size_t start = iteratorCountPos + 15; // "-iteratorCount:" 长度为15
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string iteratorCountStr = cmdLine.substr(start, end - start);
-        iteratorCount = std::stoi(iteratorCountStr);
         logDebug("Iterator count set to: " + std::to_string(iteratorCount));
     }
     
-    // 解析-widthResolution:xxx参数
-    size_t widthResPos = cmdLine.find("-widthResolution:");
-    if (widthResPos != std::string::npos)
+    int tempWidthResolution = widthResolution;
+    if (cmdLine.Get("-widthResolution:", tempWidthResolution, widthResolution))
     {
-        size_t start = widthResPos + 17; // "-widthResolution:" 长度为17
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string widthResStr = cmdLine.substr(start, end - start);
-        widthResolution = std::stoi(widthResStr);
-
-        if (widthResolution < 3)
-        {
-            widthResolution = 3;
-        }
+        widthResolution = (tempWidthResolution < 3) ? 3 : tempWidthResolution;
         logDebug("Width resolution set to: " + std::to_string(widthResolution));
     }
     
-    // 解析-heightResolution:xxx参数
-    size_t heightResPos = cmdLine.find("-heightResolution:");
-    if (heightResPos != std::string::npos)
+    int tempHeightResolution = heightResolution;
+    if (cmdLine.Get("-heightResolution:", tempHeightResolution, heightResolution))
     {
-        size_t start = heightResPos + 18; // "-heightResolution:" 长度为18
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string heightResStr = cmdLine.substr(start, end - start);
-        heightResolution = std::stoi(heightResStr);
-
-        if (heightResolution < 3)
-        {
-            heightResolution = 3;
-        }
-
+        heightResolution = (tempHeightResolution < 3) ? 3 : tempHeightResolution;
         logDebug("Height resolution set to: " + std::to_string(heightResolution));
     }
     
     // 解析-fullscreen参数
-    if (cmdLine.find("-fullscreen") != std::string::npos)
+    if (cmdLine.Find("-fullscreen"))
     {
         fullscreenMode = true;
         logDebug("Fullscreen mode enabled");
     }
     
-    // 解析-winWidth:xxx参数
-    size_t winWidthPos = cmdLine.find("-winWidth:");
-    if (winWidthPos != std::string::npos)
+    int tempWinWidth = customWindowWidth;
+    if (cmdLine.Get("-winWidth:", tempWinWidth, customWindowWidth))
     {
-        size_t start = winWidthPos + 10; // "-winWidth:" 长度为10
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string winWidthStr = cmdLine.substr(start, end - start);
-        customWindowWidth = std::stoi(winWidthStr);
-        
         // 限制窗口宽度不超过系统分辨率
         int systemWidth = GetSystemMetrics(SM_CXSCREEN);
-        if (customWindowWidth > systemWidth)
-        {
-            customWindowWidth = systemWidth;
-            logDebug("Window width exceeds system resolution, adjusted to: " + std::to_string(systemWidth));
-        }
-        else
-        {
-            logDebug("Window width set to: " + std::to_string(customWindowWidth));
-        }
+        customWindowWidth = (tempWinWidth > systemWidth) ? systemWidth : tempWinWidth;
+        logDebug("Window width set to: " + std::to_string(customWindowWidth));
     }
     
-    // 解析-winHeight:xxx参数
-    size_t winHeightPos = cmdLine.find("-winHeight:");
-    if (winHeightPos != std::string::npos)
+    int tempWinHeight = customWindowHeight;
+    if (cmdLine.Get("-winHeight:", tempWinHeight, customWindowHeight))
     {
-        size_t start = winHeightPos + 11; // "-winHeight:" 长度为11
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string winHeightStr = cmdLine.substr(start, end - start);
-        customWindowHeight = std::stoi(winHeightStr);
-        
         // 限制窗口高度不超过系统分辨率
         int systemHeight = GetSystemMetrics(SM_CYSCREEN);
-        if (customWindowHeight > systemHeight)
-        {
-            customWindowHeight = systemHeight;
-            logDebug("Window height exceeds system resolution, adjusted to: " + std::to_string(systemHeight));
-        }
-        else
-        {
-            logDebug("Window height set to: " + std::to_string(customWindowHeight));
-        }
+        customWindowHeight = (tempWinHeight > systemHeight) ? systemHeight : tempWinHeight;
+        logDebug("Window height set to: " + std::to_string(customWindowHeight));
     }
     
-    if (cmdLine.find("-debug") != std::string::npos)
+    if (cmdLine.Find("-debug"))
     {
         debugOutputEnabled = true;
-        std::cout << "[DEBUG] Debug output enabled via command line parameter: " << cmdLine << std::endl;
+        std::cout << "[DEBUG] Debug output enabled via command line parameter: " << cmdLine.GetCommandLineString() << std::endl;
     }
     else
     {
         std::cout << "[INFO] Running in normal mode (debug output disabled)" << std::endl;
     }
     
-    // 解析-subItereratorCount:xxx参数
-    size_t subIteratorCountPos = cmdLine.find("-subItereratorCount:");
-    if (subIteratorCountPos != std::string::npos)
+    uint32_t tempSubIteratorCount = subIteratorCount;
+    if (cmdLine.Get("-subItereratorCount:", tempSubIteratorCount, subIteratorCount))
     {
-        size_t start = subIteratorCountPos + 20; // "-subItereratorCount:" 长度为20
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string subIteratorCountStr = cmdLine.substr(start, end - start);
-        subIteratorCount = std::stoi(subIteratorCountStr);
-        
-        if (subIteratorCount < 1)
-        {
-            subIteratorCount = 1;
-        }
-        
+        subIteratorCount = (tempSubIteratorCount < 1) ? 1 : tempSubIteratorCount;
         logDebug("Sub-iterator count set to: " + std::to_string(subIteratorCount));
     }
     
@@ -810,19 +724,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
     
-    // 解析-mass参数
+    // 使用Commandline类解析-mass参数
     float particleMass = 1.0f; // 默认值
-    size_t massPos = cmdLine.find("-mass:");
-    if (massPos != std::string::npos)
+    if (cmdLine.Get("-mass:", particleMass, 1.0f))
     {
-        size_t start = massPos + 6; // "-mass:" 长度为6
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string massStr = cmdLine.substr(start, end - start);
-        particleMass = std::stof(massStr);
-        
         logDebug("Particle mass set to: " + std::to_string(particleMass));
     }
 
@@ -831,160 +736,67 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 默认启用XPBD碰撞约束
     // cloth->SetUseXPBDCollision(true);
     
-    // 解析-addLRAConstraints参数
+    // 使用Commandline类解析-addLRAConstraints参数
     bool addLRAConstraints = true; // 默认启用
-    size_t addLRAConstraintsPos = cmdLine.find("-addLRAConstraints:");
-    if (addLRAConstraintsPos != std::string::npos)
+    if (cmdLine.Get("-addLRAConstraints:", addLRAConstraints, true))
     {
-        size_t start = addLRAConstraintsPos + 19; // "-addLRAConstraint:" 长度为19
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string addLRAConstraintsStr = cmdLine.substr(start, end - start);
-        
-        // 解析字符串为布尔值
-        if (addLRAConstraintsStr == "false" || addLRAConstraintsStr == "0" || addLRAConstraintsStr == "no")
-        {
-            addLRAConstraints = false;
-        }
-        else if (addLRAConstraintsStr == "true" || addLRAConstraintsStr == "1" || addLRAConstraintsStr == "yes")
-        {
-            addLRAConstraints = true;
-        }
-        
         logDebug("LRA constraint set to: " + std::string(addLRAConstraints ? "true" : "false"));
     }
     
     // 设置是否添加LRA约束
     cloth->SetAddLRAConstraints(addLRAConstraints);
     
-    // 解析-LRAMaxStretch参数
+    // 使用Commandline类解析-LRAMaxStretch参数
     float lraMaxStretch = 0.01f; // 默认值
-    size_t lraMaxStretchPos = cmdLine.find("-LRAMaxStretch:");
-    if (lraMaxStretchPos != std::string::npos)
+    if (cmdLine.Get("-LRAMaxStretch:", lraMaxStretch, 0.01f))
     {
-        size_t start = lraMaxStretchPos + 15; // "-LRAMaxStretch:" 长度为15
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string lraMaxStretchStr = cmdLine.substr(start, end - start);
-        lraMaxStretch = std::stof(lraMaxStretchStr);
-        
         logDebug("LRA max stretch set to: " + std::to_string(lraMaxStretch));
     }
     
     // 设置LRA约束最大拉伸量
     cloth->SetLRAMaxStretch(lraMaxStretch);
     
-    // 解析-addBendingConstraints参数
+    // 使用Commandline类解析-addBendingConstraints参数
     bool addBendingConstraints = false; // 默认禁用
-    size_t addBendingConstraintsPos = cmdLine.find("-addBendingConstraints:");
-    if (addBendingConstraintsPos != std::string::npos)
+    if (cmdLine.Get("-addBendingConstraints:", addBendingConstraints, false))
     {
-        size_t start = addBendingConstraintsPos + 23; // "-addBendingConstraints:" 长度为23
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string addBendingConstraintsStr = cmdLine.substr(start, end - start);
-        
-        // 解析字符串为布尔值
-        if (addBendingConstraintsStr == "false" || addBendingConstraintsStr == "0" || addBendingConstraintsStr == "no")
-        {
-            addBendingConstraints = false;
-        }
-        else if (addBendingConstraintsStr == "true" || addBendingConstraintsStr == "1" || addBendingConstraintsStr == "yes")
-        {
-            addBendingConstraints = true;
-        }
-        
         logDebug("Bending constraints set to: " + std::string(addBendingConstraints ? "true" : "false"));
     }
     
     // 设置是否添加二面角约束
     cloth->SetAddBendingConstraints(addBendingConstraints);
     
-    // 解析-addDiagonalConstraints参数
+    // 使用Commandline类解析-addDiagonalConstraints参数
     bool addDiagonalConstraints = true; // 默认启用
-    size_t addDiagonalConstraintsPos = cmdLine.find("-addDiagonalConstraints:");
-    if (addDiagonalConstraintsPos != std::string::npos)
+    if (cmdLine.Get("-addDiagonalConstraints:", addDiagonalConstraints, true))
     {
-        size_t start = addDiagonalConstraintsPos + 24; // "-addDiagonalConstraints:" 长度为24
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string addDiagonalConstraintsStr = cmdLine.substr(start, end - start);
-        
-        // 解析字符串为布尔值
-        if (addDiagonalConstraintsStr == "false" || addDiagonalConstraintsStr == "0" || addDiagonalConstraintsStr == "no")
-        {
-            addDiagonalConstraints = false;
-        }
-        else if (addDiagonalConstraintsStr == "true" || addDiagonalConstraintsStr == "1" || addDiagonalConstraintsStr == "yes")
-        {
-            addDiagonalConstraints = true;
-        }
-        
         logDebug("Diagonal constraints set to: " + std::string(addDiagonalConstraints ? "true" : "false"));
     }
     
     // 设置是否添加对角线约束
     cloth->SetAddDiagonalConstraints(addDiagonalConstraints);
     
-    // 解析-distanceCompliance参数
+    // 使用Commandline类解析-distanceCompliance参数
     float distanceCompliance = 0.00000001f; // 默认值
-    size_t distanceCompliancePos = cmdLine.find("-distanceCompliance:");
-    if (distanceCompliancePos != std::string::npos)
-    {
-        size_t start = distanceCompliancePos + 20; // "-distanceCompliance:" 长度为20
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string distanceComplianceStr = cmdLine.substr(start, end - start);
-        distanceCompliance = std::stof(distanceComplianceStr);
-        
+    if (cmdLine.Get("-distanceCompliance:", distanceCompliance, 0.00000001f)) {
         logDebug("Distance constraint compliance set to: " + std::to_string(distanceCompliance));
     }
     
     // 设置距离约束的弹性系数
     cloth->SetDistanceConstraintCompliance(distanceCompliance);
     
-    // 解析-LRACompliance参数
+    // 使用Commandline类解析-LRACompliance参数
     float lraCompliance = 0.00000001f; // 默认值
-    size_t lraCompliancePos = cmdLine.find("-LRACompliance:");
-    if (lraCompliancePos != std::string::npos)
-    {
-        size_t start = lraCompliancePos + 15; // "-LRACompliance:" 长度为15
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string lraComplianceStr = cmdLine.substr(start, end - start);
-        lraCompliance = std::stof(lraComplianceStr);
-        
+    if (cmdLine.Get("-LRACompliance:", lraCompliance, 0.00000001f)) {
         logDebug("LRA constraint compliance set to: " + std::to_string(lraCompliance));
     }
     
     // 设置LRA约束的弹性系数
     cloth->SetLRAConstraintCompliance(lraCompliance);
     
-    // 解析-bendingCompliance参数
+    // 使用Commandline类解析-bendingCompliance参数
     float bendingCompliance = 0.0001f; // 默认值
-    size_t bendingCompliancePos = cmdLine.find("-bendingCompliance:");
-    if (bendingCompliancePos != std::string::npos)
-    {
-        size_t start = bendingCompliancePos + 19; // "-bendingCompliance:" 长度为19
-        size_t end = cmdLine.find(' ', start);
-        if (end == std::string::npos) {
-            end = cmdLine.length();
-        }
-        std::string bendingComplianceStr = cmdLine.substr(start, end - start);
-        bendingCompliance = std::stof(bendingComplianceStr);
-        
+    if (cmdLine.Get("-bendingCompliance:", bendingCompliance, 0.0001f)) {
         logDebug("Bending constraint compliance set to: " + std::to_string(bendingCompliance));
     }
     
