@@ -34,7 +34,8 @@ public:
     }
     
     // 获取整数类型参数值
-    bool Get(const char* param, int& value, int defaultValue) const {
+    bool Get(const char* param, int& value, int defaultValue) const
+    {
         size_t pos = m_cmdLine.find(param);
         if (pos == std::string::npos)
         {
@@ -63,7 +64,8 @@ public:
     }
     
     // 获取浮点数类型参数值
-    bool Get(const char* param, float& value, float defaultValue) const {
+    bool Get(const char* param, float& value, float defaultValue) const
+    {
         size_t pos = m_cmdLine.find(param);
         if (pos == std::string::npos)
         {
