@@ -383,7 +383,7 @@ void Cloth::AddDihedralBendingConstraint(const DihedralBendingConstraint& constr
 #ifdef DEBUG_SOLVER
     const Particle** particles = constraint.GetParticles();
     char buffer[256];
-    sprintf_s(buffer, "[DEBUG] P0_w:%d, P0_h:%d P1_w:%d, P1_h:%d P2_w:%d, P2_h:%d P3_w:%d, P3_h:%d"
+    sprintf_s(buffer, "[DEBUG] P1_w:%d, P1_h:%d P2_w:%d, P2_h:%d P3_w:%d, P3_h:%d P4_w:%d, P4_h:%d"
         , particles[0]->coordW
         , particles[0]->coordH
         , particles[1]->coordW
@@ -407,7 +407,7 @@ void Cloth::CreateConstraints()
     float restLength = m_size / (m_widthResolution - 1);
 
 #ifdef DEBUG_SOLVER
-    logDebug("[DEBUG] Begin Add Distance Constraints");
+    logDebug("[DEBUG] Begin adding distance constraints");
 #endif//DEBUG_SOLVER
 
     // 创建结构约束（相邻粒子之间）
@@ -451,13 +451,13 @@ void Cloth::CreateConstraints()
         }
     }
 #ifdef DEBUG_SOLVER
-    logDebug("[DEBUG] End Add Distance Constraints");
+    logDebug("[DEBUG] End adding distance constraints");
 #endif//DEBUG_SOLVER
 
     if (m_addLRAConstraints)
     {
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] Begin Add LRA Constraints");
+        logDebug("[DEBUG] Begin adding LRA constraints");
 #endif//DEBUG_SOLVER
 
         // 为除静止粒子外的所有粒子添加LRA约束
@@ -491,7 +491,7 @@ void Cloth::CreateConstraints()
         }
 
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] End Add LRA Constraints");
+        logDebug("[DEBUG] End adding LRA constraints");
 #endif//DEBUG_SOLVER
     }
 
@@ -499,7 +499,7 @@ void Cloth::CreateConstraints()
     if (m_addBendingConstraints)
     {
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] Begin Add Bending Constraints");
+        logDebug("[DEBUG] Begin adding bending constraints");
 #endif//DEBUG_SOLVER
 
         m_dihedralBendingConstraints.clear();
@@ -507,6 +507,10 @@ void Cloth::CreateConstraints()
         
         // 遍历布料，为每对相邻的三角形创建二面角约束
         
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding horizontal bending constraints");
+#endif//DEBUG_SOLVER
+
         // 1. 处理水平方向的边，为每对水平相邻的三角形创建约束
         // 为3*3网格示例：
         // p1(1,0), p2(1,1), p3(0,0), p4(2,1)
@@ -534,34 +538,78 @@ void Cloth::CreateConstraints()
             }
         }
         
-        //// 2. 处理垂直方向的边，为每对垂直相邻的三角形创建约束
-        //// 为4*4网格示例：
-        //// p1(0,1), p2(1,1), p3(0,0), p4(1,2)
-        //for (int w = 0; w < m_widthResolution - 1; ++w)
-        //{
-        //    for (int h = 0; h + 1 < m_heightResolution - 1; ++h)
-        //    {
-        //        // 公共顶点1 (w,h+１)
-        //        int p1 = (h + 1) * m_widthResolution + w;
-        //        // 公共顶点2 (w+1,h+1)
-        //        int p2 = (h + 1) * m_widthResolution + (w + 1);
-        //        // 第一个三角形的第三个顶点 (w,h)
-        //        int p3 = h * m_widthResolution + w;
-        //        // 第二个三角形的第三个顶点 (w+1,h+2)
-        //        int p4 = (h + 2) * m_widthResolution + (w + 1);
-        //        
-        //        AddDihedralBendingConstraint(DihedralBendingConstraint(
-        //            &m_particles[p1], // 公共顶点1
-        //            &m_particles[p2], // 公共顶点2
-        //            &m_particles[p3], // 三角形1的第三个顶点
-        //            &m_particles[p4], // 三角形2的第三个顶点
-        //            restDihedralAngle, 
-        //            m_dihedralBendingConstraintCompliance));
-        //    }
-        //}
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding horizontal bending constraints");
+#endif//DEBUG_SOLVER
 
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] End Add Bending Constraints");
+        logDebug("[DEBUG] Begin adding vertical bending constraints");
+#endif//DEBUG_SOLVER
+
+        // 2. 处理垂直方向的边，为每对垂直相邻的三角形创建约束
+        // 为3*3网格示例：
+        // p1(0,1), p2(1,1), p3(0,0), p4(1,2)
+        for (int w = 0; w < m_widthResolution - 1; ++w)
+        {
+            for (int h = 0; h + 1 < m_heightResolution - 1; ++h)
+            {
+                // 公共顶点1 (w,h+１)
+                int p1 = (h + 1) * m_widthResolution + w;
+                // 公共顶点2 (w+1,h+1)
+                int p2 = (h + 1) * m_widthResolution + (w + 1);
+                // 第一个三角形的第三个顶点 (w,h)
+                int p3 = (h + 2) * m_widthResolution + (w + 1); 
+                // 第二个三角形的第三个顶点 (w+1,h+2)
+                int p4 = h * m_widthResolution + w;
+                
+                AddDihedralBendingConstraint(DihedralBendingConstraint(
+                    &m_particles[p1], // 公共顶点1
+                    &m_particles[p2], // 公共顶点2
+                    &m_particles[p3], // 三角形1的第三个顶点
+                    &m_particles[p4], // 三角形2的第三个顶点
+                    restDihedralAngle,
+                    m_dihedralBendingConstraintCompliance,
+                    m_dihedralBendingConstraintDamping));
+            }
+        }
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding each square bending constraints");
+#endif//DEBUG_SOLVER
+
+        for (int h = 0; h < m_heightResolution - 1; ++h)
+        {
+            for (int w = 0; w < m_widthResolution - 1; ++w)
+            {
+                // 公共顶点1 (w,h)
+                int p1 = h * m_widthResolution + w;
+                // 公共顶点2 (w+1,h+1)
+                int p2 = (h + 1) * m_widthResolution + (w + 1);
+                // 第一个三角形的第三个顶点 (w,h)
+                int p3 = (h + 2) * m_widthResolution + (w + 1);
+                // 第二个三角形的第三个顶点 (w+1,h+2)
+                int p4 = h * m_widthResolution + w;
+
+                AddDihedralBendingConstraint(DihedralBendingConstraint(
+                    &m_particles[p1], // 公共顶点1
+                    &m_particles[p2], // 公共顶点2
+                    &m_particles[p3], // 三角形1的第三个顶点
+                    &m_particles[p4], // 三角形2的第三个顶点
+                    restDihedralAngle,
+                    m_dihedralBendingConstraintCompliance,
+                    m_dihedralBendingConstraintDamping));
+            }
+        }
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding each square bending constraints");
+#endif//DEBUG_SOLVER
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding vertical bending constraints");
+#endif//DEBUG_SOLVER
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding bending constraints");
 #endif//DEBUG_SOLVER
     }
 }

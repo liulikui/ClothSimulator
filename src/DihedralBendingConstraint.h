@@ -3,13 +3,14 @@
 
 #include "Constraint.h"
 #include <DirectXMath.h>
-#include <cmath>  // 用于dx::XM_PI（需确保编译器支持，若不支持可手动定义#define dx::XM_PI 3.14159265358979323846）
+
+#ifdef DEBUG_SOLVER
 #include <string>
+extern void logDebug(const std::string& message);
+#endif
 
 // 命名空间别名简化使用
 namespace dx = DirectX;
-
-extern void logDebug(const std::string& message);
 
 // 基于二面角的弯曲约束类，继承自约束基类
 // 适配DirectX左手坐标系，严格遵循"二面角=180°-法向量夹角"的几何关系
