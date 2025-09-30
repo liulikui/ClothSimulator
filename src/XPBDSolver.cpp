@@ -205,14 +205,18 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 #ifdef DEBUG_SOLVER
             dx::XMVECTOR correctionLength = dx::XMVector3Length(correction);
             char buffer[256];
-            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordW:%d,coordH:%d C:%f alpha_tilde:%f deltaLambda:%f correctionLength:%f"
+            sprintf_s(buffer, "[DEBUG] constraintType:%s deltaTime:%f coordW:%d coordH:%d C:%f compliance:%f alpha_tilde:%f lambda:%f deltaLambda:%f gamma:%f delta_pos_total:%f correctionLength:%f"
                 , constraint->GetConstraintType()
                 , deltaTime
                 , particle->coordW
                 , particle->coordH
                 , C
+                , constraint->GetCompliance()
                 , alpha_tilde
+                , constraint->GetLambda()
                 , deltaLambda
+                , gamma
+                , delta_pos_total
                 , dx::XMVectorGetX(correctionLength));
             logDebug(buffer);
 #endif//DEBUG_SOLVER
@@ -230,6 +234,10 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 
     // 更新约束的拉格朗日乘子
     constraint->SetLambda(constraint->GetLambda() + deltaLambda);
+
+#ifdef DEBUG_SOLVER
+    constraint->Check();
+#endif//DEBUG_SOLVER
 }
 
 void XPBDSolver::UpdateVelocities(float deltaTime)

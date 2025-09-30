@@ -607,14 +607,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
         std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认10）" << std::endl;
         std::cout << "  -subItereratorCount:xxx 设置子迭代次数（xxx为数字，默认1）" << std::endl;
-        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80，最小为3）" << std::endl;
-        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80，最小为3）" << std::endl;
+        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
+        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
         std::cout << "  -addLRAConstraints:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::cout << "  -addBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
         std::cout << "  -addDiagonalConstraints:true/false 设置是否添加对角线约束（默认false）" << std::endl;
-        std::cout << "  -distanceCompliance:xxx 设置距离约束的弹性系数（xxx为浮点数，默认0.0001）" << std::endl;
-        std::cout << "  -LRACompliance:xxx 设置LRA约束的弹性系数（xxx为浮点数，默认0.0001）" << std::endl;
-        std::cout << "  -bendingCompliance:xxx 设置二面角约束的弹性系数（xxx为浮点数，默认0.0001）" << std::endl;
+        std::cout << "  -distanceCompliance:xxx 设置距离约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
+        std::cout << "  -LRACompliance:xxx 设置LRA约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
+        std::cout << "  -bendingCompliance:xxx 设置二面角约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
         std::cout << "  -fullscreen          以全屏模式启动程序" << std::endl;
@@ -647,14 +647,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     int tempWidthResolution = widthResolution;
     if (cmdLine.Get("-widthResolution:", tempWidthResolution, widthResolution))
     {
-        widthResolution = (tempWidthResolution < 3) ? 3 : tempWidthResolution;
+        widthResolution = (tempWidthResolution < 2) ? 2 : tempWidthResolution;
         logDebug("Width resolution set to: " + std::to_string(widthResolution));
     }
     
     int tempHeightResolution = heightResolution;
     if (cmdLine.Get("-heightResolution:", tempHeightResolution, heightResolution))
     {
-        heightResolution = (tempHeightResolution < 3) ? 3 : tempHeightResolution;
+        heightResolution = (tempHeightResolution < 2) ? 2 : tempHeightResolution;
         logDebug("Height resolution set to: " + std::to_string(heightResolution));
     }
     
@@ -782,26 +782,38 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         logDebug("Distance constraint compliance set to: " + std::to_string(distanceCompliance));
     }
     
-    // 设置距离约束的弹性系数
+    // 设置距离约束的柔度
     cloth->SetDistanceConstraintCompliance(distanceCompliance);
     
     // 使用Commandline类解析-LRACompliance参数
     float lraCompliance = 0.00000001f; // 默认值
-    if (cmdLine.Get("-LRACompliance:", lraCompliance, 0.00000001f)) {
+    if (cmdLine.Get("-LRACompliance:", lraCompliance, 0.00000001f))
+    {
         logDebug("LRA constraint compliance set to: " + std::to_string(lraCompliance));
     }
     
-    // 设置LRA约束的弹性系数
+    // 设置LRA约束的柔度
     cloth->SetLRAConstraintCompliance(lraCompliance);
     
     // 使用Commandline类解析-bendingCompliance参数
-    float bendingCompliance = 0.0001f; // 默认值
-    if (cmdLine.Get("-bendingCompliance:", bendingCompliance, 0.0001f)) {
+    float bendingCompliance = 1.0f; // 默认值
+    if (cmdLine.Get("-bendingCompliance:", bendingCompliance, 1.0f))
+    {
         logDebug("Bending constraint compliance set to: " + std::to_string(bendingCompliance));
     }
-    
-    // 设置二面角约束的弹性系数
+
+    // 设置二面角约束的柔度
     cloth->SetDihedralBendingConstraintCompliance(bendingCompliance);
+
+    // 使用Commandline类解析-bendingDamping参数
+    float bendingDamping = 1.0f; // 默认值
+    if (cmdLine.Get("-bendingDamping:", bendingDamping, 1.0f))
+    {
+        logDebug("Bending constraint clamping set to: " + std::to_string(bendingDamping));
+    }
+    
+    // 设置二面角约束的阻尼
+    cloth->SetDihedralBendingConstraintClamping(bendingDamping);
     
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));

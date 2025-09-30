@@ -137,40 +137,52 @@ public:
         m_LRAMaxStrech = maxStretch;
     }
     
-    // 获取距离约束的弹性系数
+    // 获取距离约束的柔度
     float GetDistanceConstraintCompliance() const
     {
         return m_distanceConstraintCompliance;
     }
 
-    // 设置距离约束的弹性系数
+    // 设置距离约束的柔度
     void SetDistanceConstraintCompliance(float compliance)
     {
         m_distanceConstraintCompliance = compliance;
     }
 
-    // 获取LRA约束的弹性系数
+    // 获取LRA约束的柔度
     float GetLRAConstraintCompliance() const
     {
         return m_LRAConstraintCompliance;
     }
 
-    // 设置LRA约束的弹性系数
+    // 设置LRA约束的柔度
     void SetLRAConstraintCompliance(float compliance)
     {
         m_LRAConstraintCompliance = compliance;
     }
 
-    // 获取二面角约束的弹性系数
+    // 获取二面角约束的柔度
     float GetDihedralBendingConstraintCompliance() const
     {
         return m_dihedralBendingConstraintCompliance;
     }
 
-    // 设置二面角约束的弹性系数
+    // 设置二面角约束的柔度
     void SetDihedralBendingConstraintCompliance(float compliance)
     {
         m_dihedralBendingConstraintCompliance = compliance;
+    }
+
+    // 获取二面角约束的阻尼
+    float GetDihedralBendingConstraintDamping() const
+    {
+        return m_dihedralBendingConstraintDamping;
+    }
+
+    // 设置二面角约束的阻尼
+    void SetDihedralBendingConstraintClamping(float c)
+    {
+        m_dihedralBendingConstraintDamping = c;
     }
     
     // 获取每个粒子的质量

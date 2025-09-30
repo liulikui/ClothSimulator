@@ -38,10 +38,19 @@ public:
     // 返回：约束偏差值C = 当前二面角 - 静止二面角（二面角范围[0, dx::XM_2PI]）
     float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
-        dx::XMVECTOR p2_x_p3 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle2->position), dx::XMLoadFloat3(&m_particle3->position));
-        float len_p2_x_p3 = dx::XMVectorGetX(dx::XMVector3Length(p2_x_p3));
+        dx::XMVECTOR p1 = dx::XMLoadFloat3(&m_particle1->position);
+        dx::XMVECTOR p2 = dx::XMLoadFloat3(&m_particle2->position);
+        dx::XMVECTOR p3 = dx::XMLoadFloat3(&m_particle3->position);
+        dx::XMVECTOR p4 = dx::XMLoadFloat3(&m_particle4->position);
 
-        if (len_p2_x_p3 < 1e-6f)
+        dx::XMVECTOR e2 = dx::XMVectorSubtract(p2, p1);
+        dx::XMVECTOR e3 = dx::XMVectorSubtract(p3, p1);
+        dx::XMVECTOR e4 = dx::XMVectorSubtract(p4, p1);
+
+        dx::XMVECTOR e2_x_e3 = dx::XMVector3Cross(e2, e3);
+        float len_e2_x_e3 = dx::XMVectorGetX(dx::XMVector3Length(e2_x_e3));
+
+        if (len_e2_x_e3 < 1e-6f)
         {
             gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
             gradients[1] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -50,10 +59,10 @@ public:
             return 0.0f;
         }
 
-        dx::XMVECTOR p2_x_p4 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle2->position), dx::XMLoadFloat3(&m_particle4->position));
-        float len_p2_x_p4 = dx::XMVectorGetX(dx::XMVector3Length(p2_x_p4));
+        dx::XMVECTOR e2_x_e4 = dx::XMVector3Cross(e2, e4);
+        float len_e2_x_e4 = dx::XMVectorGetX(dx::XMVector3Length(e2_x_e4));
 
-        if (len_p2_x_p4 < 1e-6f)
+        if (len_e2_x_e4 < 1e-6f)
         {
             gradients[0] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
             gradients[1] = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -94,12 +103,8 @@ public:
         // 计算法向量夹角（范围[0, M_PI]）
         float normalAngle = acosf(d);
 
-        // 公共边向量（p2 - p1）
-        dx::XMVECTOR edge = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particle2->position), 
-            dx::XMLoadFloat3(&m_particle1->position));
-
         dx::XMVECTOR crossNN = dx::XMVector3Normalize(dx::XMVector3Cross(n1Norm, n2Norm));
-        float dir = dx::XMVectorGetX(dx::XMVector3Dot(crossNN, edge));
+        float dir = dx::XMVectorGetX(dx::XMVector3Dot(crossNN, e2));
 
         float currentDihedralAngle;
 
@@ -114,7 +119,20 @@ public:
 
 #ifdef DEBUG_SOLVER
         char buffer[256];
-        sprintf_s(buffer, "[DEBUG] d:%f dir:%f, normalAngle:%f currentDihedralAngle:%f", d, dir, normalAngle, currentDihedralAngle);
+        sprintf_s(buffer, "[DEBUG] p1:%f,%f,%f, p2:%f,%f,%f, p3:%f,%f,%f, p4:%f,%f,%f, d:%f dir:%f, normalAngle:%f currentDihedralAngle:%f"
+            , m_particle1->position.x
+            , m_particle1->position.y
+            , m_particle1->position.z
+            , m_particle2->position.x
+            , m_particle2->position.y
+            , m_particle2->position.z
+            , m_particle3->position.x
+            , m_particle3->position.y
+            , m_particle3->position.z
+            , m_particle4->position.x
+            , m_particle4->position.y
+            , m_particle4->position.z
+            , d, dir, normalAngle, currentDihedralAngle);
         logDebug(buffer);
 #endif//DEBUG_SOLVER
 
@@ -131,13 +149,13 @@ public:
 		else if (fabs(d + 1.0f) < 1e-6f) // d约等于-1，法向量平行但方向相反
         {
             // 共面但方向相反，梯度无法定义，使用任意垂直于公共边的方向
-            dx::XMVECTOR edgeNorm = dx::XMVector3Normalize(edge);
+            dx::XMVECTOR e2Norm = dx::XMVector3Normalize(e2);
             dx::XMVECTOR arbitrary = dx::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
-            if (fabs(dx::XMVectorGetX(dx::XMVector3Dot(edgeNorm, arbitrary))) > 0.99f)
+            if (fabs(dx::XMVectorGetX(dx::XMVector3Dot(e2Norm, arbitrary))) > 0.99f)
             {
                 arbitrary = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             }
-            dx::XMVECTOR perp = dx::XMVector3Normalize(dx::XMVector3Cross(edgeNorm, arbitrary));
+            dx::XMVECTOR perp = dx::XMVector3Normalize(dx::XMVector3Cross(e2Norm, arbitrary));
             dx::XMVECTOR q1 = dx::XMVectorScale(perp, -1.0f);
             dx::XMVECTOR q2 = dx::XMVectorZero();
             dx::XMVECTOR q3 = dx::XMVectorScale(perp, 1.0f);
@@ -151,21 +169,21 @@ public:
 		}
         else
         {
-            dx::XMVECTOR p2_x_n2 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle3->position), n2Norm);
-            dx::XMVECTOR n1_x_p2 = dx::XMVector3Cross(n1Norm, dx::XMLoadFloat3(&m_particle2->position));
+            dx::XMVECTOR e2_x_n2 = dx::XMVector3Cross(e3, n2Norm);
+            dx::XMVECTOR n1_x_e2 = dx::XMVector3Cross(n1Norm, e2);
             
-            dx::XMVECTOR p2_x_n1 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle2->position), n1Norm);
-            dx::XMVECTOR n2_x_p2 = dx::XMVector3Cross(n2Norm, dx::XMLoadFloat3(&m_particle2->position));
+            dx::XMVECTOR e2_x_n1 = dx::XMVector3Cross(e2, n1Norm);
+            dx::XMVECTOR n2_x_e2 = dx::XMVector3Cross(n2Norm, e2);
             
-            dx::XMVECTOR p3_x_n2 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle3->position), n2Norm);
-            dx::XMVECTOR n1_x_p3 = dx::XMVector3Cross(n1Norm, dx::XMLoadFloat3(&m_particle3->position));
-            dx::XMVECTOR p4_x_n1 = dx::XMVector3Cross(dx::XMLoadFloat3(&m_particle4->position), n1Norm);
-            dx::XMVECTOR n2_x_p4 = dx::XMVector3Cross(n2Norm, dx::XMLoadFloat3(&m_particle4->position));
+            dx::XMVECTOR e3_x_n2 = dx::XMVector3Cross(e3, n2Norm);
+            dx::XMVECTOR n1_x_e3 = dx::XMVector3Cross(n1Norm, e3);
+            dx::XMVECTOR e4_x_n1 = dx::XMVector3Cross(e4, n1Norm);
+            dx::XMVECTOR n2_x_e4 = dx::XMVector3Cross(n2Norm, e4);
 
-            dx::XMVECTOR q3 = dx::XMVectorScale((dx::XMVectorAdd(p2_x_n2, dx::XMVectorScale(n1_x_p2, d))), 1 / len_p2_x_p3);
-            dx::XMVECTOR q4 = dx::XMVectorScale((dx::XMVectorAdd(p2_x_n1, dx::XMVectorScale(n2_x_p2, d))), 1 / len_p2_x_p4);
-            dx::XMVECTOR q2 = dx::XMVectorSubtract(dx::XMVectorScale((dx::XMVectorAdd(p3_x_n2, dx::XMVectorScale(n1_x_p3, d))), 1 / len_p2_x_p3),
-                dx::XMVectorScale((dx::XMVectorAdd(p4_x_n1, dx::XMVectorScale(n2_x_p4, d))), 1 / len_p2_x_p4));
+            dx::XMVECTOR q3 = dx::XMVectorScale((dx::XMVectorAdd(e2_x_n2, dx::XMVectorScale(n1_x_e2, d))), 1 / len_e2_x_e3);
+            dx::XMVECTOR q4 = dx::XMVectorScale((dx::XMVectorAdd(e2_x_n1, dx::XMVectorScale(n2_x_e2, d))), 1 / len_e2_x_e4);
+            dx::XMVECTOR q2 = dx::XMVectorSubtract(dx::XMVectorScale((dx::XMVectorAdd(e3_x_n2, dx::XMVectorScale(n1_x_e3, d))), 1 / len_e2_x_e3),
+                dx::XMVectorScale((dx::XMVectorAdd(e4_x_n1, dx::XMVectorScale(n2_x_e4, d))), 1 / len_e2_x_e4));
 
             dx::XMVECTOR q1 = dx::XMVectorScale(dx::XMVectorAdd(dx::XMVectorAdd(q2, q3), q4), -1.0f);
 
@@ -196,6 +214,17 @@ public:
     virtual const Particle** GetParticles() const override
     {
         return (const Particle**)(&m_particle1);
+    }
+
+    virtual void Check() const override
+    {
+#ifdef DEBUG_SOLVER
+        float currentDihedralAngle = GetDihedralAngle(m_particle1, m_particle2, m_particle3, m_particle4);
+
+        char buffer[256];
+        sprintf_s(buffer, "[DEBUG] alfter apply constraint currentDihedralAngle:%f", currentDihedralAngle);
+        logDebug(buffer);
+#endif
     }
 
     // 设置约束的静止二面角

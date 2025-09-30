@@ -23,7 +23,7 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
     , m_distanceConstraintDamping(1e-2f)
     , m_LRAConstraintCompliance(1e-7f)
     , m_LRAConstraintDamping(1e-2f)
-    , m_dihedralBendingConstraintCompliance(1e-5f)
+    , m_dihedralBendingConstraintCompliance(1e-7f)
     , m_dihedralBendingConstraintDamping(1e-2f)
     , m_sphereCollisionConstraintCompliance(1e-9f)
     , m_sphereCollisionConstraintDamping(1e-2f)
@@ -504,68 +504,76 @@ void Cloth::CreateConstraints()
         
         // 遍历布料，为每对相邻的三角形创建二面角约束
         
-#ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] Begin adding horizontal bending constraints");
-#endif//DEBUG_SOLVER
-
-        // 1. 处理水平方向的边，为每对水平相邻的三角形创建约束
-        // 为3*3网格示例：
-        // p1(1,0), p2(1,1), p3(0,0), p4(2,1)
-        for (int h = 0; h < m_heightResolution - 1; ++h)
+        if (m_heightResolution > 2 && m_widthResolution > 2)
         {
-            for (int w = 1; w + 1 < m_widthResolution; ++w)
-            {
-                // 公共顶点1 (w,h)
-                int p1 = h * m_widthResolution + w;
-                // 公共顶点2 (w,h+1)
-                int p2 = (h + 1) * m_widthResolution + w;
-                // 第一个三角形的第三个顶点 (w-1,h)
-                int p3 = h * m_widthResolution + (w - 1);
-                // 第二个三角形的第三个顶点 (w+1,w+1)
-                int p4 = (h + 1) * m_widthResolution + (w + 1);
-
-                AddDihedralBendingConstraint(DihedralBendingConstraint(
-                    &m_particles[p1], // 公共顶点1
-                    &m_particles[p2], // 公共顶点2
-                    &m_particles[p3], // 三角形1的第三个顶点
-                    &m_particles[p4], // 三角形2的第三个顶点
-                    m_dihedralBendingConstraintCompliance, 
-                    m_dihedralBendingConstraintDamping));
-            }
-        }
-        
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] End adding horizontal bending constraints");
+            logDebug("[DEBUG] Begin adding horizontal bending constraints");
+#endif//DEBUG_SOLVER
+
+            // 1. 处理水平方向的边，为每对水平相邻的三角形创建约束
+            // 为3*3网格示例：
+            // p1(1,0), p2(1,1), p3(0,0), p4(2,1)
+            for (int h = 0; h < m_heightResolution - 1; ++h)
+            {
+                for (int w = 1; w + 1 < m_widthResolution; ++w)
+                {
+                    // 公共顶点1 (w,h)
+                    int p1 = h * m_widthResolution + w;
+                    // 公共顶点2 (w,h+1)
+                    int p2 = (h + 1) * m_widthResolution + w;
+                    // 第一个三角形的第三个顶点 (w-1,h)
+                    int p3 = h * m_widthResolution + (w - 1);
+                    // 第二个三角形的第三个顶点 (w+1,w+1)
+                    int p4 = (h + 1) * m_widthResolution + (w + 1);
+
+                    AddDihedralBendingConstraint(DihedralBendingConstraint(
+                        &m_particles[p1], // 公共顶点1
+                        &m_particles[p2], // 公共顶点2
+                        &m_particles[p3], // 三角形1的第三个顶点
+                        &m_particles[p4], // 三角形2的第三个顶点
+                        m_dihedralBendingConstraintCompliance,
+                        m_dihedralBendingConstraintDamping));
+                }
+            }
+
+#ifdef DEBUG_SOLVER
+            logDebug("[DEBUG] End adding horizontal bending constraints");
 #endif//DEBUG_SOLVER
 
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] Begin adding vertical bending constraints");
+            logDebug("[DEBUG] Begin adding vertical bending constraints");
 #endif//DEBUG_SOLVER
 
-        // 2. 处理垂直方向的边，为每对垂直相邻的三角形创建约束
-        // 为3*3网格示例：
-        // p1(0,1), p2(1,1), p3(0,0), p4(1,2)
-        for (int w = 0; w < m_widthResolution - 1; ++w)
-        {
-            for (int h = 0; h + 1 < m_heightResolution - 1; ++h)
+            // 2. 处理垂直方向的边，为每对垂直相邻的三角形创建约束
+            // 为3*3网格示例：
+            // p1(0,1), p2(1,1), p3(0,0), p4(1,2)
+            for (int w = 0; w < m_widthResolution - 1; ++w)
             {
-                // 公共顶点1 (w,h+１)
-                int p1 = (h + 1) * m_widthResolution + w;
-                // 公共顶点2 (w+1,h+1)
-                int p2 = (h + 1) * m_widthResolution + (w + 1);
-                // 第一个三角形的第三个顶点 (w,h)
-                int p3 = (h + 2) * m_widthResolution + (w + 1); 
-                // 第二个三角形的第三个顶点 (w+1,h+2)
-                int p4 = h * m_widthResolution + w;
-                
-                AddDihedralBendingConstraint(DihedralBendingConstraint(
-                    &m_particles[p1], // 公共顶点1
-                    &m_particles[p2], // 公共顶点2
-                    &m_particles[p3], // 三角形1的第三个顶点
-                    &m_particles[p4], // 三角形2的第三个顶点
-                    m_dihedralBendingConstraintCompliance,
-                    m_dihedralBendingConstraintDamping));
+                for (int h = 0; h + 1 < m_heightResolution - 1; ++h)
+                {
+                    // 公共顶点1 (w,h+１)
+                    int p1 = (h + 1) * m_widthResolution + w;
+                    // 公共顶点2 (w+1,h+1)
+                    int p2 = (h + 1) * m_widthResolution + (w + 1);
+                    // 第一个三角形的第三个顶点 (w,h)
+                    int p3 = (h + 2) * m_widthResolution + (w + 1);
+                    // 第二个三角形的第三个顶点 (w+1,h+2)
+                    int p4 = h * m_widthResolution + w;
+
+                    AddDihedralBendingConstraint(DihedralBendingConstraint(
+                        &m_particles[p1], // 公共顶点1
+                        &m_particles[p2], // 公共顶点2
+                        &m_particles[p3], // 三角形1的第三个顶点
+                        &m_particles[p4], // 三角形2的第三个顶点
+                        m_dihedralBendingConstraintCompliance,
+                        m_dihedralBendingConstraintDamping));
+                }
             }
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding vertical bending constraints");
+#endif//DEBUG_SOLVER
+
         }
 
 #ifdef DEBUG_SOLVER
