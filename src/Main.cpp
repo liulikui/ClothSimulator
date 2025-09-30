@@ -778,12 +778,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 使用Commandline类解析-distanceCompliance参数
     float distanceCompliance = 0.00000001f; // 默认值
-    if (cmdLine.Get("-distanceCompliance:", distanceCompliance, 0.00000001f)) {
+    if (cmdLine.Get("-distanceCompliance:", distanceCompliance, 0.00000001f))
+    {
         logDebug("Distance constraint compliance set to: " + std::to_string(distanceCompliance));
     }
-    
+
     // 设置距离约束的柔度
     cloth->SetDistanceConstraintCompliance(distanceCompliance);
+
+    // 使用Commandline类解析-distanceDamping参数
+    float distanceDamping = 0.00000001f; // 默认值
+    if (cmdLine.Get("-distanceDamping:", distanceDamping, 0.00000001f))
+    {
+        logDebug("Distance constraint damping set to: " + std::to_string(distanceDamping));
+    }
+
+    // 设置距离约束的阻尼
+    cloth->SetDistanceConstraintDamping(distanceDamping);
     
     // 使用Commandline类解析-LRACompliance参数
     float lraCompliance = 0.00000001f; // 默认值

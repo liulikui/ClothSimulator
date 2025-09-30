@@ -149,6 +149,18 @@ public:
         m_distanceConstraintCompliance = compliance;
     }
 
+    // 获取距离约束的阻尼
+    float GetDistanceConstraintDamping() const
+    {
+        return m_distanceConstraintDamping;
+    }
+
+    // 设置距离约束的阻尼
+    void SetDistanceConstraintDamping(float damping)
+    {
+        m_distanceConstraintDamping = damping;
+    }
+
     // 获取LRA约束的柔度
     float GetLRAConstraintCompliance() const
     {
