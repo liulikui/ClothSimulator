@@ -809,7 +809,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     float bendingDamping = 1.0f; // 默认值
     if (cmdLine.Get("-bendingDamping:", bendingDamping, 1.0f))
     {
-        logDebug("Bending constraint clamping set to: " + std::to_string(bendingDamping));
+        logDebug("Bending constraint damping set to: " + std::to_string(bendingDamping));
     }
     
     // 设置二面角约束的阻尼
