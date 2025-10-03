@@ -18,6 +18,12 @@
 // 为了方便使用，创建一个命名空间别名
 namespace dx = DirectX;
 
+enum ClothParticleMassMode
+{
+	ClothParticleMassMode_FixedTotalMass, // 固定总质量，粒子质量随分辨率变化
+	ClothParticleMassMode_FixedParticleMass, // 固定粒子质量，总质量随分辨率变化
+};
+
 class Cloth : public Mesh 
 {
 public:
@@ -27,7 +33,8 @@ public:
     //   heightResolution - 布料高度方向的粒子数
     //   size - 布料的实际物理尺寸（以米为单位）
     //   mass - 每个粒子的质量
-    Cloth(int widthResolution, int heightResolution, float size, float mass);
+	//   massMode - 质量模式
+    Cloth(int widthResolution, int heightResolution, float size, float mass, ClothParticleMassMode massMode);
     
     // 析构函数
     ~Cloth() override;
@@ -240,6 +247,7 @@ private:
     int m_heightResolution; // 高度方向的粒子数
     float m_size;
     float m_mass;
+	ClothParticleMassMode m_massMode; // 质量模式
     
     // 粒子和约束
     std::vector<Particle> m_particles; // 布料的所有粒子

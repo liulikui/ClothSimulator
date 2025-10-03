@@ -110,13 +110,14 @@ ClothSimulator/
 | `-bendingCompliance:X` | 设置二面角约束的弹性系数，X为浮点数 | 0.0001 |
 | `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
 | `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
+| `-massMode:X` | 设置质量模式，X可以是FixedParticleMass或FixedTotalMass | FixedParticleMass |
 | `-fullscreen` | 以全屏模式启动程序 | 禁用 |
 | `-winWidth:X` | 设置窗口宽度，X为数字，不能超过系统分辨率 | 800 |
 | `-winHeight:X` | 设置窗口高度，X为数字，不能超过系统分辨率 | 600 |
 
 示例用法：
 ```
-XPBDClothSimulator.exe -debug -iteratorCount:100 -widthResolution:60 -heightResolution:60 -addLRAConstraints:true -addBendingConstraints:true -addDiagonalConstraints:true -distanceCompliance:0.00001 -LRACompliance:0.00001 -bendingCompliance:0.0001 -LRAMaxStretch:0.02 -mass:0.5 -winWidth:1280 -winHeight:720
+XPBDClothSimulator.exe -debug -iteratorCount:100 -widthResolution:60 -heightResolution:60 -addLRAConstraints:true -addBendingConstraints:true -addDiagonalConstraints:true -distanceCompliance:0.00001 -LRACompliance:0.00001 -bendingCompliance:0.0001 -LRAMaxStretch:0.02 -mass:0.5 -massMode:FixedParticleMass -winWidth:1280 -winHeight:720
 ```
 
 ## 许可证

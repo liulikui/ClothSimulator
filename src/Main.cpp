@@ -72,6 +72,7 @@ int iteratorCount = 20;        // XPBD求解器迭代次数，默认20
 uint32_t subIteratorCount = 1; // XPBD求解器迭代次数，默认值1
 int widthResolution = 100;      // 布料宽度分辨率（粒子数），默认100
 int heightResolution = 100;     // 布料高度分辨率（粒子数），默认100
+ClothParticleMassMode massMode = ClothParticleMassMode_FixedTotalMass; // 布料粒子质量模式，默认固定总质量
 
 // 相机对象
 Camera* camera = nullptr;
@@ -617,6 +618,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "  -bendingCompliance:xxx 设置二面角约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
         std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
+        std::cout << "  -massMode:xxx        设置质量模式（xxx为FixedParticleMass或FixedTotalMass，默认FixedParticleMass）" << std::endl;
         std::cout << "  -fullscreen          以全屏模式启动程序" << std::endl;
         std::cout << "  -winWidth:xxx        设置窗口宽度（xxx为数字，默认800，不能超过系统分辨率）" << std::endl;
         std::cout << "  -winHeight:xxx       设置窗口高度（xxx为数字，默认600，不能超过系统分辨率）" << std::endl;
@@ -725,13 +727,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::cout << "Creating cloth object..." << std::endl;
     
     // 使用Commandline类解析-mass参数
-    float particleMass = 1.0f; // 默认值
-    if (cmdLine.Get("-mass:", particleMass, 1.0f))
+    float mass = 1.0f; // 默认值
+    if (cmdLine.Get("-mass:", mass, 1.0f))
     {
-        logDebug("Particle mass set to: " + std::to_string(particleMass));
+        logDebug("Mass set to: " + std::to_string(mass));
     }
 
-    cloth = new Cloth(widthResolution, heightResolution, 10.0f, particleMass); // 使用命令行参数设置的分辨率和质量
+	std::string massModeStr;
+    if (cmdLine.Get("-massMode:", massModeStr, "FixedParticleMass"))
+    {
+        logDebug("Particle mass mode set to: " + massModeStr);
+    }
+    
+    if (massModeStr == "FixedTotalMass")
+    {
+        massMode = ClothParticleMassMode_FixedTotalMass;
+    }
+    else if (massModeStr == "FixedParticleMass")
+    {
+        massMode = ClothParticleMassMode_FixedParticleMass;
+    }
+    else
+    {
+        logDebug("Unknown mass mode: " + massModeStr + ", defaulting to FixedParticleMass");
+        massMode = ClothParticleMassMode_FixedParticleMass;
+	}
+
+    cloth = new Cloth(widthResolution, heightResolution, 10.0f, mass, massMode); // 使用命令行参数设置的分辨率和质量
     
     // 默认启用XPBD碰撞约束
     // cloth->SetUseXPBDCollision(true);

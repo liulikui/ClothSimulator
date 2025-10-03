@@ -13,12 +13,14 @@ namespace dx = DirectX;
 //   heightResolution - 布料高度方向的粒子数
 //   size - 布料的实际物理尺寸（以米为单位）
 //   mass - 每个粒子的质量
-Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
+//   massMode - 质量模式
+Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass, ClothParticleMassMode massMode)
     : Mesh()
     , m_widthResolution(widthResolution)
     , m_heightResolution(heightResolution)
     , m_size(size)
     , m_mass(mass)
+    , m_massMode(massMode)
     , m_distanceConstraintCompliance(1e-7f)
     , m_distanceConstraintDamping(1e-2f)
     , m_LRAConstraintCompliance(1e-7f)
@@ -293,6 +295,16 @@ void Cloth::CreateParticles()
     dx::XMFLOAT3 origin = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
     dx::XMVECTOR posVector = dx::XMLoadFloat3(&origin);
     
+	int totalParticles = m_widthResolution * m_heightResolution;
+	int totalNonStaticParticles = totalParticles - 2; // 减去两个静态粒子
+
+	float mass = m_mass;
+
+    if (m_massMode == ClothParticleMassMode_FixedTotalMass && totalNonStaticParticles > 0)
+    {
+        mass = m_mass / totalNonStaticParticles; // 平均分配质量
+	}
+
     for (int h = 0; h < m_heightResolution; ++h)
     {
         for (int w = 0; w < m_widthResolution; ++w)
@@ -307,7 +319,7 @@ void Cloth::CreateParticles()
             bool isStatic = (w == 0 && h == 0) || (w == m_widthResolution - 1 && h == 0);
             
             // 创建粒子
-            m_particles.emplace_back(posFloat3, m_mass, isStatic);
+            m_particles.emplace_back(posFloat3, mass, isStatic);
 
 #ifdef DEBUG_SOLVER
             Particle& particle = m_particles.back();
