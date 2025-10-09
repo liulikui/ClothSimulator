@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(XPBDClothSimulator)
+project(ClothSimulator)
 
 # 设置C++标准
 set(CMAKE_CXX_STANDARD 17)

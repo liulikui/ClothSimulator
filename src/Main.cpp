@@ -338,7 +338,7 @@ BOOL CreateWindowApp(HINSTANCE hInstance)
     hWnd = CreateWindowEx(
         exStyle,                  // 扩展窗口样式
         TEXT("DX12ClothSimulator"),  // 窗口类名称
-        TEXT("XPBD:ClothSimulator"),  // 窗口标题
+        TEXT("ClothSimulator"),  // 窗口标题
         windowStyle,                // 窗口样式
         xPos, yPos,                 // 窗口位置
         windowWidth, windowHeight,  // 窗口尺寸
@@ -957,12 +957,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             float fps = static_cast<float>(fpsCounter) / fpsUpdateTimer;
             
             // 构造新的窗口标题
-            std::wstring originalTitle = L"XPBD:ClothSimulator";
+            std::wstring originalTitle = L"ClothSimulator";
+			std::wstring solverType = L"Solver::XPBD";
             std::wstring lraStatus = cloth->GetAddLRAConstraints() ? L"LRA:ON" : L"LRA:OFF";
             std::wstring bendingStatus = cloth->GetAddBendingConstraints() ? L"Bending:ON" : L"Bending:OFF";
             std::wstring dihedralBendingStatus = cloth->GetAddDihedralBendingConstraints() ? L"DihedralBending:ON" : L"DihedralBending:OFF";
             std::wstring diagonalStatus = cloth->GetAddDiagonalConstraints() ? L"Diagonal:ON" : L"Diagonal:OFF";
-            std::wstring newTitle = originalTitle + L" [" + L"FPS:" + std::to_wstring(static_cast<int>(fps)) + L", " + 
+            std::wstring newTitle = originalTitle + L" [" + solverType + L", " + L"FPS:" + std::to_wstring(static_cast<int>(fps)) + L", " +
                 L"Iter:" + std::to_wstring(iteratorCount) + L", " + 
                 L"SubIter:" + std::to_wstring(subIteratorCount) + L", " +
                 L"Res:" + std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L", " +
