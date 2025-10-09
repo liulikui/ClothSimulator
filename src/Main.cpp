@@ -242,9 +242,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
     case WM_MOUSEWHEEL:
         // 处理鼠标滚轮（缩放）
         {
-            float zoomFactor = 1.1f;
-            if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
-                zoomFactor = 1.0f / zoomFactor;
+            float zoomFactor = 1.0f / 1.1f; // 默认向前滚轮（推进）时使用缩小因子
+            if (GET_WHEEL_DELTA_WPARAM(wParam) < 0) // 向后滚轮（拉远）
+                zoomFactor = 1.1f; // 向后滚轮时使用放大因子
 
             dx::XMVECTOR pos = camera->GetPosition();
             dx::XMVECTOR target = camera->GetTarget();
