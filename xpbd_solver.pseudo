@@ -1,19 +1,23 @@
 // XPBD求解器核心伪代码
 class XPBDSolver:
-    // 初始化：设置粒子和约束参数
-    function initialize(particles, constraints, dt, iterations):
-        // particles: 粒子数组，每个粒子含位置x、速度v、质量m
+    // 初始化：设置粒子、约束和子步参数
+    function initialize(particles, constraints, dt, iterations, subSteps):
+        // particles: 粒子数组，每个粒子含位置x、速度v、质量m、inverseMass:质量倒数
         // constraints: 约束数组，每个约束含：
         //   - C(x): 约束偏差函数（返回标量）
         //   - gradient(x): 约束梯度函数（返回每个粒子的梯度向量）
         //   - alpha: 柔度参数（刚度的倒数，alpha=0为硬约束）
+        //   - lambda: 拉格朗日乘子
+        //   - gamma: 阻尼参数
         // dt: 时间步长
-        // iterations: 每帧约束迭代次数
+        // iterations: 每子步约束迭代次数
+        // subSteps: 每帧子步数
         
         this.particles = particles
         this.constraints = constraints
-        this.dt = dt
-        this.iterations = iterations
+        this.global_dt = dt
+        this.iterations_per_substep = iterations
+        this.max_substeps = subSteps
         
         // 初始化拉格朗日乘子（每个约束对应一个乘子）
         for each constraint in constraints:
@@ -21,60 +25,101 @@ class XPBDSolver:
 
     // 主循环：每帧调用一次，更新粒子状态
     function step():
-        // 1. 保存当前位置作为上一时刻位置（用于后续速度计算）
+        // 1. 保存单帧初始位置（用于计算帧末总速度）
         for each particle in particles:
-            particle.x_prev = particle.x  // x_prev = x^n
+            particle.x_frame_initial = particle.x
         
-        // 2. 计算预测位置（无约束时的惯性位置）
-        //    公式：x~ = x^n + dt * v^n （等价于2x^n - x^{n-1}）
+        // 2. 计算子步时间
+        substep_dt = this.global_dt / this.max_substeps
+        
+        // 3. 子步循环：拆分单帧为多个子步
+        for substep in 0 to this.max_substeps - 1:
+            // 子步1：保存当前子步初始位置
+            for each particle in particles:
+                particle.x_substep_prev = particle.x
+            
+            // 子步2：预测子步内无约束位置（用当前速度和子步dt）
+            for each particle in particles:
+                if not particle.isStatic:
+                    // 应用外力（如重力）
+                    apply_external_forces(particle, substep_dt)
+                    // 预测新位置（使用显式欧拉积分）
+                    particle.x_pred = particle.x + substep_dt * particle.v
+                    // 初始位置设置为预测位置
+                    particle.x = particle.x_pred
+        
+                // 子步3：约束迭代（每子步执行多次迭代）
+                for k in 0 to this.iterations_per_substep - 1:
+                    for each constraint in constraints:
+                        affected_particles = constraint.get_affected_particles()
+                        C = constraint.C(affected_particles)
+                        gradients = constraint.gradient(affected_particles)
+                        
+                        // 基于子步dt计算α̃
+                        alpha_tilde = constraint.alpha / (substep_dt * substep_dt)
+                        
+                        // 计算分母：∇C·M⁻¹·∇Cᵀ + α̃
+                        denominator = 0.0
+                        delta_pos_total = 0.0
+                        for i in 0 to len(affected_particles) - 1:
+                            p = affected_particles[i]
+                            if not p.isStatic:
+                                grad = gradients[i]
+                                denominator += dot(grad, grad) * p.inverseMass
+                                // 计算梯度与delta_pos的点积
+                                delta_pos = p.x - p.x_pred
+                                delta_pos_total += dot(grad, delta_pos)
+                        
+                        // 添加阻尼项gamma = damping * dt
+                        gamma = constraint.gamma * substep_dt
+                        
+                        // 更新分母：(1+gamma)*∇C·M⁻¹·∇Cᵀ + α̃
+                        denominator = (1 + gamma) * denominator + alpha_tilde
+                        
+                        // 计算分子：-C - α̃·λ - gamma·delta_pos_total
+                        numerator = -C - alpha_tilde * constraint.lambda - gamma * delta_pos_total
+                        
+                        // 计算乘子修正量Δλ_j
+                        delta_lambda = numerator / denominator
+                        
+                        // 计算并应用位置修正
+                        for i in 0 to len(affected_particles) - 1:
+                            p = affected_particles[i]
+                            if not p.isStatic:
+                                grad = gradients[i]
+                                correction = grad * delta_lambda * p.inverseMass
+                                p.x += correction
+                        
+                        // 更新约束的拉格朗日乘子
+                        constraint.lambda += delta_lambda
+        
+                // 子步4：更新子步内速度（基于子步位置变化）
+                for each particle in particles:
+                    if not particle.isStatic:
+                        particle.v = (particle.x - particle.x_substep_prev) / substep_dt
+                        // 重置力
+                        particle.reset_force()
+            
+        // 4. 计算单帧最终速度（整帧位移/单帧总时间）
         for each particle in particles:
-            particle.x_pred = particle.x + this.dt * particle.v  // x_pred = x~
+            if not particle.isStatic:
+                particle.v_frame_final = (particle.x - particle.x_frame_initial) / this.global_dt
         
-        // 3. 约束迭代：用Gauss-Seidel逐约束修正位置和乘子
-        for k in 0 to this.iterations - 1:
-            for each constraint in constraints:
-                // a. 获取当前约束涉及的粒子
-                affected_particles = constraint.get_affected_particles()
-                
-                // b. 计算当前约束偏差C(x)和梯度∇C
-                C = constraint.C(affected_particles)  // 约束偏差：C_j(x_i)
-                gradients = constraint.gradient(affected_particles)  // ∇C_j
-                
-                // c. 计算公式(18)中的分母：∇C_j * M^{-1} * ∇C_j^T + α~_j
-                //    α~_j = alpha_j / (dt^2)（时间步修正后的柔度）
-                alpha_tilde = constraint.alpha / (this.dt * this.dt)
-                denominator = 0.0
-                for i in 0 to len(affected_particles) - 1:
-                    p = affected_particles[i]
-                    grad = gradients[i]
-                    // M^{-1}为质量倒数（因M是对角矩阵）
-                    denominator += dot(grad, grad) / p.mass  // ∇C_j * M^{-1} * ∇C_j^T
-                denominator += alpha_tilde  // 加上α~_j
-                
-                // d. 计算公式(18)中的分子：-C_j - α~_j * λ_j
-                numerator = -C - alpha_tilde * constraint.lambda
-                
-                // e. 计算乘子修正量Δλ_j
-                delta_lambda = numerator / denominator
-                
-                // f. 计算位置修正量Δx（公式17：Δx = M^{-1} * ∇C_j^T * Δλ_j）
-                for i in 0 to len(affected_particles) - 1:
-                    p = affected_particles[i]
-                    grad = gradients[i]
-                    p.delta_x = (grad * delta_lambda) / p.mass  // 质量加权修正
-                
-                // g. 更新粒子位置（用最新位置进行下一轮迭代）
-                for i in 0 to len(affected_particles) - 1:
-                    p = affected_particles[i]
-                    p.x += p.delta_x  // x_{i+1} = x_i + Δx
-                
-                // h. 更新约束的拉格朗日乘子
-                constraint.lambda += delta_lambda  // λ_{i+1} = λ_i + Δλ_j
-        
-        // 4. 更新速度（基于修正后的位置和上一时刻位置）
-        //    公式：v^{n+1} = (x^{n+1} - x^n) / dt
+        // 5. 调用帧结束处理函数，传递速度到下一帧
+        this.end_frame()
+    
+    // 帧结束处理：将当前帧最终速度作为下一帧初始速度
+    function end_frame():
         for each particle in particles:
-            particle.v = (particle.x - particle.x_prev) / this.dt
-        
-        // 5. 可选：应用阻尼或外部力（如重力）
-        apply_external_forces(particles, dt)
+            if not particle.isStatic:
+                particle.v = particle.v_frame_final  // 速度在帧间传递，保证运动连续性
+
+// 外部力应用函数（如重力）
+function apply_external_forces(particles, dt):
+    gravity = [0, -9.81, 0]  // 重力加速度（m/s²）
+    for each particle in particles:
+        if not particle.isStatic:
+            // 速度变化 = 加速度 × 时间（F=ma → a=F/m，此处F=mg → a=g）
+            particle.v += gravity * dt
+            // 应用力到粒子
+            particle.apply_force(gravity * particle.mass)

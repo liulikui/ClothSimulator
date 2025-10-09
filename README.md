@@ -86,7 +86,7 @@ ClothSimulator/
   - 程序启动后，布料会在重力作用下掉落到球体上
   - 默认情况下，布料的左上角和右上角粒子是固定的
 - **窗口信息**：
-    - 窗口尺寸：默认800×600像素，可通过命令行参数自定义或切换至全屏模式
+    - 窗口尺寸：默认1280×800像素，可通过命令行参数自定义或切换至全屏模式
     - 窗口标题会显示当前帧率、迭代次数、布料分辨率、LRA约束状态、LRAMaxStretch值和粒子质量（格式："XPBD Cloth Simulator (DirectX 12) [X FPS, Y Iter, WxH Res, LRA:ON/OFF, MaxStretch:Z, Mass:M]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束，Z表示LRA约束的最大拉伸量，M表示每个粒子的质量
 
 ## 命令行参数
@@ -116,8 +116,8 @@ ClothSimulator/
 | `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
 | `-massMode:X` | 设置质量模式，X可以是FixedParticleMass或FixedTotalMass | FixedParticleMass |
 | `-fullscreen` | 以全屏模式启动程序 | 禁用 |
-| `-winWidth:X` | 设置窗口宽度，X为数字，不能超过系统分辨率 | 800 |
-| `-winHeight:X` | 设置窗口高度，X为数字，不能超过系统分辨率 | 600 |
+| `-winWidth:X` | 设置窗口宽度，X为数字，不能超过系统分辨率 | 1280 |
+| `-winHeight:X` | 设置窗口高度，X为数字，不能超过系统分辨率 | 800 |
 
 示例用法：
 ```

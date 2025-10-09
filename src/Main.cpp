@@ -56,8 +56,8 @@ void closeLogFile()
 namespace dx = DirectX;
 
 // 窗口尺寸常量 - 这里会被覆盖为全屏尺寸或自定义尺寸
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 1280;
+const unsigned int SCR_HEIGHT = 800;
 
 // 全局变量
 HWND hWnd = NULL;              // 窗口句柄
@@ -66,8 +66,8 @@ bool running = true;           // 运行标志
 bool debugOutputEnabled = false; // 调试输出开关，默认关闭
 bool f9Pressed = false;        // F9键按下标志，用于检测按键状态变化
 bool fullscreenMode = false;   // 全屏模式标志，默认false
-int customWindowWidth = 800;   // 自定义窗口宽度，默认800
-int customWindowHeight = 600;  // 自定义窗口高度，默认600
+int customWindowWidth = 1280;  // 自定义窗口宽度，默认1280
+int customWindowHeight = 800;  // 自定义窗口高度，默认800
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
 int iteratorCount = 20;        // XPBD求解器迭代次数，默认20
@@ -645,8 +645,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wcout << L"  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
         std::wcout << L"  -massMode:xxx        设置质量模式（xxx为FixedParticleMass或FixedTotalMass，默认FixedParticleMass）" << std::endl;
         std::wcout << L"  -fullscreen          以全屏模式启动程序" << std::endl;
-        std::wcout << L"  -winWidth:xxx        设置窗口宽度（xxx为数字，默认800，不能超过系统分辨率）" << std::endl;
-        std::wcout << L"  -winHeight:xxx       设置窗口高度（xxx为数字，默认600，不能超过系统分辨率）" << std::endl;
+        std::wcout << L"  -winWidth:xxx        设置窗口宽度（xxx为数字，默认1280，不能超过系统分辨率）" << std::endl;
+        std::wcout << L"  -winHeight:xxx       设置窗口高度（xxx为数字，默认800，不能超过系统分辨率）" << std::endl;
         std::wcout << L"===================================================" << std::endl;
         std::wcout << L"程序控制：" << std::endl;
         std::wcout << L"  F9                    切换调试输出开关" << std::endl;
