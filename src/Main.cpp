@@ -74,7 +74,8 @@ int iteratorCount = 20;        // XPBD求解器迭代次数，默认20
 uint32_t subIteratorCount = 1; // XPBD求解器子迭代次数，默认1
 int widthResolution = 100;     // 布料宽度分辨率（粒子数），默认100
 int heightResolution = 100;    // 布料高度分辨率（粒子数），默认100
-ClothParticleMassMode massMode = ClothParticleMassMode_FixedParticleMass; // 布料粒子质量模式，默认固定粒子质量
+ClothParticleMassMode massMode = ClothParticleMassMode::FixedParticleMass; // 布料粒子质量模式，默认固定粒子质量
+ClothMeshAndContraintMode meshAndContraintMode = ClothMeshAndContraintMode::Full; // 布料网格和约束模式，默认完整网格和约束
 
 // 布料物理参数
 float mass = 1.0f;             // 每个粒子的质量，默认1.0
@@ -739,16 +740,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         logDebug("Particle mass mode set to: " + massModeStr);
         if (massModeStr == "FixedTotalMass")
         {
-            massMode = ClothParticleMassMode_FixedTotalMass;
+            massMode = ClothParticleMassMode::FixedTotalMass;
         }
         else if (massModeStr == "FixedParticleMass")
         {
-            massMode = ClothParticleMassMode_FixedParticleMass;
+            massMode = ClothParticleMassMode::FixedParticleMass;
         }
         else
         {
             logDebug("Unknown mass mode: " + massModeStr + ", defaulting to FixedParticleMass");
-            massMode = ClothParticleMassMode_FixedParticleMass;
+            massMode = ClothParticleMassMode::FixedParticleMass;
         }
     }
     
@@ -836,7 +837,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
     
-    cloth = new Cloth(widthResolution, heightResolution, 10.0f, mass, massMode); // 使用命令行参数设置的分辨率和质量
+    cloth = new Cloth(widthResolution, heightResolution, 10.0f, mass, massMode, meshAndContraintMode);
     
     // 设置布料的物理参数
     cloth->SetAddLRAConstraints(addLRAConstraints);
@@ -858,6 +859,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 设置布料的材质颜色（红色）
     cloth->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
 
+    // 初始化布料
 	cloth->Initialize(device);
 
     // 设置XPBD求解器迭代次数

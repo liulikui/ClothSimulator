@@ -7,20 +7,15 @@
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
 
-// 构造函数：创建一个布料对象
-// 参数：
-//   widthResolution - 布料宽度方向的粒子数
-//   heightResolution - 布料高度方向的粒子数
-//   size - 布料的实际物理尺寸（以米为单位）
-//   mass - 每个粒子的质量
-//   massMode - 质量模式
-Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass, ClothParticleMassMode massMode)
+Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass, 
+    ClothParticleMassMode massMode, ClothMeshAndContraintMode meshAndContraintMode)
     : Mesh()
     , m_widthResolution(widthResolution)
     , m_heightResolution(heightResolution)
     , m_size(size)
     , m_mass(mass)
     , m_massMode(massMode)
+    , m_meshAndContraintMode(meshAndContraintMode)
     , m_distanceConstraintCompliance(1e-7f)
     , m_distanceConstraintDamping(1e-2f)
     , m_addDiagonalConstraints(true)
@@ -44,14 +39,12 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass, 
     m_gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
 }
 
-// 析构函数
 Cloth::~Cloth()
 {
     // 清除球体碰撞约束
     ClearSphereCollisionConstraints();
 }
 
-// 初始化布料的顶点和索引缓冲区
 bool Cloth::Initialize(IRALDevice* device)
 {
     // 确保device不为空
@@ -135,7 +128,6 @@ void Cloth::OnUpdateMesh(IRALDevice* device, PrimitiveMesh& mesh)
     device->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexBufferSize);
 }
 
-// 初始化球体碰撞约束（一次性创建，避免每帧重建）
 void Cloth::InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius)
 {
     dx::XMFLOAT3 relativeCenter;
@@ -156,6 +148,7 @@ void Cloth::InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCente
 void Cloth::ComputeNormals()
 {
     m_normals.clear();
+    m_normals.reserve(m_particles.size());
 
     // 计算法线（使用面法线的平均值）
     std::vector<dx::XMFLOAT3> vertexNormals(m_particles.size(), dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
@@ -232,7 +225,6 @@ void Cloth::ComputeNormals()
     }
 }
 
-// 更新布料状态
 void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 {
     // 使用XPBD求解器更新布料状态
@@ -251,7 +243,6 @@ void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
     }
 }
 
-// 清除所有球体碰撞约束
 void Cloth::ClearSphereCollisionConstraints()
 {
     // 释放球体碰撞约束的内存
@@ -263,7 +254,6 @@ void Cloth::ClearSphereCollisionConstraints()
     m_CollisionConstraints.clear();
 }
 
-// 创建布料的粒子
 void Cloth::CreateParticles()
 {
     m_particles.reserve(m_widthResolution * m_widthResolution);
@@ -280,7 +270,7 @@ void Cloth::CreateParticles()
 
 	float mass = m_mass;
 
-    if (m_massMode == ClothParticleMassMode_FixedTotalMass && totalNonStaticParticles > 0)
+    if (m_massMode == ClothParticleMassMode::FixedTotalMass && totalNonStaticParticles > 0)
     {
         mass = m_mass / totalNonStaticParticles; // 平均分配质量
 	}
@@ -337,7 +327,6 @@ void Cloth::CreateParticles()
     ComputeNormals();
 }
 
-// 增加距离约束
 void Cloth::AddDistanceConstraint(const DistanceConstraint& constraint)
 {
 #ifdef DEBUG_SOLVER
@@ -354,7 +343,6 @@ void Cloth::AddDistanceConstraint(const DistanceConstraint& constraint)
     m_distanceConstraints.push_back(constraint);
 }
 
-// 增加LRA约束
 void Cloth::AddLRAConstraint(const LRAConstraint& constraint)
 {
 #ifdef DEBUG_SOLVER
@@ -369,7 +357,6 @@ void Cloth::AddLRAConstraint(const LRAConstraint& constraint)
     m_lraConstraints.push_back(constraint);
 }
 
-// 增加二面角约束
 void Cloth::AddDihedralBendingConstraint(const DihedralBendingConstraint& constraint)
 {
 #ifdef DEBUG_SOLVER
@@ -391,7 +378,6 @@ void Cloth::AddDihedralBendingConstraint(const DihedralBendingConstraint& constr
     m_dihedralBendingConstraints.push_back(constraint);
 }
 
-// 创建布料的约束
 void Cloth::CreateConstraints()
 {
     m_distanceConstraints.clear();
