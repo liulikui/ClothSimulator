@@ -4,7 +4,7 @@ Camera::Camera(uint32_t width, uint32_t height)
     : m_width(width), m_height(height),
       m_fieldOfView(dx::XMConvertToRadians(45.0f)),
       m_nearClipPlane(0.1f),
-      m_farClipPlane(100.0f)
+      m_farClipPlane(1000.0f)
 {
 
     m_cameraPosition = dx::XMVectorSet(10.0f, 10.0f, 10.0f, 1.0f);
