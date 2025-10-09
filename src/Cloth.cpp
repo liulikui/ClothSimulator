@@ -162,29 +162,17 @@ void Cloth::ComputeNormals()
     {
         for (int w = 0; w < m_widthResolution - 1; ++w)
         {
-            // 第一个三角形：(w,h), (w+1,h), (w+1,h+1)
+            // 第一个三角形：(w,h), (w+1,h+1), (w+1,h)
             int i1 = h * m_widthResolution + w;
-            int i2 = h * m_widthResolution + w + 1;
-            int i3 = (h + 1) * m_widthResolution + w + 1;
+            int i2 = (h + 1) * m_widthResolution + w + 1;
+            int i3 = h * m_widthResolution + w + 1;
 
-            // 计算面法线 - 反转法线方向
+            // 计算面法线
             dx::XMVECTOR v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i2].position), dx::XMLoadFloat3(&m_particles[i1].position));
             dx::XMVECTOR v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i3].position), dx::XMLoadFloat3(&m_particles[i1].position));
-            dx::XMVECTOR crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
+            dx::XMVECTOR crossProduct = dx::XMVector3Cross(v1, v2);
 
-            // 检查叉乘结果是否为零向量，避免NaN
-            float lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
-            dx::XMVECTOR normal;
-
-            if (lengthSquared > 0.0001f) 
-            {
-                normal = dx::XMVector3Normalize(crossProduct);
-            }
-            else
-            {
-                // 如果叉乘结果接近零，使用默认法线
-                normal = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // 向上的法线
-            }
+            dx::XMVECTOR normal = dx::XMVector3Normalize(crossProduct);
 
             // 累加到顶点法线
             dx::XMVECTOR n1 = dx::XMLoadFloat3(&vertexNormals[i1]);
@@ -195,28 +183,17 @@ void Cloth::ComputeNormals()
             dx::XMStoreFloat3(&vertexNormals[i2], dx::XMVectorAdd(n2, normal));
             dx::XMStoreFloat3(&vertexNormals[i3], dx::XMVectorAdd(n3, normal));
 
-            // 第二个三角形：(w,h), (w+1,h+1), (w,h+1)
+            // 第二个三角形：(w,h), (w,h+1), (w+1,h+1)
             i1 = h * m_widthResolution + w;
-            i2 = (h + 1) * m_widthResolution + w + 1;
-            i3 = (h + 1) * m_widthResolution + w;
+            i2 = (h + 1) * m_widthResolution + w;
+            i3 = (h + 1) * m_widthResolution + w + 1;
 
-            // 计算面法线 - 反转法线方向
+            // 计算面法线
             v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i2].position), dx::XMLoadFloat3(&m_particles[i1].position));
             v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i3].position), dx::XMLoadFloat3(&m_particles[i1].position));
-            crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
+            crossProduct = dx::XMVector3Cross(v1, v2);
 
-            // 检查叉乘结果是否为零向量，避免NaN
-            lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
-
-            if (lengthSquared > 0.0001f)
-            {
-                normal = dx::XMVector3Normalize(crossProduct);
-            }
-            else
-            {
-                // 如果叉乘结果接近零，使用默认法线
-                normal = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // 向上的法线
-            }
+            normal = dx::XMVector3Normalize(crossProduct);
 
             // 累加到顶点法线
             n1 = dx::XMLoadFloat3(&vertexNormals[i1]);
