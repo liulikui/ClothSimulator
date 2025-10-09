@@ -9,76 +9,69 @@ namespace dx = DirectX;
 class SphereCollisionConstraint : public Constraint
 {
 public:
-    SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius)
+    SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius, float compliance, float damping)
+        : Constraint(compliance, damping)
+        , m_particle(p)
+        , m_sphereCenter(center)
+        , m_sphereRadius(radius)
     {
-        particle = p;
-        sphereCenter = center;
-        sphereRadius = radius;
-        compliance = 1e-7f;
-    }
-    
-    SphereCollisionConstraint(Particle* p, const dx::XMFLOAT3& center, float radius, float customCompliance)
-    {
-        particle = p;
-        sphereCenter = center;
-        sphereRadius = radius;
-        compliance = customCompliance;
     }
 
-    float ComputeConstraintValue() const override
+    float ComputeConstraintAndGradient(dx::XMFLOAT3* gradients) const override
     {
-        if (particle->isStatic) return 0.0f;
-        
-        dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
-        dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
-        dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
-        float distance = dx::XMVectorGetX(dx::XMVector3Length(toCenter));
-
-        if (distance > sphereRadius)
+        if (m_particle->isStatic)
         {
+            gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
             return 0.0f;
         }
         else
         {
-            return distance - sphereRadius;
+            dx::XMVECTOR pos = dx::XMLoadFloat3(&m_particle->position);
+            dx::XMVECTOR center = dx::XMLoadFloat3(&m_sphereCenter);
+            dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
+            float distance = dx::XMVectorGetX(dx::XMVector3Length(toCenter));
+
+            if (distance > m_sphereRadius)
+            {
+                gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+
+                return 0.0f;
+            }
+            else
+            {
+                if (distance > 1e-6f)
+                {
+                    dx::XMVECTOR gradient = dx::XMVectorScale(toCenter, 1.0f / distance);
+                    dx::XMFLOAT3 gradientFloat3;
+                    dx::XMStoreFloat3(&gradientFloat3, gradient);
+
+                    gradients[0] = gradientFloat3;
+
+                    return distance - m_sphereRadius;
+                }
+                else
+                {
+                    gradients[0] = dx::XMFLOAT3(0.0f, 1.0f, 0.0f);
+
+                    return 0.0f;
+                }
+            }
         }
     }
 
-    void ComputeGradient(std::vector<dx::XMFLOAT3>& gradients) const override
+    virtual uint32_t GetParticlesCount() const override
     {
-        gradients.clear();
-        if (particle->isStatic) return;
-
-        dx::XMVECTOR pos = dx::XMLoadFloat3(&particle->position);
-        dx::XMVECTOR center = dx::XMLoadFloat3(&sphereCenter);
-        dx::XMVECTOR toCenter = dx::XMVectorSubtract(pos, center);
-        float distance = dx::XMVectorGetX(dx::XMVector3Length(toCenter));
-
-        if (distance > 1e-9f)
-        {
-            dx::XMVECTOR gradient = dx::XMVectorScale(toCenter, 1.0f / distance);
-            dx::XMFLOAT3 gradientFloat3;
-            dx::XMStoreFloat3(&gradientFloat3, gradient);
-            gradients.push_back(gradientFloat3);
-        }
-        else
-        {
-            gradients.push_back(dx::XMFLOAT3(0.0f, 1.0f, 0.0f));
-        }
+        return 1;
     }
 
-    std::vector<Particle*> GetParticles() override
+    virtual Particle** GetParticles()
     {
-        std::vector<Particle*> result;
-        result.push_back(particle);
-        return result;
+        return &m_particle;
     }
 
-    std::vector<const Particle*> GetParticles() const override
+    virtual const Particle** GetParticles() const override
     {
-        std::vector<const Particle*> result;
-        result.push_back(particle);
-        return result;
+        return (const Particle**)(&m_particle);
     }
 
     virtual const char* GetConstraintType() const override
@@ -87,7 +80,7 @@ public:
     }
 
 private:
-    Particle* particle;
-    dx::XMFLOAT3 sphereCenter;
-    float sphereRadius;
+    Particle* m_particle;
+    dx::XMFLOAT3 m_sphereCenter;
+    float m_sphereRadius;
 };

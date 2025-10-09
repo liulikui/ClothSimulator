@@ -30,12 +30,13 @@ public:
     // 析构函数
     ~Scene();
     
-    // 获取场景中Mesh对象的数量
-    size_t GetMeshCount() const {
+    // 获取场景中Primitive对象的数量
+    size_t GetPrimitiveCount() const
+    {
         return m_primitives.size();
     }
 
-    // 更新场景中所有对象的状态
+    // 更新场景中所有Primitive对象的状态
     void Update(float deltaTime);
 
     // 渲染场景

@@ -168,7 +168,7 @@ void DX12RALDevice::EndFrame()
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // 呈现
-    HRESULT presentHr = m_swapChain->Present(1, 0);
+    HRESULT presentHr = m_swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     if (FAILED(presentHr))
     {
         throw std::runtime_error("Failed to present swap chain.");
@@ -262,7 +262,7 @@ bool DX12RALDevice::CreateDeviceAndSwapChain()
     swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
     // 创建交换链
     ComPtr<IDXGISwapChain1> swapChain1;
@@ -1723,7 +1723,7 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
         m_width,
         m_height,
         DXGI_FORMAT_R8G8B8A8_UNORM,
-        DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
+        DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
     );
 
     if (FAILED(hr))

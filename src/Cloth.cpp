@@ -3,7 +3,6 @@
 #include <DirectXMath.h>
 #include <algorithm>
 #include "SphereCollisionConstraint.h"
-#include "DX12RALResource.h"
 
 // 为了方便使用，定义一个简化的命名空间别名
 namespace dx = DirectX;
@@ -14,22 +13,35 @@ namespace dx = DirectX;
 //   heightResolution - 布料高度方向的粒子数
 //   size - 布料的实际物理尺寸（以米为单位）
 //   mass - 每个粒子的质量
-Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass)
+//   massMode - 质量模式
+Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass, ClothParticleMassMode massMode)
     : Mesh()
     , m_widthResolution(widthResolution)
     , m_heightResolution(heightResolution)
     , m_size(size)
     , m_mass(mass)
-    , m_useXPBDCollision(true)
-    , m_addLRAConstraint(true)
+    , m_massMode(massMode)
+    , m_distanceConstraintCompliance(1e-7f)
+    , m_distanceConstraintDamping(1e-2f)
+    , m_addDiagonalConstraints(true)
+    , m_addBendingConstraints(true)
+    , m_bendingConstraintCompliance(1e-5f)
+    , m_bendingConstraintDamping(1e-3f)
+    , m_addDihedralBendingConstraints(false)
+    , m_dihedralBendingConstraintCompliance(1e-7f)
+    , m_dihedralBendingConstraintDamping(1e-2f)
+    , m_addLRAConstraints(true)
+    , m_LRAConstraintCompliance(1e-7f)
+    , m_LRAConstraintDamping(1e-2f)
     , m_LRAMaxStrech(0.01f)
-    , m_iteratorCount(10)
-    , m_subIteratorCount(4)
-    , m_solver(m_particles, m_constraints, m_iteratorCount, m_subIteratorCount)
+    , m_sphereCollisionConstraintCompliance(1e-9f)
+    , m_sphereCollisionConstraintDamping(1e-2f)
+    , m_iteratorCount(20)
+    , m_subIteratorCount(1)
+    , m_solver(this)
 {
     // 设置重力为标准地球重力
     m_gravity = dx::XMFLOAT3(0.0f, -9.8f, 0.0f);
-    m_solver.SetGravity(m_gravity);
 }
 
 // 析构函数
@@ -37,14 +49,6 @@ Cloth::~Cloth()
 {
     // 清除球体碰撞约束
     ClearSphereCollisionConstraints();
-
-    // 清除距离约束
-    for (auto& constraint : m_distanceConstraints) {
-        // 注意：distanceConstraints中的对象是直接存储的，不需要delete
-    }
-    
-    // 清除约束指针数组中的其他约束（如果有）
-    m_constraints.clear();
 }
 
 // 初始化布料的顶点和索引缓冲区
@@ -63,34 +67,6 @@ bool Cloth::Initialize(IRALDevice* device)
     // 创建布料的约束
     CreateConstraints();
 
-    // 生成布料的顶点和索引数据
-    // 首先生成索引数据（如果尚未生成）
-    if (m_indices.empty())
-    {
-        // 生成三角形面的索引数据
-        for (int y = 0; y < m_heightResolution - 1; ++y) {
-            for (int x = 0; x < m_widthResolution - 1; ++x) {
-                // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
-                int i1 = y * m_widthResolution + x;
-                int i2 = y * m_widthResolution + x + 1;
-                int i3 = (y + 1) * m_widthResolution + x + 1;
-
-                m_indices.push_back(i1);
-                m_indices.push_back(i2);
-                m_indices.push_back(i3);
-
-                // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
-                i1 = y * m_widthResolution + x;
-                i2 = (y + 1) * m_widthResolution + x + 1;
-                i3 = (y + 1) * m_widthResolution + x;
-
-                m_indices.push_back(i1);
-                m_indices.push_back(i2);
-                m_indices.push_back(i3);
-            }
-        }
-    }
-   
     return true;
 }
 
@@ -171,14 +147,9 @@ void Cloth::InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCente
         if (!particle.isStatic)
         {
             SphereCollisionConstraint* constraint = new SphereCollisionConstraint(
-                &particle, relativeCenter, sphereRadius, 1e-9f); // 减小柔度值以增加刚性
-            m_sphereConstraints.push_back(constraint);
+                &particle, relativeCenter, sphereRadius, m_sphereCollisionConstraintCompliance, m_sphereCollisionConstraintDamping);
+            m_CollisionConstraints.push_back(constraint);
         }
-    }
-    
-    for (auto constraint : m_sphereConstraints)
-    {
-        m_constraints.push_back(reinterpret_cast<Constraint*>(constraint));
     }
 }
 
@@ -190,31 +161,21 @@ void Cloth::ComputeNormals()
     std::vector<dx::XMFLOAT3> vertexNormals(m_particles.size(), dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
 
     // 计算顶点法线
-    for (int y = 0; y < m_heightResolution - 1; ++y) {
-        for (int x = 0; x < m_widthResolution - 1; ++x) {
-            // 第一个三角形：(x,y), (x+1,y), (x+1,y+1)
-            int i1 = y * m_widthResolution + x;
-            int i2 = y * m_widthResolution + x + 1;
-            int i3 = (y + 1) * m_widthResolution + x + 1;
+    for (int h = 0; h < m_heightResolution - 1; ++h)
+    {
+        for (int w = 0; w < m_widthResolution - 1; ++w)
+        {
+            // 第一个三角形：(w,h), (w+1,h+1), (w+1,h)
+            int i1 = h * m_widthResolution + w;
+            int i2 = (h + 1) * m_widthResolution + w + 1;
+            int i3 = h * m_widthResolution + w + 1;
 
-            // 计算面法线 - 反转法线方向
+            // 计算面法线
             dx::XMVECTOR v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i2].position), dx::XMLoadFloat3(&m_particles[i1].position));
             dx::XMVECTOR v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i3].position), dx::XMLoadFloat3(&m_particles[i1].position));
-            dx::XMVECTOR crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
+            dx::XMVECTOR crossProduct = dx::XMVector3Cross(v1, v2);
 
-            // 检查叉乘结果是否为零向量，避免NaN
-            float lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
-            dx::XMVECTOR normal;
-
-            if (lengthSquared > 0.0001f) 
-            {
-                normal = dx::XMVector3Normalize(crossProduct);
-            }
-            else
-            {
-                // 如果叉乘结果接近零，使用默认法线
-                normal = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // 向上的法线
-            }
+            dx::XMVECTOR normal = dx::XMVector3Normalize(crossProduct);
 
             // 累加到顶点法线
             dx::XMVECTOR n1 = dx::XMLoadFloat3(&vertexNormals[i1]);
@@ -225,28 +186,17 @@ void Cloth::ComputeNormals()
             dx::XMStoreFloat3(&vertexNormals[i2], dx::XMVectorAdd(n2, normal));
             dx::XMStoreFloat3(&vertexNormals[i3], dx::XMVectorAdd(n3, normal));
 
-            // 第二个三角形：(x,y), (x+1,y+1), (x,y+1)
-            i1 = y * m_widthResolution + x;
-            i2 = (y + 1) * m_widthResolution + x + 1;
-            i3 = (y + 1) * m_widthResolution + x;
+            // 第二个三角形：(w,h), (w,h+1), (w+1,h+1)
+            i1 = h * m_widthResolution + w;
+            i2 = (h + 1) * m_widthResolution + w;
+            i3 = (h + 1) * m_widthResolution + w + 1;
 
-            // 计算面法线 - 反转法线方向
+            // 计算面法线
             v1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i2].position), dx::XMLoadFloat3(&m_particles[i1].position));
             v2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&m_particles[i3].position), dx::XMLoadFloat3(&m_particles[i1].position));
-            crossProduct = dx::XMVector3Cross(v2, v1); // 反转叉乘顺序以反转法线方向
+            crossProduct = dx::XMVector3Cross(v1, v2);
 
-            // 检查叉乘结果是否为零向量，避免NaN
-            lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(crossProduct));
-
-            if (lengthSquared > 0.0001f)
-            {
-                normal = dx::XMVector3Normalize(crossProduct);
-            }
-            else
-            {
-                // 如果叉乘结果接近零，使用默认法线
-                normal = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // 向上的法线
-            }
+            normal = dx::XMVector3Normalize(crossProduct);
 
             // 累加到顶点法线
             n1 = dx::XMLoadFloat3(&vertexNormals[i1]);
@@ -267,7 +217,8 @@ void Cloth::ComputeNormals()
         float lengthSquared = dx::XMVectorGetX(dx::XMVector3LengthSq(n));
         dx::XMFLOAT3 normalizedNormal;
 
-        if (lengthSquared > 0.0001f) {
+        if (lengthSquared > 0.0001f)
+        {
             n = dx::XMVector3Normalize(n);
             dx::XMStoreFloat3(&normalizedNormal, n);
         }
@@ -284,13 +235,6 @@ void Cloth::ComputeNormals()
 // 更新布料状态
 void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 {
-    // 设置求解器参数
-    m_solver.SetIterations(m_iteratorCount);
-    m_solver.SetSubIterations(m_subIteratorCount);
-
-    // 添加重力
-    m_solver.SetGravity(m_gravity);
-    
     // 使用XPBD求解器更新布料状态
     m_solver.Step(deltaTime);
     
@@ -310,18 +254,13 @@ void Cloth::Update(IRALGraphicsCommandList* commandList, float deltaTime)
 // 清除所有球体碰撞约束
 void Cloth::ClearSphereCollisionConstraints()
 {
-    // 从总约束列表中移除球体碰撞约束
-    auto it = std::remove_if(m_constraints.begin(), m_constraints.end(), [this](Constraint* constraint){
-        return std::find(m_sphereConstraints.begin(), m_sphereConstraints.end(), constraint) != m_sphereConstraints.end();
-    });
-    m_constraints.erase(it, m_constraints.end());
-    
     // 释放球体碰撞约束的内存
-    for (auto constraint : m_sphereConstraints)
+    for (auto constraint : m_CollisionConstraints)
     {
         delete constraint;
     }
-    m_sphereConstraints.clear();
+
+    m_CollisionConstraints.clear();
 }
 
 // 创建布料的粒子
@@ -329,94 +268,232 @@ void Cloth::CreateParticles()
 {
     m_particles.reserve(m_widthResolution * m_widthResolution);
     
-    float stepX = m_size / (m_widthResolution - 1);
-    float stepZ = m_size / (m_heightResolution - 1);
+    float stepW = m_size / (m_widthResolution - 1);
+    float stepH = m_size / (m_heightResolution - 1);
     
     // 将位置转换为XMVECTOR进行计算
-    dx::XMVECTOR posVector = dx::XMLoadFloat3(&dx::XMFLOAT3(0.0f, 0.0f, 0.0f));
+    dx::XMFLOAT3 origin = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    dx::XMVECTOR posVector = dx::XMLoadFloat3(&origin);
     
-    for (int y = 0; y < m_heightResolution; ++y)
+	int totalParticles = m_widthResolution * m_heightResolution;
+	int totalNonStaticParticles = totalParticles - 2; // 减去两个静态粒子
+
+	float mass = m_mass;
+
+    if (m_massMode == ClothParticleMassMode_FixedTotalMass && totalNonStaticParticles > 0)
     {
-        for (int x = 0; x < m_widthResolution; ++x)
+        mass = m_mass / totalNonStaticParticles; // 平均分配质量
+	}
+
+    for (int h = 0; h < m_heightResolution; ++h)
+    {
+        for (int w = 0; w < m_widthResolution; ++w)
         {
             // 计算粒子位置
-            dx::XMVECTOR offset = dx::XMVectorSet(x * stepX, 0.0f, y * stepZ, 0.0f);
+            dx::XMVECTOR offset = dx::XMVectorSet(w * stepW, 0.0f, h * stepH, 0.0f);
             dx::XMVECTOR pos = dx::XMVectorAdd(posVector, offset);
             dx::XMFLOAT3 posFloat3;
             dx::XMStoreFloat3(&posFloat3, pos);
             
             // 左上角和右上角的粒子设为静态
-            bool isStatic = (x == 0 && y == 0) || (x == m_widthResolution - 1 && y == 0);
+            bool isStatic = (w == 0 && h == 0) || (w == m_widthResolution - 1 && h == 0);
             
             // 创建粒子
-            m_particles.emplace_back(posFloat3, m_mass, isStatic);
+            m_particles.emplace_back(posFloat3, mass, isStatic);
 
 #ifdef DEBUG_SOLVER
             Particle& particle = m_particles.back();
-            particle.coordX = x;
-            particle.coordY = y;
+            particle.coordW = w;
+            particle.coordH = h;
 #endif//DEBUG_SOLVER
+        }
+    }
+
+    // 生成三角形面的索引数据
+    for (int h = 0; h < m_heightResolution - 1; ++h)
+    {
+        for (int w = 0; w < m_widthResolution - 1; ++w)
+        {
+            // 第一个三角形：(w,h), (w+1,h+1), (w+1,h)
+            int i1 = h * m_widthResolution + w;
+            int i2 = (h + 1) * m_widthResolution + w + 1;
+            int i3 = h * m_widthResolution + w + 1; 
+
+            m_indices.push_back(i1);
+            m_indices.push_back(i2);
+            m_indices.push_back(i3);
+
+            // 第二个三角形：(w,h), (w,h+1), (w+1,h+1)
+            i1 = h * m_widthResolution + w;
+            i2 = (h + 1) * m_widthResolution + w; 
+            i3 = (h + 1) * m_widthResolution + w + 1;
+
+            m_indices.push_back(i1);
+            m_indices.push_back(i2);
+            m_indices.push_back(i3);
         }
     }
 
     ComputeNormals();
 }
 
+// 增加距离约束
+void Cloth::AddDistanceConstraint(const DistanceConstraint& constraint)
+{
+#ifdef DEBUG_SOLVER
+    const Particle** particles = constraint.GetParticles();
+    char buffer[128];
+    sprintf_s(buffer, "[DEBUG] P1_w:%d, P1_h:%d P2_w:%d, P2_h:%d"
+        , particles[0]->coordW
+        , particles[0]->coordH
+        , particles[1]->coordW
+        , particles[1]->coordH);
+    logDebug(buffer);
+#endif//DEBUG_SOLVER
+
+    m_distanceConstraints.push_back(constraint);
+}
+
+// 增加LRA约束
+void Cloth::AddLRAConstraint(const LRAConstraint& constraint)
+{
+#ifdef DEBUG_SOLVER
+    const Particle** particles = constraint.GetParticles();
+    char buffer[128];
+    sprintf_s(buffer, "[DEBUG] P1_w:%d, P1_h:%d"
+        , particles[0]->coordW
+        , particles[0]->coordH);
+    logDebug(buffer);
+#endif//DEBUG_SOLVER
+
+    m_lraConstraints.push_back(constraint);
+}
+
+// 增加二面角约束
+void Cloth::AddDihedralBendingConstraint(const DihedralBendingConstraint& constraint)
+{
+#ifdef DEBUG_SOLVER
+    const Particle** particles = constraint.GetParticles();
+    char buffer[256];
+    sprintf_s(buffer, "[DEBUG] P1_w:%d, P1_h:%d P2_w:%d, P2_h:%d P3_w:%d, P3_h:%d P4_w:%d, P4_h:%d"
+        , particles[0]->coordW
+        , particles[0]->coordH
+        , particles[1]->coordW
+        , particles[1]->coordH
+        , particles[2]->coordW
+        , particles[2]->coordH
+        , particles[3]->coordW
+        , particles[3]->coordH
+    );
+    logDebug(buffer);
+#endif//DEBUG_SOLVER
+
+    m_dihedralBendingConstraints.push_back(constraint);
+}
+
 // 创建布料的约束
 void Cloth::CreateConstraints()
 {
     m_distanceConstraints.clear();
-    m_constraints.clear();
-    
-    float restLength = m_size / (m_widthResolution - 1);
-    float compliance = 1e-7f; // 减小柔度值以增加布料刚性
-    
+
+#ifdef DEBUG_SOLVER
+    logDebug("[DEBUG] Begin adding distance constraints");
+#endif//DEBUG_SOLVER
+
     // 创建结构约束（相邻粒子之间）
-    for (int y = 0; y < m_heightResolution; ++y)
+    for (int h = 0; h < m_heightResolution; ++h)
     {
-        for (int x = 0; x < m_widthResolution; ++x)
+        for (int w = 0; w < m_widthResolution; ++w)
         {
             // 水平约束
-            if (x < m_widthResolution - 1)
+            if (w < m_widthResolution - 1)
             {
-                int idx1 = y * m_widthResolution + x;
-                int idx2 = y * m_widthResolution + (x + 1);
-                m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength, compliance);
+                int id1 = h * m_widthResolution + w;
+                int id2 = h * m_widthResolution + (w + 1);
+                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
             }
             
             // 垂直约束
-            if (y < m_heightResolution - 1)
+            if (h < m_heightResolution - 1)
             {
-                int idx1 = y * m_widthResolution + x;
-                int idx2 = (y + 1) * m_widthResolution + x;
-                m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength, compliance);
-            }
-            
-            // 对角约束（可选，增加稳定性）
-            if (x < m_widthResolution - 1 && y < m_heightResolution - 1)
-            {
-                int idx1 = y * m_widthResolution + x;
-                int idx2 = (y + 1) * m_widthResolution + (x + 1);
-                m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength * std::sqrt(2.0f), compliance);
-            }
-            
-            if (x < m_widthResolution - 1 && y > 0)
-            {
-                int idx1 = y * m_widthResolution + x;
-                int idx2 = (y - 1) * m_widthResolution + (x + 1);
-                m_distanceConstraints.emplace_back(&m_particles[idx1], &m_particles[idx2], restLength * std::sqrt(2.0f), compliance);
+                int id1 = h * m_widthResolution + w;
+                int id2 = (h + 1) * m_widthResolution + w;
+                AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
             }
         }
     }
 
-    // 填充约束指针数组
-    for (auto& constraint : m_distanceConstraints)
+#ifdef DEBUG_SOLVER
+    logDebug("[DEBUG] End adding distance constraints");
+#endif//DEBUG_SOLVER
+
+    // 对角约束（可选，增加稳定性）
+    if (m_addDiagonalConstraints)
     {
-        m_constraints.push_back(&constraint);
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding diagonal distance constraints");
+#endif//DEBUG_SOLVER
+
+        for (int h = 0; h < m_heightResolution; ++h)
+        {
+            for (int w = 0; w < m_widthResolution; ++w)
+            {
+                if (w < m_widthResolution - 1 && h < m_heightResolution - 1)
+                {
+                    int id1 = h * m_widthResolution + w;
+                    int id2 = (h + 1) * m_widthResolution + (w + 1);
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
+                }
+
+                if (w < m_widthResolution - 1 && h > 0)
+                {
+                    int id1 = h * m_widthResolution + w;
+                    int id2 = (h - 1) * m_widthResolution + (w + 1);
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
+                }
+            }
+        }
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding diagonal distance constraints");
+#endif//DEBUG_SOLVER
     }
 
-    if (m_addLRAConstraint)
+    if (m_addBendingConstraints && m_heightResolution > 2 && m_widthResolution > 2)
     {
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding bending constraints");
+#endif//DEBUG_SOLVER
+        for (int h = 0; h < m_heightResolution; ++h)
+        {
+            for (int w = 0; w < m_widthResolution; ++w)
+            {
+                if (w + 2 < m_widthResolution)
+                {
+                    int id1 = h * m_widthResolution + w;
+                    int id2 = h * m_widthResolution + (w + 2);
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_bendingConstraintCompliance, m_bendingConstraintDamping));
+                }
+
+                if (h + 2 < m_heightResolution)
+                {
+                    int id1 = h * m_widthResolution + w;
+                    int id2 = (h + 2) * m_widthResolution + w;
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_bendingConstraintCompliance, m_bendingConstraintDamping));
+                }
+            }
+        }
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding bending constraints");
+#endif//DEBUG_SOLVER
+    }
+
+    if (m_addLRAConstraints)
+    {
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding LRA constraints");
+#endif//DEBUG_SOLVER
+
         // 为除静止粒子外的所有粒子添加LRA约束
         // 获取两个静止粒子的位置
         int leftTopIndex = 0; // 左上角静止粒子索引
@@ -436,7 +513,7 @@ void Cloth::CreateConstraints()
             float distanceToLeftTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
 
             // 添加到左上角静止粒子的LRA约束
-            m_lraConstraints.emplace_back(&m_particles[i], m_particles[leftTopIndex].position, distanceToLeftTop, compliance, m_LRAMaxStrech);
+            AddLRAConstraint(LRAConstraint(&m_particles[i], m_particles[leftTopIndex].position, distanceToLeftTop, m_LRAConstraintCompliance, m_LRAConstraintDamping, m_LRAMaxStrech));
 
             // 计算到右上角静止粒子的欧几里德距离作为测地线距离
             dx::XMVECTOR rightTopPos = dx::XMLoadFloat3(&m_particles[rightTopIndex].position);
@@ -444,13 +521,129 @@ void Cloth::CreateConstraints()
             float distanceToRightTop = dx::XMVectorGetX(dx::XMVector3Length(diff));
 
             // 添加到右上角静止粒子的LRA约束
-            m_lraConstraints.emplace_back(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, compliance, m_LRAMaxStrech);
+            AddLRAConstraint(LRAConstraint(&m_particles[i], m_particles[rightTopIndex].position, distanceToRightTop, m_LRAConstraintCompliance, m_LRAConstraintDamping, m_LRAMaxStrech));
         }
 
-        // 填充约束指针数组
-        for (auto& constraint : m_lraConstraints)
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding LRA constraints");
+#endif//DEBUG_SOLVER
+    }
+
+    // 如果启用了二面角约束，则添加它们
+    if (m_addDihedralBendingConstraints)
+    {
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding dihedral bending constraints");
+#endif//DEBUG_SOLVER
+
+        m_dihedralBendingConstraints.clear();
+        
+        // 遍历布料，为每对相邻的三角形创建二面角约束
+        
+        if (m_heightResolution > 2 && m_widthResolution > 2)
         {
-            m_constraints.push_back(&constraint);
+#ifdef DEBUG_SOLVER
+            logDebug("[DEBUG] Begin adding horizontal dihedral bending constraints");
+#endif//DEBUG_SOLVER
+
+            // 1. 处理水平方向的边，为每对水平相邻的三角形创建约束
+            // 为3*3网格示例：
+            // p1(1,0), p2(1,1), p3(0,0), p4(2,1)
+            for (int h = 0; h < m_heightResolution - 1; ++h)
+            {
+                for (int w = 1; w + 1 < m_widthResolution; ++w)
+                {
+                    // 公共顶点1 (w,h)
+                    int p1 = h * m_widthResolution + w;
+                    // 公共顶点2 (w,h+1)
+                    int p2 = (h + 1) * m_widthResolution + w;
+                    // 第一个三角形的第三个顶点 (w-1,h)
+                    int p3 = h * m_widthResolution + (w - 1);
+                    // 第二个三角形的第三个顶点 (w+1,w+1)
+                    int p4 = (h + 1) * m_widthResolution + (w + 1);
+
+                    AddDihedralBendingConstraint(DihedralBendingConstraint(
+                        &m_particles[p1], // 公共顶点1
+                        &m_particles[p2], // 公共顶点2
+                        &m_particles[p3], // 三角形1的第三个顶点
+                        &m_particles[p4], // 三角形2的第三个顶点
+                        m_dihedralBendingConstraintCompliance,
+                        m_dihedralBendingConstraintDamping));
+                }
+            }
+
+#ifdef DEBUG_SOLVER
+            logDebug("[DEBUG] End adding horizontal dihedral bending constraints");
+#endif//DEBUG_SOLVER
+
+#ifdef DEBUG_SOLVER
+            logDebug("[DEBUG] Begin adding vertical dihedral bending constraints");
+#endif//DEBUG_SOLVER
+
+            // 2. 处理垂直方向的边，为每对垂直相邻的三角形创建约束
+            // 为3*3网格示例：
+            // p1(0,1), p2(1,1), p3(0,0), p4(1,2)
+            for (int w = 0; w < m_widthResolution - 1; ++w)
+            {
+                for (int h = 0; h + 1 < m_heightResolution - 1; ++h)
+                {
+                    // 公共顶点1 (w,h+１)
+                    int p1 = (h + 1) * m_widthResolution + w;
+                    // 公共顶点2 (w+1,h+1)
+                    int p2 = (h + 1) * m_widthResolution + (w + 1);
+                    // 第一个三角形的第三个顶点 (w,h)
+                    int p3 = (h + 2) * m_widthResolution + (w + 1);
+                    // 第二个三角形的第三个顶点 (w+1,h+2)
+                    int p4 = h * m_widthResolution + w;
+
+                    AddDihedralBendingConstraint(DihedralBendingConstraint(
+                        &m_particles[p1], // 公共顶点1
+                        &m_particles[p2], // 公共顶点2
+                        &m_particles[p3], // 三角形1的第三个顶点
+                        &m_particles[p4], // 三角形2的第三个顶点
+                        m_dihedralBendingConstraintCompliance,
+                        m_dihedralBendingConstraintDamping));
+                }
+            }
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding vertical dihedral bending constraints");
+#endif//DEBUG_SOLVER
+
         }
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding each square dihedral bending constraints");
+#endif//DEBUG_SOLVER
+
+        for (int h = 0; h < m_heightResolution - 1; ++h)
+        {
+            for (int w = 0; w < m_widthResolution - 1; ++w)
+            {
+                // 公共顶点1 (w,h)
+                int p1 = h * m_widthResolution + w;
+                // 公共顶点2 (w+1,h+1)
+                int p2 = (h + 1) * m_widthResolution + (w + 1);
+                // 第一个三角形的第三个顶点 (w + 1,h)
+                int p3 = h * m_widthResolution + (w + 1);
+                // 第二个三角形的第三个顶点 (w,h+1)
+                int p4 = (h + 1) * m_widthResolution + w;
+
+                AddDihedralBendingConstraint(DihedralBendingConstraint(
+                    &m_particles[p1], // 公共顶点1
+                    &m_particles[p2], // 公共顶点2
+                    &m_particles[p3], // 三角形1的第三个顶点
+                    &m_particles[p4], // 三角形2的第三个顶点
+                    m_dihedralBendingConstraintCompliance,
+                    m_dihedralBendingConstraintDamping));
+            }
+        }
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding each square dihedral bending constraints");
+#endif//DEBUG_SOLVER
+
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding dihedral bending constraints");
+#endif//DEBUG_SOLVER
     }
 }
