@@ -96,54 +96,6 @@ public:
     // 清除所有球体碰撞约束
     void ClearSphereCollisionConstraints();
 
-    // 获取是否增加对角约束
-    bool GetAddDiagonalConstraints() const
-    {
-        return m_addDiagonalConstraints;
-    }
-
-    // 设置是否增加对角约束
-    void SetAddDiagonalConstraints(bool add)
-    {
-        m_addDiagonalConstraints = add;
-    }
-
-    // 获取是否增加LRA约束
-    bool GetAddLRAConstraints() const
-    {
-        return m_addLRAConstraints;
-    }
-
-    // 设置是否增加LRA约束
-    void SetAddLRAConstraints(bool add)
-    {
-        m_addLRAConstraints = add;
-    }
-
-    // 获取是否增加二面角约束
-    bool GetAddBendingConstraints() const
-    { 
-        return m_addBendingConstraints; 
-    }
-
-    // 设置是否增加二面角约束
-    void SetAddBendingConstraints(bool add)
-    {
-        m_addBendingConstraints = add;
-    }
-
-    // 获取LRA约束最大拉伸量
-    float GetLRAMaxStretch() const
-    { 
-        return m_LRAMaxStrech; 
-    }
-
-    // 设置LRA约束最大拉伸量
-    void SetLRAMaxStretch(float maxStretch)
-    {
-        m_LRAMaxStrech = maxStretch;
-    }
-    
     // 获取距离约束的柔度
     float GetDistanceConstraintCompliance() const
     {
@@ -168,6 +120,78 @@ public:
         m_distanceConstraintDamping = damping;
     }
 
+    // 获取是否增加对角约束
+    bool GetAddDiagonalConstraints() const
+    {
+        return m_addDiagonalConstraints;
+    }
+
+    // 设置是否增加对角约束
+    void SetAddDiagonalConstraints(bool add)
+    {
+        m_addDiagonalConstraints = add;
+    }
+
+    // 设置是否增加Bending约束
+    void SetAddBendingConstraints(bool add)
+    {
+        m_addBendingConstraints = add;
+    }
+
+    // 获取是否增加Bending约束
+    bool GetAddBendingConstraints() const
+    {
+        return m_addBendingConstraints;
+    }
+
+    // 获取弯曲约束的柔度
+    float GetBendingConstraintCompliance() const
+    {
+        return m_bendingConstraintCompliance;
+    }
+
+    // 设置弯曲约束的柔度
+    void SetBendingConstraintCompliance(float compliance)
+    {
+        m_bendingConstraintCompliance = compliance;
+    }
+
+    // 获取弯曲约束的阻尼
+    float GetBendingConstraintDamping() const
+    {
+        return m_bendingConstraintDamping;
+    }
+
+    // 设置弯曲约束的阻尼
+    void SetBendingConstraintDamping(float damping)
+    {
+        m_bendingConstraintDamping = damping;
+    }
+
+    // 获取是否增加LRA约束
+    float GetAddLRAConstraints() const
+    {
+        return m_addLRAConstraints;
+    }
+
+    // 设置是否增加LRA约束
+    void SetAddLRAConstraints(bool add)
+    {
+        m_addLRAConstraints = add;
+    }
+
+    // 获取LRA约束最大拉伸量
+    float GetLRAMaxStretch() const
+    { 
+        return m_LRAMaxStrech; 
+    }
+
+    // 设置LRA约束最大拉伸量
+    void SetLRAMaxStretch(float maxStretch)
+    {
+        m_LRAMaxStrech = maxStretch;
+    }
+
     // 获取LRA约束的柔度
     float GetLRAConstraintCompliance() const
     {
@@ -178,6 +202,18 @@ public:
     void SetLRAConstraintCompliance(float compliance)
     {
         m_LRAConstraintCompliance = compliance;
+    }
+
+    // 获取是否增加二面角约束
+    bool GetAddDihedralBendingConstraints() const
+    {
+        return m_addDihedralBendingConstraints;
+    }
+
+    // 设置是否增加二面角约束
+    void SetAddDihedralBendingConstraints(bool add)
+    {
+        m_addDihedralBendingConstraints = add;
     }
 
     // 获取二面角约束的柔度
@@ -257,17 +293,24 @@ private:
     std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
     float m_distanceConstraintCompliance; // 距离约束的柔度系数
     float m_distanceConstraintDamping;  // 距离约束的阻尼系数
+
+	bool m_addDiagonalConstraints; // 是否增加对角线约束
+    bool m_addBendingConstraints; // 是否增加弯曲约束
+    float m_bendingConstraintCompliance; // 弯曲约束的柔度系数
+    float m_bendingConstraintDamping;  // 弯曲约束的阻尼系数
+
+    bool m_addLRAConstraints;    // 是否增加LRA约束
     float m_LRAConstraintCompliance; // LRA约束的柔度系数
     float m_LRAConstraintDamping; // LRA约束的阻尼系数
+    float m_LRAMaxStrech;       // LRA最大拉伸量
+
+    bool m_addDihedralBendingConstraints; // 是否增加二面角bending约束
     float m_dihedralBendingConstraintCompliance; // 二面角约束的柔度系数
     float m_dihedralBendingConstraintDamping; // 二面角约束的阻尼系数
+
     float m_sphereCollisionConstraintCompliance; // 球面碰撞约束的柔度系数
     float m_sphereCollisionConstraintDamping; // 球面碰撞约束的阻尼系数
-	bool m_addDiagonalConstraints; // 是否增加对角线约束
-    bool m_addLRAConstraints;    // 是否增加LRA约束
-    bool m_addBendingConstraints; // 是否增加二面角约束
-    float m_LRAMaxStrech;       // LRA最大拉伸量
-    
+
     // XPBD求解器
     XPBDSolver m_solver; // 用于求解布料的物理行为
     

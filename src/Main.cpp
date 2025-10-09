@@ -34,7 +34,9 @@ void initLogFile()
     if (logFile.is_open())
     {
         logFile << "[LOG] Debug log started." << std::endl;
-    } else {
+    }
+    else
+    {
         std::cerr << "Failed to open log file!" << std::endl;
     }
 }
@@ -69,10 +71,25 @@ int customWindowHeight = 600;  // 自定义窗口高度，默认600
 int frameCount = 0;            // 当前帧数计数器
 int maxFrames = -1;            // 最大帧数限制（-1表示不限制）
 int iteratorCount = 20;        // XPBD求解器迭代次数，默认20
-uint32_t subIteratorCount = 1; // XPBD求解器迭代次数，默认值1
-int widthResolution = 100;      // 布料宽度分辨率（粒子数），默认100
-int heightResolution = 100;     // 布料高度分辨率（粒子数），默认100
-ClothParticleMassMode massMode = ClothParticleMassMode_FixedTotalMass; // 布料粒子质量模式，默认固定总质量
+uint32_t subIteratorCount = 1; // XPBD求解器子迭代次数，默认1
+int widthResolution = 100;     // 布料宽度分辨率（粒子数），默认100
+int heightResolution = 100;    // 布料高度分辨率（粒子数），默认100
+ClothParticleMassMode massMode = ClothParticleMassMode_FixedParticleMass; // 布料粒子质量模式，默认固定粒子质量
+
+// 布料物理参数
+float mass = 1.0f;             // 每个粒子的质量，默认1.0
+bool addLRAConstraints = true; // 是否添加LRA约束，默认true
+bool addBendingConstraints = true; // 是否添加弯曲约束，默认true
+bool addDihedralBendingConstraints = false; // 是否添加二面角约束，默认false
+bool addDiagonalConstraints = true; // 是否添加对角线约束，默认true
+float distanceCompliance = 0.00000001f; // 距离约束的柔度，默认0.00000001
+float distanceDamping = 0.00000001f; // 距离约束的阻尼，默认0.00000001
+float lraCompliance = 0.00000001f; // LRA约束的柔度，默认0.00000001
+float bendingCompliance = 0.00001f; // 弯曲约束的柔度，默认0.00001
+float bendingDamping = 0.001f; // 弯曲约束的阻尼，默认0.001
+float dihedralBendingCompliance = 1.0f; // 二面角约束的柔度，默认1.0
+float dihedralBendingDamping = 1.0f; // 二面角约束的阻尼，默认1.0
+float lraMaxStretch = 0.01f; // LRA约束最大拉伸量，默认0.01
 
 // 相机对象
 Camera* camera = nullptr;
@@ -466,20 +483,24 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
         std::cout << "UpdateClothRenderData: Frame " << globalRenderFrameCount << ", particles count = " << particles.size() << ", widthResolution = " << widthResolution << ", heightResolution = " << heightResolution << std::endl;
         
         // 调试输出第一个粒子的位置和状态
-        if (!particles.empty()) {
+        if (!particles.empty())
+        {
             std::cout << "First particle: position = (" << particles[0].position.x << ", " << particles[0].position.y << ", " << particles[0].position.z << "), "
                       << "velocity = (" << particles[0].velocity.x << ", " << particles[0].velocity.y << ", " << particles[0].velocity.z << "), "
                       << "isStatic = " << (particles[0].isStatic ? "true" : "false") << std::endl;
         }
         
         // 每10帧输出一次特定行的粒子位置，以便观察布料变形情况
-        if (globalRenderFrameCount % 10 == 0 && widthResolution > 10 && heightResolution > 5) {
+        if (globalRenderFrameCount % 10 == 0 && widthResolution > 10 && heightResolution > 5)
+        {
             std::cout << "\n--- Frame " << globalRenderFrameCount << " Selected Particle Positions ---" << std::endl;
             // 输出中间行的粒子位置
             int middleRow = heightResolution / 2;
-            for (int x = 0; x < widthResolution; x += 5) { // 每隔5个粒子输出一个
+            for (int x = 0; x < widthResolution; x += 5)
+            { // 每隔5个粒子输出一个
                 int index = middleRow * widthResolution + x;
-                if (index < particles.size()) {
+                if (index < particles.size())
+                {
                     std::cout << "Particle (" << x << ", " << middleRow << "): ("
                               << particles[index].position.x << ", "
                               << particles[index].position.y << ", "
@@ -600,42 +621,46 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 检查是否需要显示帮助信息
     if (cmdLine.Find("-help"))
     {
-        std::cout << "XPBD Cloth Simulator (DirectX 12) - 命令行参数帮助" << std::endl;
-        std::cout << "===================================================" << std::endl;
-        std::cout << "可用的命令行参数：" << std::endl;
-        std::cout << "  -help                 显示此帮助信息并退出" << std::endl;
-        std::cout << "  -debug                启用调试输出模式" << std::endl;
-        std::cout << "  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
-        std::cout << "  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认10）" << std::endl;
-        std::cout << "  -subItereratorCount:xxx 设置子迭代次数（xxx为数字，默认1）" << std::endl;
-        std::cout << "  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
-        std::cout << "  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
-        std::cout << "  -addLRAConstraints:true/false 设置是否添加LRA约束（默认true）" << std::endl;
-        std::cout << "  -addBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
-        std::cout << "  -addDiagonalConstraints:true/false 设置是否添加对角线约束（默认false）" << std::endl;
-        std::cout << "  -distanceCompliance:xxx 设置距离约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
-        std::cout << "  -LRACompliance:xxx 设置LRA约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
-        std::cout << "  -bendingCompliance:xxx 设置二面角约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
-        std::cout << "  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
-        std::cout << "  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
-        std::cout << "  -massMode:xxx        设置质量模式（xxx为FixedParticleMass或FixedTotalMass，默认FixedParticleMass）" << std::endl;
-        std::cout << "  -fullscreen          以全屏模式启动程序" << std::endl;
-        std::cout << "  -winWidth:xxx        设置窗口宽度（xxx为数字，默认800，不能超过系统分辨率）" << std::endl;
-        std::cout << "  -winHeight:xxx       设置窗口高度（xxx为数字，默认600，不能超过系统分辨率）" << std::endl;
-        std::cout << "===================================================" << std::endl;
-        std::cout << "程序控制：" << std::endl;
-        std::cout << "  F9                    切换调试输出开关" << std::endl;
-        std::cout << "  ESC                   退出程序" << std::endl;
-        std::cout << "  W/S/A/D               使用WASD键移动摄像机" << std::endl;
-        std::cout << "  鼠标右键 + 移动       旋转相机视角" << std::endl;
-        std::cout << "  鼠标滚轮              缩放相机距离" << std::endl;
+        std::wcout << L"XPBD Cloth Simulator (DirectX 12) - 命令行参数帮助" << std::endl;
+        std::wcout << L"===================================================" << std::endl;
+        std::wcout << L"可用的命令行参数：" << std::endl;
+        std::wcout << L"  -help                 显示此帮助信息并退出" << std::endl;
+        std::wcout << L"  -debug                启用调试输出模式" << std::endl;
+        std::wcout << L"  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
+        std::wcout << L"  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认10）" << std::endl;
+        std::wcout << L"  -subItereratorCount:xxx 设置子迭代次数（xxx为数字，默认1）" << std::endl;
+        std::wcout << L"  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
+        std::wcout << L"  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
+        std::wcout << L"  -addLRAConstraints:true/false 设置是否添加LRA约束（默认true）" << std::endl;
+        std::wcout << L"  -addBendingConstraints:true/false 设置是否添加弯曲约束（默认true）" << std::endl;
+        std::wcout << L"  -addDihedralBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
+        std::wcout << L"  -addDiagonalConstraints:true/false 设置是否添加对角线约束（默认true）" << std::endl;
+        std::wcout << L"  -distanceCompliance:xxx 设置距离约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
+        std::wcout << L"  -LRACompliance:xxx 设置LRA约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
+        std::wcout << L"  -bendingCompliance:xxx 设置弯曲约束的柔度（xxx为浮点数，默认0.00001）" << std::endl;
+        std::wcout << L"  -bendingDamping:xxx 设置弯曲约束的阻尼（xxx为浮点数，默认0.001）" << std::endl;
+        std::wcout << L"  -dihedralBendingCompliance:xxx 设置二面角约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
+        std::wcout << L"  -dihedralBendingDamping:xxx 设置二面角约束的阻尼（xxx为浮点数，默认1.0）" << std::endl;
+        std::wcout << L"  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
+        std::wcout << L"  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
+        std::wcout << L"  -massMode:xxx        设置质量模式（xxx为FixedParticleMass或FixedTotalMass，默认FixedParticleMass）" << std::endl;
+        std::wcout << L"  -fullscreen          以全屏模式启动程序" << std::endl;
+        std::wcout << L"  -winWidth:xxx        设置窗口宽度（xxx为数字，默认800，不能超过系统分辨率）" << std::endl;
+        std::wcout << L"  -winHeight:xxx       设置窗口高度（xxx为数字，默认600，不能超过系统分辨率）" << std::endl;
+        std::wcout << L"===================================================" << std::endl;
+        std::wcout << L"程序控制：" << std::endl;
+        std::wcout << L"  F9                    切换调试输出开关" << std::endl;
+        std::wcout << L"  ESC                   退出程序" << std::endl;
+        std::wcout << L"  W/S/A/D               使用WASD键移动摄像机" << std::endl;
+        std::wcout << L"  鼠标右键 + 移动       旋转相机视角" << std::endl;
+        std::wcout << L"  鼠标滚轮              缩放相机距离" << std::endl;
         
         // 关闭日志文件
         closeLogFile();
         return 0; // 直接退出程序，不创建其他对象
     }
 
-    // 使用Commandline类解析参数，并利用返回值判断参数是否存在
+    // 使用Commandline类解析所有命令行参数
     if (cmdLine.Get("-maxFrames:", maxFrames, -1))
     {
         logDebug("Max frames set to: " + std::to_string(maxFrames));
@@ -702,6 +727,91 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         logDebug("Sub-iterator count set to: " + std::to_string(subIteratorCount));
     }
     
+    // 解析布料物理参数
+    if (cmdLine.Get("-mass:", mass, mass))
+    {
+        logDebug("Mass set to: " + std::to_string(mass));
+    }
+
+    std::string massModeStr;
+    if (cmdLine.Get("-massMode:", massModeStr, "FixedParticleMass"))
+    {
+        logDebug("Particle mass mode set to: " + massModeStr);
+        if (massModeStr == "FixedTotalMass")
+        {
+            massMode = ClothParticleMassMode_FixedTotalMass;
+        }
+        else if (massModeStr == "FixedParticleMass")
+        {
+            massMode = ClothParticleMassMode_FixedParticleMass;
+        }
+        else
+        {
+            logDebug("Unknown mass mode: " + massModeStr + ", defaulting to FixedParticleMass");
+            massMode = ClothParticleMassMode_FixedParticleMass;
+        }
+    }
+    
+    if (cmdLine.Get("-addLRAConstraints:", addLRAConstraints, addLRAConstraints))
+    {
+        logDebug("LRA constraint set to: " + std::string(addLRAConstraints ? "true" : "false"));
+    }
+    
+    if (cmdLine.Get("-addBendingConstraints:", addBendingConstraints, addBendingConstraints))
+    {
+        logDebug("Bending constraint set to: " + std::string(addBendingConstraints ? "true" : "false"));
+    }
+    
+    if (cmdLine.Get("-addDihedralBendingConstraints:", addDihedralBendingConstraints, addDihedralBendingConstraints))
+    {
+        logDebug("Dihedral bending constraints set to: " + std::string(addDihedralBendingConstraints ? "true" : "false"));
+    }
+    
+    if (cmdLine.Get("-addDiagonalConstraints:", addDiagonalConstraints, addDiagonalConstraints))
+    {
+        logDebug("Diagonal constraints set to: " + std::string(addDiagonalConstraints ? "true" : "false"));
+    }
+    
+    if (cmdLine.Get("-distanceCompliance:", distanceCompliance, distanceCompliance))
+    {
+        logDebug("Distance constraint compliance set to: " + std::to_string(distanceCompliance));
+    }
+    
+    if (cmdLine.Get("-distanceDamping:", distanceDamping, distanceDamping))
+    {
+        logDebug("Distance constraint damping set to: " + std::to_string(distanceDamping));
+    }
+    
+    if (cmdLine.Get("-LRACompliance:", lraCompliance, lraCompliance))
+    {
+        logDebug("LRA constraint compliance set to: " + std::to_string(lraCompliance));
+    }
+    
+    if (cmdLine.Get("-bendingCompliance:", bendingCompliance, bendingCompliance))
+    {
+        logDebug("Bending constraint compliance set to: " + std::to_string(bendingCompliance));
+    }
+    
+    if (cmdLine.Get("-bendingDamping:", bendingDamping, bendingDamping))
+    {
+        logDebug("Bending constraint damping set to: " + std::to_string(bendingDamping));
+    }
+    
+    if (cmdLine.Get("-dihedralBendingCompliance:", dihedralBendingCompliance, dihedralBendingCompliance))
+    {
+        logDebug("Dihedral bending constraint compliance set to: " + std::to_string(dihedralBendingCompliance));
+    }
+    
+    if (cmdLine.Get("-dihedralBendingDamping:", dihedralBendingDamping, dihedralBendingDamping))
+    {
+        logDebug("Dihedral bending constraint damping set to: " + std::to_string(dihedralBendingDamping));
+    }
+    
+    if (cmdLine.Get("-LRAMaxStretch:", lraMaxStretch, lraMaxStretch))
+    {
+        logDebug("LRA max stretch set to: " + std::to_string(lraMaxStretch));
+    }
+    
     // 创建窗口
     std::cout << "Creating window..." << std::endl;
     if (!CreateWindowApp(hInstance))
@@ -726,127 +836,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 创建布料对象，调整位置使布料正中心对准球体(0,0,0)
     std::cout << "Creating cloth object..." << std::endl;
     
-    // 使用Commandline类解析-mass参数
-    float mass = 1.0f; // 默认值
-    if (cmdLine.Get("-mass:", mass, 1.0f))
-    {
-        logDebug("Mass set to: " + std::to_string(mass));
-    }
-
-	std::string massModeStr;
-    if (cmdLine.Get("-massMode:", massModeStr, "FixedParticleMass"))
-    {
-        logDebug("Particle mass mode set to: " + massModeStr);
-    }
-    
-    if (massModeStr == "FixedTotalMass")
-    {
-        massMode = ClothParticleMassMode_FixedTotalMass;
-    }
-    else if (massModeStr == "FixedParticleMass")
-    {
-        massMode = ClothParticleMassMode_FixedParticleMass;
-    }
-    else
-    {
-        logDebug("Unknown mass mode: " + massModeStr + ", defaulting to FixedParticleMass");
-        massMode = ClothParticleMassMode_FixedParticleMass;
-	}
-
     cloth = new Cloth(widthResolution, heightResolution, 10.0f, mass, massMode); // 使用命令行参数设置的分辨率和质量
     
-    // 默认启用XPBD碰撞约束
-    // cloth->SetUseXPBDCollision(true);
-    
-    // 使用Commandline类解析-addLRAConstraints参数
-    bool addLRAConstraints = true; // 默认启用
-    if (cmdLine.Get("-addLRAConstraints:", addLRAConstraints, true))
-    {
-        logDebug("LRA constraint set to: " + std::string(addLRAConstraints ? "true" : "false"));
-    }
-    
-    // 设置是否添加LRA约束
+    // 设置布料的物理参数
     cloth->SetAddLRAConstraints(addLRAConstraints);
-    
-    // 使用Commandline类解析-LRAMaxStretch参数
-    float lraMaxStretch = 0.01f; // 默认值
-    if (cmdLine.Get("-LRAMaxStretch:", lraMaxStretch, 0.01f))
-    {
-        logDebug("LRA max stretch set to: " + std::to_string(lraMaxStretch));
-    }
-    
-    // 设置LRA约束最大拉伸量
-    cloth->SetLRAMaxStretch(lraMaxStretch);
-    
-    // 使用Commandline类解析-addBendingConstraints参数
-    bool addBendingConstraints = false; // 默认禁用
-    if (cmdLine.Get("-addBendingConstraints:", addBendingConstraints, false))
-    {
-        logDebug("Bending constraints set to: " + std::string(addBendingConstraints ? "true" : "false"));
-    }
-    
-    // 设置是否添加二面角约束
     cloth->SetAddBendingConstraints(addBendingConstraints);
-    
-    // 使用Commandline类解析-addDiagonalConstraints参数
-    bool addDiagonalConstraints = true; // 默认启用
-    if (cmdLine.Get("-addDiagonalConstraints:", addDiagonalConstraints, true))
-    {
-        logDebug("Diagonal constraints set to: " + std::string(addDiagonalConstraints ? "true" : "false"));
-    }
-    
-    // 设置是否添加对角线约束
+    cloth->SetAddDihedralBendingConstraints(addDihedralBendingConstraints);
     cloth->SetAddDiagonalConstraints(addDiagonalConstraints);
-    
-    // 使用Commandline类解析-distanceCompliance参数
-    float distanceCompliance = 0.00000001f; // 默认值
-    if (cmdLine.Get("-distanceCompliance:", distanceCompliance, 0.00000001f))
-    {
-        logDebug("Distance constraint compliance set to: " + std::to_string(distanceCompliance));
-    }
-
-    // 设置距离约束的柔度
     cloth->SetDistanceConstraintCompliance(distanceCompliance);
-
-    // 使用Commandline类解析-distanceDamping参数
-    float distanceDamping = 0.00000001f; // 默认值
-    if (cmdLine.Get("-distanceDamping:", distanceDamping, 0.00000001f))
-    {
-        logDebug("Distance constraint damping set to: " + std::to_string(distanceDamping));
-    }
-
-    // 设置距离约束的阻尼
     cloth->SetDistanceConstraintDamping(distanceDamping);
-    
-    // 使用Commandline类解析-LRACompliance参数
-    float lraCompliance = 0.00000001f; // 默认值
-    if (cmdLine.Get("-LRACompliance:", lraCompliance, 0.00000001f))
-    {
-        logDebug("LRA constraint compliance set to: " + std::to_string(lraCompliance));
-    }
-    
-    // 设置LRA约束的柔度
     cloth->SetLRAConstraintCompliance(lraCompliance);
-    
-    // 使用Commandline类解析-bendingCompliance参数
-    float bendingCompliance = 1.0f; // 默认值
-    if (cmdLine.Get("-bendingCompliance:", bendingCompliance, 1.0f))
-    {
-        logDebug("Bending constraint compliance set to: " + std::to_string(bendingCompliance));
-    }
-
-    // 设置二面角约束的柔度
-    cloth->SetDihedralBendingConstraintCompliance(bendingCompliance);
-
-    // 使用Commandline类解析-bendingDamping参数
-    float bendingDamping = 1.0f; // 默认值
-    if (cmdLine.Get("-bendingDamping:", bendingDamping, 1.0f))
-    {
-        logDebug("Bending constraint damping set to: " + std::to_string(bendingDamping));
-    }
-    
-    // 设置二面角约束的阻尼
-    cloth->SetDihedralBendingConstraintClamping(bendingDamping);
+    cloth->SetBendingConstraintCompliance(bendingCompliance);
+    cloth->SetBendingConstraintDamping(bendingDamping);
+    cloth->SetDihedralBendingConstraintCompliance(dihedralBendingCompliance);
+    cloth->SetDihedralBendingConstraintClamping(dihedralBendingDamping);
+    cloth->SetLRAMaxStretch(lraMaxStretch);
     
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
@@ -954,12 +958,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
             std::wstring lraStatus = cloth->GetAddLRAConstraints() ? L"LRA:ON" : L"LRA:OFF";
             std::wstring bendingStatus = cloth->GetAddBendingConstraints() ? L"Bending:ON" : L"Bending:OFF";
+            std::wstring dihedralBendingStatus = cloth->GetAddDihedralBendingConstraints() ? L"DihedralBending:ON" : L"DihedralBending:OFF";
             std::wstring diagonalStatus = cloth->GetAddDiagonalConstraints() ? L"Diagonal:ON" : L"Diagonal:OFF";
             std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
                 std::to_wstring(iteratorCount) + L" Iter, " + 
                 std::to_wstring(subIteratorCount) + L" SubIter, " +
                 std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
-                lraStatus + L", " + bendingStatus + L", " + diagonalStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
+                lraStatus + L", " + bendingStatus + L", " + dihedralBendingStatus + L", " + diagonalStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
             
             // 更新窗口标题
             SetWindowText(hWnd, newTitle.c_str());

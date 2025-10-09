@@ -103,11 +103,15 @@ ClothSimulator/
 | `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 100 |
 | `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 100 |
 | `-addLRAConstraints:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
-| `-addBendingConstraints:X` | 设置是否添加二面角约束，X可以是true/false/1/0/yes/no | false |
+| `-addBendingConstraints:X` | 设置是否添加弯曲约束，X可以是true/false/1/0/yes/no | true |
+| `-addDihedralBendingConstraints:X` | 设置是否添加二面角约束，X可以是true/false/1/0/yes/no | false |
 | `-addDiagonalConstraints:X` | 设置是否添加对角线约束，X可以是true/false/1/0/yes/no | true |
 | `-distanceCompliance:X` | 设置距离约束的弹性系数，X为浮点数 | 0.0001 |
 | `-LRACompliance:X` | 设置LRA约束的弹性系数，X为浮点数 | 0.0001 |
-| `-bendingCompliance:X` | 设置二面角约束的弹性系数，X为浮点数 | 0.0001 |
+| `-bendingCompliance:X` | 设置弯曲约束的弹性系数，X为浮点数 | 0.00001 |
+| `-bendingDamping:X` | 设置弯曲约束的阻尼系数，X为浮点数 | 0.001 |
+| `-dihedralBendingCompliance:X` | 设置二面角约束的弹性系数，X为浮点数 | 0.0001 |
+| `-dihedralBendingDamping:X` | 设置二面角约束的阻尼系数，X为浮点数 | 1.0 |
 | `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
 | `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
 | `-massMode:X` | 设置质量模式，X可以是FixedParticleMass或FixedTotalMass | FixedParticleMass |
@@ -117,7 +121,7 @@ ClothSimulator/
 
 示例用法：
 ```
-XPBDClothSimulator.exe -debug -iteratorCount:100 -widthResolution:60 -heightResolution:60 -addLRAConstraints:true -addBendingConstraints:true -addDiagonalConstraints:true -distanceCompliance:0.00001 -LRACompliance:0.00001 -bendingCompliance:0.0001 -LRAMaxStretch:0.02 -mass:0.5 -massMode:FixedParticleMass -winWidth:1280 -winHeight:720
+XPBDClothSimulator.exe -debug -iteratorCount:100 -widthResolution:60 -heightResolution:60 -addLRAConstraints:true -addBendingConstraints:true -addDihedralBendingConstraints:true -addDiagonalConstraints:true -distanceCompliance:0.00001 -LRACompliance:0.00001 -bendingCompliance:0.00001 -bendingDamping:0.001 -dihedralBendingCompliance:0.0001 -dihedralBendingDamping:1.0 -LRAMaxStretch:0.02 -mass:0.5 -massMode:FixedParticleMass -winWidth:1280 -winHeight:720
 ```
 
 ## 许可证

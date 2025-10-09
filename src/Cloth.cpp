@@ -23,16 +23,19 @@ Cloth::Cloth(int widthResolution, int heightResolution, float size, float mass, 
     , m_massMode(massMode)
     , m_distanceConstraintCompliance(1e-7f)
     , m_distanceConstraintDamping(1e-2f)
-    , m_LRAConstraintCompliance(1e-7f)
-    , m_LRAConstraintDamping(1e-2f)
+    , m_addDiagonalConstraints(true)
+    , m_addBendingConstraints(true)
+    , m_bendingConstraintCompliance(1e-5f)
+    , m_bendingConstraintDamping(1e-3f)
+    , m_addDihedralBendingConstraints(false)
     , m_dihedralBendingConstraintCompliance(1e-7f)
     , m_dihedralBendingConstraintDamping(1e-2f)
+    , m_addLRAConstraints(true)
+    , m_LRAConstraintCompliance(1e-7f)
+    , m_LRAConstraintDamping(1e-2f)
+    , m_LRAMaxStrech(0.01f)
     , m_sphereCollisionConstraintCompliance(1e-9f)
     , m_sphereCollisionConstraintDamping(1e-2f)
-    , m_addDiagonalConstraints(true)
-    , m_addLRAConstraints(true)
-    , m_addBendingConstraints(false)
-    , m_LRAMaxStrech(0.01f)
     , m_iteratorCount(20)
     , m_subIteratorCount(1)
     , m_solver(this)
@@ -417,10 +420,24 @@ void Cloth::CreateConstraints()
                 int id2 = (h + 1) * m_widthResolution + w;
                 AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_distanceConstraintCompliance, m_distanceConstraintDamping));
             }
-            
-            if (m_addDiagonalConstraints)
+        }
+    }
+
+#ifdef DEBUG_SOLVER
+    logDebug("[DEBUG] End adding distance constraints");
+#endif//DEBUG_SOLVER
+
+    // 对角约束（可选，增加稳定性）
+    if (m_addDiagonalConstraints)
+    {
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding diagonal distance constraints");
+#endif//DEBUG_SOLVER
+
+        for (int h = 0; h < m_heightResolution; ++h)
+        {
+            for (int w = 0; w < m_widthResolution; ++w)
             {
-                // 对角约束（可选，增加稳定性）
                 if (w < m_widthResolution - 1 && h < m_heightResolution - 1)
                 {
                     int id1 = h * m_widthResolution + w;
@@ -436,10 +453,40 @@ void Cloth::CreateConstraints()
                 }
             }
         }
-    }
+
 #ifdef DEBUG_SOLVER
-    logDebug("[DEBUG] End adding distance constraints");
+        logDebug("[DEBUG] End adding diagonal distance constraints");
 #endif//DEBUG_SOLVER
+    }
+
+    if (m_addBendingConstraints && m_heightResolution > 2 && m_widthResolution > 2)
+    {
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] Begin adding bending constraints");
+#endif//DEBUG_SOLVER
+        for (int h = 0; h < m_heightResolution; ++h)
+        {
+            for (int w = 0; w < m_widthResolution; ++w)
+            {
+                if (w + 2 < m_widthResolution)
+                {
+                    int id1 = h * m_widthResolution + w;
+                    int id2 = h * m_widthResolution + (w + 2);
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_bendingConstraintCompliance, m_bendingConstraintDamping));
+                }
+
+                if (h + 2 < m_heightResolution)
+                {
+                    int id1 = h * m_widthResolution + w;
+                    int id2 = (h + 2) * m_widthResolution + w;
+                    AddDistanceConstraint(DistanceConstraint(&m_particles[id1], &m_particles[id2], m_bendingConstraintCompliance, m_bendingConstraintDamping));
+                }
+            }
+        }
+#ifdef DEBUG_SOLVER
+        logDebug("[DEBUG] End adding bending constraints");
+#endif//DEBUG_SOLVER
+    }
 
     if (m_addLRAConstraints)
     {
@@ -483,10 +530,10 @@ void Cloth::CreateConstraints()
     }
 
     // 如果启用了二面角约束，则添加它们
-    if (m_addBendingConstraints)
+    if (m_addDihedralBendingConstraints)
     {
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] Begin adding bending constraints");
+        logDebug("[DEBUG] Begin adding dihedral bending constraints");
 #endif//DEBUG_SOLVER
 
         m_dihedralBendingConstraints.clear();
@@ -496,7 +543,7 @@ void Cloth::CreateConstraints()
         if (m_heightResolution > 2 && m_widthResolution > 2)
         {
 #ifdef DEBUG_SOLVER
-            logDebug("[DEBUG] Begin adding horizontal bending constraints");
+            logDebug("[DEBUG] Begin adding horizontal dihedral bending constraints");
 #endif//DEBUG_SOLVER
 
             // 1. 处理水平方向的边，为每对水平相邻的三角形创建约束
@@ -526,11 +573,11 @@ void Cloth::CreateConstraints()
             }
 
 #ifdef DEBUG_SOLVER
-            logDebug("[DEBUG] End adding horizontal bending constraints");
+            logDebug("[DEBUG] End adding horizontal dihedral bending constraints");
 #endif//DEBUG_SOLVER
 
 #ifdef DEBUG_SOLVER
-            logDebug("[DEBUG] Begin adding vertical bending constraints");
+            logDebug("[DEBUG] Begin adding vertical dihedral bending constraints");
 #endif//DEBUG_SOLVER
 
             // 2. 处理垂直方向的边，为每对垂直相邻的三角形创建约束
@@ -560,13 +607,13 @@ void Cloth::CreateConstraints()
             }
 
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] End adding vertical bending constraints");
+        logDebug("[DEBUG] End adding vertical dihedral bending constraints");
 #endif//DEBUG_SOLVER
 
         }
 
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] Begin adding each square bending constraints");
+        logDebug("[DEBUG] Begin adding each square dihedral bending constraints");
 #endif//DEBUG_SOLVER
 
         for (int h = 0; h < m_heightResolution - 1; ++h)
@@ -592,15 +639,11 @@ void Cloth::CreateConstraints()
             }
         }
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] End adding each square bending constraints");
+        logDebug("[DEBUG] End adding each square dihedral bending constraints");
 #endif//DEBUG_SOLVER
 
 #ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] End adding vertical bending constraints");
-#endif//DEBUG_SOLVER
-
-#ifdef DEBUG_SOLVER
-        logDebug("[DEBUG] End adding bending constraints");
+        logDebug("[DEBUG] End adding dihedral bending constraints");
 #endif//DEBUG_SOLVER
     }
 }
