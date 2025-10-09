@@ -337,7 +337,7 @@ BOOL CreateWindowApp(HINSTANCE hInstance)
     hWnd = CreateWindowEx(
         exStyle,                  // 扩展窗口样式
         TEXT("DX12ClothSimulator"),  // 窗口类名称
-        TEXT("XPBD Cloth Simulator (DirectX 12)"),  // 窗口标题
+        TEXT("XPBD:ClothSimulator"),  // 窗口标题
         windowStyle,                // 窗口样式
         xPos, yPos,                 // 窗口位置
         windowWidth, windowHeight,  // 窗口尺寸
@@ -955,19 +955,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             float fps = static_cast<float>(fpsCounter) / fpsUpdateTimer;
             
             // 构造新的窗口标题
-            std::wstring originalTitle = L"XPBD Cloth Simulator (DirectX 12)";
+            std::wstring originalTitle = L"XPBD:ClothSimulator";
             std::wstring lraStatus = cloth->GetAddLRAConstraints() ? L"LRA:ON" : L"LRA:OFF";
             std::wstring bendingStatus = cloth->GetAddBendingConstraints() ? L"Bending:ON" : L"Bending:OFF";
             std::wstring dihedralBendingStatus = cloth->GetAddDihedralBendingConstraints() ? L"DihedralBending:ON" : L"DihedralBending:OFF";
             std::wstring diagonalStatus = cloth->GetAddDiagonalConstraints() ? L"Diagonal:ON" : L"Diagonal:OFF";
-            std::wstring newTitle = originalTitle + L" [" + std::to_wstring(static_cast<int>(fps)) + L" FPS, " + 
-                std::to_wstring(iteratorCount) + L" Iter, " + 
-                std::to_wstring(subIteratorCount) + L" SubIter, " +
-                std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L" Res, " +
-                lraStatus + L", " + bendingStatus + L", " + dihedralBendingStatus + L", " + diagonalStatus + L", MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
+            std::wstring newTitle = originalTitle + L" [" + L"FPS:" + std::to_wstring(static_cast<int>(fps)) + L", " + 
+                L"Iter:" + std::to_wstring(iteratorCount) + L", " + 
+                L"SubIter:" + std::to_wstring(subIteratorCount) + L", " +
+                L"Res:" + std::to_wstring(widthResolution) + L"x" + std::to_wstring(heightResolution) + L", " +
+                lraStatus + L", " + bendingStatus + L", " + dihedralBendingStatus + L", " + diagonalStatus + L", " + L"MaxStretch:" + std::to_wstring(cloth->GetLRAMaxStretch()) + L", " + L"Mass:" + std::to_wstring(cloth->GetMass()) + L"]";
             
             // 更新窗口标题
-            SetWindowText(hWnd, newTitle.c_str());
+            SetWindowTextW(hWnd, newTitle.c_str());
             
             // 重置计时器和计数器
             fpsUpdateTimer = 0.0f;
