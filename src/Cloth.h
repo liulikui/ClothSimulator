@@ -214,6 +214,18 @@ public:
         m_LRAConstraintCompliance = compliance;
     }
 
+    // 获取LRA约束的阻尼
+    float GetLRAConstraintDamping() const
+    {
+        return m_LRAConstraintDamping;
+    }
+
+    // 设置LRA约束的阻尼
+    void SetLRAConstraintDamping(float damping)
+    {
+        m_LRAConstraintDamping = damping;
+    }
+
     // 获取是否增加二面角约束
     bool GetAddDihedralBendingConstraints() const
     {
@@ -245,9 +257,9 @@ public:
     }
 
     // 设置二面角约束的阻尼
-    void SetDihedralBendingConstraintClamping(float c)
+    void SetDihedralBendingConstraintDamping(float damping)
     {
-        m_dihedralBendingConstraintDamping = c;
+        m_dihedralBendingConstraintDamping = damping;
     }
     
     // 获取每个粒子的质量

@@ -84,8 +84,9 @@ bool addBendingConstraints = true; // 是否添加弯曲约束，默认true
 bool addDihedralBendingConstraints = false; // 是否添加二面角约束，默认false
 bool addDiagonalConstraints = true; // 是否添加对角线约束，默认true
 float distanceCompliance = 0.00000001f; // 距离约束的柔度，默认0.00000001
-float distanceDamping = 0.00000001f; // 距离约束的阻尼，默认0.00000001
+float distanceDamping = 0.01f; // 距离约束的阻尼，默认0.01
 float lraCompliance = 0.00000001f; // LRA约束的柔度，默认0.00000001
+float lraDamping = 0.01f; // LRA约束的阻尼，默认0.01
 float bendingCompliance = 0.00001f; // 弯曲约束的柔度，默认0.00001
 float bendingDamping = 0.001f; // 弯曲约束的阻尼，默认0.001
 float dihedralBendingCompliance = 1.0f; // 二面角约束的柔度，默认1.0
@@ -628,19 +629,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wcout << L"  -help                 显示此帮助信息并退出" << std::endl;
         std::wcout << L"  -debug                启用调试输出模式" << std::endl;
         std::wcout << L"  -maxFrames:xxx        设置最大帧数限制（xxx为数字，-1表示不限制）" << std::endl;
-        std::wcout << L"  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认10）" << std::endl;
+        std::wcout << L"  -iteratorCount:xxx    设置XPBD求解器迭代次数（xxx为数字，默认20）" << std::endl;
         std::wcout << L"  -subItereratorCount:xxx 设置子迭代次数（xxx为数字，默认1）" << std::endl;
-        std::wcout << L"  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
-        std::wcout << L"  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认80，最小为2）" << std::endl;
+        std::wcout << L"  -widthResolution:xxx  设置布料宽度分辨率（粒子数，xxx为数字，默认100，最小为2）" << std::endl;
+        std::wcout << L"  -heightResolution:xxx 设置布料高度分辨率（粒子数，xxx为数字，默认100，最小为2）" << std::endl;
         std::wcout << L"  -addLRAConstraints:true/false 设置是否添加LRA约束（默认true）" << std::endl;
         std::wcout << L"  -addBendingConstraints:true/false 设置是否添加弯曲约束（默认true）" << std::endl;
         std::wcout << L"  -addDihedralBendingConstraints:true/false 设置是否添加二面角约束（默认false）" << std::endl;
         std::wcout << L"  -addDiagonalConstraints:true/false 设置是否添加对角线约束（默认true）" << std::endl;
-        std::wcout << L"  -distanceCompliance:xxx 设置距离约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
-        std::wcout << L"  -LRACompliance:xxx 设置LRA约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
+        std::wcout << L"  -distanceCompliance:xxx 设置距离约束的柔度（xxx为浮点数，默认0.00000001）" << std::endl;
+        std::wcout << L"  -distanceDamping:xxx 设置距离约束的阻尼（xxx为浮点数，默认0.01）" << std::endl;
+        std::wcout << L"  -LRACompliance:xxx 设置LRA约束的柔度（xxx为浮点数，默认0.00000001）" << std::endl;
+        std::wcout << L"  -LRADamping:xxx 设置LRA约束的阻尼（xxx为浮点数，默认0.01）" << std::endl;
         std::wcout << L"  -bendingCompliance:xxx 设置弯曲约束的柔度（xxx为浮点数，默认0.00001）" << std::endl;
         std::wcout << L"  -bendingDamping:xxx 设置弯曲约束的阻尼（xxx为浮点数，默认0.001）" << std::endl;
-        std::wcout << L"  -dihedralBendingCompliance:xxx 设置二面角约束的柔度（xxx为浮点数，默认0.0001）" << std::endl;
+        std::wcout << L"  -dihedralBendingCompliance:xxx 设置二面角约束的柔度（xxx为浮点数，默认1.0）" << std::endl;
         std::wcout << L"  -dihedralBendingDamping:xxx 设置二面角约束的阻尼（xxx为浮点数，默认1.0）" << std::endl;
         std::wcout << L"  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::wcout << L"  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
@@ -664,33 +667,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 使用Commandline类解析所有命令行参数
     if (cmdLine.Get("-maxFrames:", maxFrames, -1))
     {
-        logDebug("Max frames set to: " + std::to_string(maxFrames));
+        logDebug("Max frames is set by command line parameters to: " + std::to_string(maxFrames));
     }
 
     if (cmdLine.Get("-iteratorCount:", iteratorCount, 20))
     {
-        logDebug("Iterator count set to: " + std::to_string(iteratorCount));
+        logDebug("Iterator count is set by command line parameters to: " + std::to_string(iteratorCount));
     }
     
     int tempWidthResolution = widthResolution;
     if (cmdLine.Get("-widthResolution:", tempWidthResolution, widthResolution))
     {
         widthResolution = (tempWidthResolution < 2) ? 2 : tempWidthResolution;
-        logDebug("Width resolution set to: " + std::to_string(widthResolution));
+        logDebug("Width resolution is set by command line parameters to: " + std::to_string(widthResolution));
     }
     
     int tempHeightResolution = heightResolution;
     if (cmdLine.Get("-heightResolution:", tempHeightResolution, heightResolution))
     {
         heightResolution = (tempHeightResolution < 2) ? 2 : tempHeightResolution;
-        logDebug("Height resolution set to: " + std::to_string(heightResolution));
+        logDebug("Height resolution is set by command line parameters to: " + std::to_string(heightResolution));
     }
     
     // 解析-fullscreen参数
     if (cmdLine.Find("-fullscreen"))
     {
         fullscreenMode = true;
-        logDebug("Fullscreen mode enabled");
+        logDebug("Fullscreen mode is set by command line parameters to: true");
     }
     
     int tempWinWidth = customWindowWidth;
@@ -699,7 +702,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // 限制窗口宽度不超过系统分辨率
         int systemWidth = GetSystemMetrics(SM_CXSCREEN);
         customWindowWidth = (tempWinWidth > systemWidth) ? systemWidth : tempWinWidth;
-        logDebug("Window width set to: " + std::to_string(customWindowWidth));
+        logDebug("Window width is set by command line parameters to: " + std::to_string(customWindowWidth));
     }
     
     int tempWinHeight = customWindowHeight;
@@ -708,7 +711,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // 限制窗口高度不超过系统分辨率
         int systemHeight = GetSystemMetrics(SM_CYSCREEN);
         customWindowHeight = (tempWinHeight > systemHeight) ? systemHeight : tempWinHeight;
-        logDebug("Window height set to: " + std::to_string(customWindowHeight));
+        logDebug("Window height is set by command line parameters to: " + std::to_string(customWindowHeight));
     }
     
     if (cmdLine.Find("-debug"))
@@ -725,19 +728,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (cmdLine.Get("-subItereratorCount:", tempSubIteratorCount, subIteratorCount))
     {
         subIteratorCount = (tempSubIteratorCount < 1) ? 1 : tempSubIteratorCount;
-        logDebug("Sub-iterator count set to: " + std::to_string(subIteratorCount));
+        logDebug("Sub-iterator count is set by command line parameters to: " + std::to_string(subIteratorCount));
     }
     
     // 解析布料物理参数
     if (cmdLine.Get("-mass:", mass, mass))
     {
-        logDebug("Mass set to: " + std::to_string(mass));
+        logDebug("Mass set is set by command line parameters to: " + std::to_string(mass));
     }
 
     std::string massModeStr;
     if (cmdLine.Get("-massMode:", massModeStr, "FixedParticleMass"))
     {
-        logDebug("Particle mass mode set to: " + massModeStr);
+        logDebug("Particle mass mode set is set by command line parameters to: " + massModeStr);
         if (massModeStr == "FixedTotalMass")
         {
             massMode = ClothParticleMassMode::FixedTotalMass;
@@ -755,62 +758,67 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     if (cmdLine.Get("-addLRAConstraints:", addLRAConstraints, addLRAConstraints))
     {
-        logDebug("LRA constraint set to: " + std::string(addLRAConstraints ? "true" : "false"));
+        logDebug("LRA constraint is set by command line parameters to: " + std::string(addLRAConstraints ? "true" : "false"));
     }
     
     if (cmdLine.Get("-addBendingConstraints:", addBendingConstraints, addBendingConstraints))
     {
-        logDebug("Bending constraint set to: " + std::string(addBendingConstraints ? "true" : "false"));
+        logDebug("Bending constraint is set by command line parameters to: " + std::string(addBendingConstraints ? "true" : "false"));
     }
     
     if (cmdLine.Get("-addDihedralBendingConstraints:", addDihedralBendingConstraints, addDihedralBendingConstraints))
     {
-        logDebug("Dihedral bending constraints set to: " + std::string(addDihedralBendingConstraints ? "true" : "false"));
+        logDebug("Dihedral bending constraints is set by command line parameters to: " + std::string(addDihedralBendingConstraints ? "true" : "false"));
     }
     
     if (cmdLine.Get("-addDiagonalConstraints:", addDiagonalConstraints, addDiagonalConstraints))
     {
-        logDebug("Diagonal constraints set to: " + std::string(addDiagonalConstraints ? "true" : "false"));
+        logDebug("Diagonal constraints is set by command line parameters to: " + std::string(addDiagonalConstraints ? "true" : "false"));
     }
     
     if (cmdLine.Get("-distanceCompliance:", distanceCompliance, distanceCompliance))
     {
-        logDebug("Distance constraint compliance set to: " + std::to_string(distanceCompliance));
+        logDebug("Distance constraint compliance is set by command line parameters to: " + std::to_string(distanceCompliance));
     }
     
     if (cmdLine.Get("-distanceDamping:", distanceDamping, distanceDamping))
     {
-        logDebug("Distance constraint damping set to: " + std::to_string(distanceDamping));
+        logDebug("Distance constraint damping is set by command line parameters to: " + std::to_string(distanceDamping));
     }
     
     if (cmdLine.Get("-LRACompliance:", lraCompliance, lraCompliance))
     {
-        logDebug("LRA constraint compliance set to: " + std::to_string(lraCompliance));
+        logDebug("LRA constraint compliance is set by command line parameters to: " + std::to_string(lraCompliance));
+    }
+
+    if (cmdLine.Get("-LRADamping:", lraDamping, lraDamping))
+    {
+        logDebug("LRA constraint damping is set by command line parameters to: " + std::to_string(lraDamping));
     }
     
     if (cmdLine.Get("-bendingCompliance:", bendingCompliance, bendingCompliance))
     {
-        logDebug("Bending constraint compliance set to: " + std::to_string(bendingCompliance));
+        logDebug("Bending constraint compliance is set by command line parameters to: " + std::to_string(bendingCompliance));
     }
     
     if (cmdLine.Get("-bendingDamping:", bendingDamping, bendingDamping))
     {
-        logDebug("Bending constraint damping set to: " + std::to_string(bendingDamping));
+        logDebug("Bending constraint damping is set by command line parameters to: " + std::to_string(bendingDamping));
     }
     
     if (cmdLine.Get("-dihedralBendingCompliance:", dihedralBendingCompliance, dihedralBendingCompliance))
     {
-        logDebug("Dihedral bending constraint compliance set to: " + std::to_string(dihedralBendingCompliance));
+        logDebug("Dihedral bending constraint compliance is set by command line parameters to: " + std::to_string(dihedralBendingCompliance));
     }
     
     if (cmdLine.Get("-dihedralBendingDamping:", dihedralBendingDamping, dihedralBendingDamping))
     {
-        logDebug("Dihedral bending constraint damping set to: " + std::to_string(dihedralBendingDamping));
+        logDebug("Dihedral bending constraint damping is set by command line parameters to: " + std::to_string(dihedralBendingDamping));
     }
     
     if (cmdLine.Get("-LRAMaxStretch:", lraMaxStretch, lraMaxStretch))
     {
-        logDebug("LRA max stretch set to: " + std::to_string(lraMaxStretch));
+        logDebug("LRA max stretch is set by command line parameters to: " + std::to_string(lraMaxStretch));
     }
     
     // 创建窗口
@@ -841,18 +849,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // 设置布料的物理参数
     cloth->SetAddLRAConstraints(addLRAConstraints);
+    logDebug("Cloth add LRA constraints: " + std::to_string(addLRAConstraints));
     cloth->SetAddBendingConstraints(addBendingConstraints);
+    logDebug("Cloth add bending constraints: " + std::to_string(addBendingConstraints));
     cloth->SetAddDihedralBendingConstraints(addDihedralBendingConstraints);
+    logDebug("Cloth add dihedral bending constraints: " + std::to_string(addDihedralBendingConstraints));
     cloth->SetAddDiagonalConstraints(addDiagonalConstraints);
+    logDebug("Cloth add diagonal constraints: " + std::to_string(addDiagonalConstraints));
     cloth->SetDistanceConstraintCompliance(distanceCompliance);
+    logDebug("Cloth distance constraint compliance set to: " + std::to_string(distanceCompliance));
     cloth->SetDistanceConstraintDamping(distanceDamping);
-    cloth->SetLRAConstraintCompliance(lraCompliance);
-    cloth->SetBendingConstraintCompliance(bendingCompliance);
-    cloth->SetBendingConstraintDamping(bendingDamping);
-    cloth->SetDihedralBendingConstraintCompliance(dihedralBendingCompliance);
-    cloth->SetDihedralBendingConstraintClamping(dihedralBendingDamping);
+    logDebug("Cloth distance constraint damping set to: " + std::to_string(distanceDamping));
     cloth->SetLRAMaxStretch(lraMaxStretch);
-    
+    logDebug("Cloth LRA max stretch set to: " + std::to_string(lraMaxStretch));
+    cloth->SetLRAConstraintCompliance(lraCompliance);
+    logDebug("Cloth LRA constraint compliance set to: " + std::to_string(lraCompliance));
+    cloth->SetLRAConstraintDamping(lraDamping);
+    logDebug("Cloth LRA constraint damping set to: " + std::to_string(lraDamping));
+    cloth->SetBendingConstraintCompliance(bendingCompliance);
+    logDebug("Cloth bending constraint compliance set to: " + std::to_string(bendingCompliance));
+    cloth->SetBendingConstraintDamping(bendingDamping);
+    logDebug("Cloth bending constraint damping set to: " + std::to_string(bendingDamping));
+    cloth->SetDihedralBendingConstraintCompliance(dihedralBendingCompliance);
+    logDebug("Cloth dihedral bending constraint compliance set to: " + std::to_string(dihedralBendingCompliance));
+    cloth->SetDihedralBendingConstraintDamping(dihedralBendingDamping);
+    logDebug("Cloth dihedral bending constraint clamping set to: " + std::to_string(dihedralBendingDamping));
+    cloth->SetIteratorCount(iteratorCount);
+    logDebug("Cloth iterator count set to: " + std::to_string(iteratorCount));
+    cloth->SetSubIteratorCount(subIteratorCount);
+    logDebug("Cloth sub-iterator count set to: " + std::to_string(subIteratorCount));
+
     // 设置位置
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
 
@@ -861,14 +887,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // 初始化布料
 	cloth->Initialize(device);
-
-    // 设置XPBD求解器迭代次数
-    cloth->SetIteratorCount(iteratorCount);
-    logDebug("Cloth iterator count set to: " + std::to_string(iteratorCount));
-    
-    // 设置子迭代次数
-    cloth->SetSubIteratorCount(subIteratorCount);
-    logDebug("Cloth sub-iterator count set to: " + std::to_string(subIteratorCount));
 
     // 将布料添加到场景中
     scene->AddPrimitive(cloth);
