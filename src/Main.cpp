@@ -107,6 +107,9 @@ bool mouseCaptured = false;
 // 键盘状态数组，用于跟踪按键状态
 bool keys[256] = { false }; // 假设是标准ASCII键盘
 
+// 模拟暂停状态标志
+bool simulationPaused = false;
+
 // 高精度计时器变量
 LARGE_INTEGER frequency;
 LARGE_INTEGER lastCounter;
@@ -150,9 +153,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         case VK_ESCAPE:
             running = false;
             break;
+        case VK_SPACE:
+            {
+                simulationPaused = !simulationPaused;
+                const char* statusMsg = simulationPaused ? "Simulation PAUSED" : "Simulation RESUMED";
+                logDebug("[SPACE] " + std::string(statusMsg));
+            }
+            break;
         case VK_F9:
             if (!f9Pressed)
-            {  // 只在按键状态变化时处理
+            {
+                // 只在按键状态变化时处理
                 debugOutputEnabled = !debugOutputEnabled;
                 f9Pressed = true;
                 
@@ -174,6 +185,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
         {
             f9Pressed = false;
         }
+
         break;
     case WM_RBUTTONDOWN:
         // 鼠标右键按下时开始捕获鼠标
@@ -516,7 +528,6 @@ void UpdateClothRenderData(std::shared_ptr<Cloth> cloth)
     // 通过getter方法获取渲染数据
     const std::vector<dx::XMFLOAT3>& positions = cloth->GetPositions();
     const std::vector<dx::XMFLOAT3>& normals = cloth->GetNormals();
-    const std::vector<uint32_t>& indices = cloth->GetIndices();
     
     // 只有在启用调试输出时才打印详细信息
     if (debugOutputEnabled)
@@ -648,6 +659,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wcout << L"  -LRAMaxStretch:xxx   设置LRA约束最大拉伸量（xxx为数字，默认0.01）" << std::endl;
         std::wcout << L"  -mass:xxx            设置每个粒子的质量（xxx为数字，默认1.0）" << std::endl;
         std::wcout << L"  -massMode:xxx        设置质量模式（xxx为FixedParticleMass或FixedTotalMass，默认FixedParticleMass）" << std::endl;
+        std::wcout << L"  -meshAndContraintMode:xxx 设置网格和约束模式（xxx为Full或Simplified，默认Full）" << std::endl;
         std::wcout << L"  -fullscreen          以全屏模式启动程序" << std::endl;
         std::wcout << L"  -winWidth:xxx        设置窗口宽度（xxx为数字，默认1280，不能超过系统分辨率）" << std::endl;
         std::wcout << L"  -winHeight:xxx       设置窗口高度（xxx为数字，默认800，不能超过系统分辨率）" << std::endl;
@@ -665,12 +677,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // 使用Commandline类解析所有命令行参数
-    if (cmdLine.Get("-maxFrames:", maxFrames, -1))
+    if (cmdLine.Get("-maxFrames:", maxFrames, maxFrames))
     {
         logDebug("Max frames is set by command line parameters to: " + std::to_string(maxFrames));
     }
 
-    if (cmdLine.Get("-iteratorCount:", iteratorCount, 20))
+    if (cmdLine.Get("-iteratorCount:", iteratorCount, iteratorCount))
     {
         logDebug("Iterator count is set by command line parameters to: " + std::to_string(iteratorCount));
     }
@@ -820,6 +832,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     {
         logDebug("LRA max stretch is set by command line parameters to: " + std::to_string(lraMaxStretch));
     }
+
+    // 解析网格和约束模式参数
+    std::string meshAndConstraintModeStr;
+    if (cmdLine.Get("-meshAndContraintMode:", meshAndConstraintModeStr, "Full"))
+    {
+        logDebug("Mesh and constraint mode is set by command line parameters to: " + meshAndConstraintModeStr);
+        if (meshAndConstraintModeStr == "Simplified")
+        {
+            meshAndContraintMode = ClothMeshAndContraintMode::Simplified;
+        }
+        else if (meshAndConstraintModeStr == "Full")
+        {
+            meshAndContraintMode = ClothMeshAndContraintMode::Full;
+        }
+        else
+        {
+            logDebug("Unknown mesh and constraint mode: " + meshAndConstraintModeStr + ", defaulting to Full");
+            meshAndContraintMode = ClothMeshAndContraintMode::Full;
+        }
+    }
     
     // 创建窗口
     std::cout << "Creating window..." << std::endl;
@@ -927,23 +959,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     QueryPerformanceFrequency(&frequency);
     QueryPerformanceCounter(&lastCounter);
     
-    std::cout << "Entering main loop..." << std::endl;
+    logDebug("Entering main loop");
+
     // 主循环
     while (running)
     {
         // 处理Windows消息
         ProcessMessages();
         
-        // 使用高精度计时器计算帧时间
+        // 使用高精度计时器获取当前时间
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
-        deltaTime = (float)(static_cast<double>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<double>(frequency.QuadPart));
         
-        //std::cout << "deltaTime:" << deltaTime << std::endl;
-
         // 帧率限制：最大240FPS
         const float maxFPS = 240.0f;
         const float targetFrameTime = 1.0f / maxFPS;
+        
+        deltaTime = (float)(static_cast<double>(currentCounter.QuadPart - lastCounter.QuadPart) / static_cast<double>(frequency.QuadPart));
+
+        // 帧率限制
         if (deltaTime < targetFrameTime)
         {
             // 计算需要等待的毫秒数
@@ -958,6 +992,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             }
         }
 
+        // 更新lastCounter
         lastCounter = currentCounter;
         
         // 增加帧计数器
@@ -1017,8 +1052,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // 处理键盘输入
         camera->ProcessKeyboardInput(keys, deltaTime);
 
-        // 更新场景
-        scene->Update(deltaTime);
+        // 只有在模拟未暂停时才更新场景
+        if (!simulationPaused)
+        {
+            // 更新场景
+            scene->Update(deltaTime);
+        }
 
         scene->Render(camera->GetViewMatrix(), camera->GetProjectionMatrix());
 

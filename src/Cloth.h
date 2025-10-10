@@ -281,14 +281,8 @@ public:
     void InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
 
 private:
-    // 创建布料的粒子
+    // 创建布料粒子
     void CreateParticles();
-    
-    // 创建布料的约束
-    void CreateConstraints();
-
-    // 计算法线
-    void ComputeNormals();
 
     // 增加距离约束
     void AddDistanceConstraint(const DistanceConstraint& constraint);
@@ -298,6 +292,24 @@ private:
 
     // 增加二面角约束
     void AddDihedralBendingConstraint(const DihedralBendingConstraint& constraint);
+
+    // 创建完整结构的布料的粒子
+    void CreateFullStructuredParticles();
+    
+    // 创建完整结构的布料的约束
+    void CreateFullStructuredConstraints();
+
+    // 计算完整结构的布料的法线
+    void ComputeFullStructuredNormals();
+
+    // 创建简化结构的布料的粒子
+    void CreateSimplifiedStructuredParticles();
+
+    // 创建简化结构的布料的约束
+    void CreateSimplifiedStructuredConstraints();
+
+    // 计算简化结构的布料的法线
+    void ComputeSimplifiedStructuredNormals();
 
 private:
     // 布料的尺寸参数
@@ -311,9 +323,9 @@ private:
     // 粒子和约束
     std::vector<Particle> m_particles; // 布料的所有粒子
     std::vector<DistanceConstraint> m_distanceConstraints; // 布料的所有距离约束
-    std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
+    std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     float m_distanceConstraintCompliance; // 距离约束的柔度系数
     float m_distanceConstraintDamping;  // 距离约束的阻尼系数
 

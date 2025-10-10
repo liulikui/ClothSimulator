@@ -87,7 +87,7 @@ ClothSimulator/
   - 默认情况下，布料的左上角和右上角粒子是固定的
 - **窗口信息**：
     - 窗口尺寸：默认1280×800像素，可通过命令行参数自定义或切换至全屏模式
-    - 窗口标题会显示当前帧率、迭代次数、子迭代次数、布料分辨率、LRA约束状态、LRAMaxStretch值和粒子质量（格式："XPBD:ClothSimulator [FPS:X, Iter:Y, SubIter:Z, Res:WxH, LRA:ON/OFF, MaxStretch:Z, Mass:M]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束，Z表示LRA约束的最大拉伸量，M表示每个粒子的质量
+    - 窗口标题会显示当前帧率、迭代次数、子迭代次数、布料分辨率、LRA约束状态、LRAMaxStretch值和粒子质量（格式："ClothSimulator [Solver::XPBD, FPS:X, Iter:Y, SubIter:Z, Res:WxH, LRA:ON/OFF, MaxStretch:Z, Mass:M]"），其中W和H分别表示布料的宽度和高度分辨率，LRA:ON表示启用LRA约束，LRA:OFF表示禁用LRA约束，Z表示LRA约束的最大拉伸量，M表示每个粒子的质量
 
 ## 命令行参数
 
@@ -138,6 +138,11 @@ ClothSimulator/
 |------|------|--------|
 | `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
 | `-massMode:X` | 设置质量模式，X可以是FixedParticleMass或FixedTotalMass | FixedParticleMass |
+
+### 网格和约束模式
+| 参数 | 描述 | 默认值 |
+|------|------|--------|
+| `-meshAndContraintMode:X` | 设置网格和约束模式，X为Full或Simplified | Full |
 
 ### 窗口设置
 | 参数 | 描述 | 默认值 |

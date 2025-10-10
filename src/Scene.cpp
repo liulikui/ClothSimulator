@@ -30,6 +30,7 @@ struct ObjectConstBuffer
 };
 
 Scene::Scene()
+    : m_device(nullptr)
 {
     // 初始化场景
     // cameraConstBuffer将在渲染器中创建并传入
