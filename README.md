@@ -99,62 +99,62 @@ ClothSimulator/
 |------|------|--------|
 | `-help` | 显示帮助信息 | 无 |
 | `-debug` | 启用调试模式，输出详细日志信息 | 禁用 |
-| `-maxFrames:X` | 设置最大帧数限制，达到后程序自动退出 | 无限制 |
+| `-maxFrames=X` | 设置最大帧数限制，达到后程序自动退出 | 无限制 |
 
 ### 求解器参数
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
-| `-iteratorCount:X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 20 |
-| `-subItereratorCount:X` | 设置子迭代次数，X为数字 | 1 |
+| `-iteratorCount=X` | 设置XPBD求解器的迭代次数，影响物理模拟精度和性能 | 20 |
+| `-subItereratorCount=X` | 设置子迭代次数，X为数字 | 1 |
 
 ### 布料分辨率
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
-| `-widthResolution:X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 100 |
-| `-heightResolution:X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 100 |
+| `-widthResolution=X` | 设置布料宽度方向的粒子数量（分辨率），影响布料细节和性能 | 100 |
+| `-heightResolution=X` | 设置布料高度方向的粒子数量（分辨率），影响布料细节和性能 | 100 |
 
 ### 约束类型开关
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
-| `-addLRAConstraints:X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
-| `-addBendingConstraints:X` | 设置是否添加弯曲约束，X可以是true/false/1/0/yes/no | true |
-| `-addDihedralBendingConstraints:X` | 设置是否添加二面角约束，X可以是true/false/1/0/yes/no | false |
-| `-addDiagonalConstraints:X` | 设置是否添加对角线约束，X可以是true/false/1/0/yes/no | true |
+| `-addLRAConstraints=X` | 设置是否添加LRA约束，X可以是true/false/1/0/yes/no | true |
+| `-addBendingConstraints=X` | 设置是否添加弯曲约束，X可以是true/false/1/0/yes/no | true |
+| `-addDihedralBendingConstraints=X` | 设置是否添加二面角约束，X可以是true/false/1/0/yes/no | false |
+| `-addDiagonalConstraints=X` | 设置是否添加对角线约束，X可以是true/false/1/0/yes/no | true |
 
 ### 约束参数
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
-| `-distanceCompliance:X` | 设置距离约束的弹性系数，X为浮点数 | 0.00000001 |
-| `-distanceDamping:X` | 设置距离约束的阻尼系数，X为浮点数 | 0.01 |
-| `-LRACompliance:X` | 设置LRA约束的弹性系数，X为浮点数 | 0.00000001 |
-| `-LRADamping:X` | 设置LRA约束的阻尼系数，X为浮点数 | 0.01 |
-| `-LRAMaxStretch:X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
-| `-bendingCompliance:X` | 设置弯曲约束的弹性系数，X为浮点数 | 0.00001 |
-| `-bendingDamping:X` | 设置弯曲约束的阻尼系数，X为浮点数 | 0.001 |
-| `-dihedralBendingCompliance:X` | 设置二面角约束的弹性系数，X为浮点数 | 1.0 |
-| `-dihedralBendingDamping:X` | 设置二面角约束的阻尼系数，X为浮点数 | 1.0 |
+| `-distanceCompliance=X` | 设置距离约束的弹性系数，X为浮点数 | 0.00000001 |
+| `-distanceDamping=X` | 设置距离约束的阻尼系数，X为浮点数 | 0.01 |
+| `-LRACompliance=X` | 设置LRA约束的弹性系数，X为浮点数 | 0.00000001 |
+| `-LRADamping=X` | 设置LRA约束的阻尼系数，X为浮点数 | 0.01 |
+| `-LRAMaxStretch=X` | 设置LRA约束最大拉伸量，X为数值 | 0.01 |
+| `-bendingCompliance=X` | 设置弯曲约束的弹性系数，X为浮点数 | 0.00001 |
+| `-bendingDamping=X` | 设置弯曲约束的阻尼系数，X为浮点数 | 0.001 |
+| `-dihedralBendingCompliance=X` | 设置二面角约束的弹性系数，X为浮点数 | 1.0 |
+| `-dihedralBendingDamping=X` | 设置二面角约束的阻尼系数，X为浮点数 | 1.0 |
 
 ### 质量设置
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
-| `-mass:X` | 设置每个粒子的质量，X为数值 | 1.0 |
-| `-massMode:X` | 设置质量模式，X可以是FixedParticleMass或FixedTotalMass | FixedParticleMass |
+| `-mass=X` | 设置每个粒子的质量，X为数值 | 1.0 |
+| `-massMode=X` | 设置质量模式，X可以是FixedParticleMass或FixedTotalMass | FixedParticleMass |
 
 ### 网格和约束模式
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
-| `-meshAndContraintMode:X` | 设置网格和约束模式，X为Full或Simplified | Full |
+| `-meshAndContraintMode=X` | 设置网格和约束模式，X为Full或Simplified | Full |
 
 ### 窗口设置
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
 | `-fullscreen` | 以全屏模式启动程序 | 禁用 |
-| `-winWidth:X` | 设置窗口宽度，X为数字，不能超过系统分辨率 | 1280 |
-| `-winHeight:X` | 设置窗口高度，X为数字，不能超过系统分辨率 | 800 |
+| `-winWidth=X` | 设置窗口宽度，X为数字，不能超过系统分辨率 | 1280 |
+| `-winHeight=X` | 设置窗口高度，X为数字，不能超过系统分辨率 | 800 |
 
 示例用法：
 ```
-ClothSimulator.exe -debug -iteratorCount:100 -subItereratorCount:1 -widthResolution:60 -heightResolution:60 -addLRAConstraints:true -addBendingConstraints:true -addDihedralBendingConstraints:true -addDiagonalConstraints:true -distanceCompliance:0.00001 -LRACompliance:0.00001 -bendingCompliance:0.00001 -dihedralBendingCompliance:0.0001 -LRADamping:0.01 -bendingDamping:0.001 -dihedralBendingDamping:1.0 -LRAMaxStretch:0.02 -mass:0.5 -massMode:FixedParticleMass -winWidth:1280 -winHeight:720
+ClothSimulator.exe -debug -iteratorCount=100 -subItereratorCount=1 -widthResolution=60 -heightResolution=60 -addLRAConstraints=true -addBendingConstraints=true -addDihedralBendingConstraints=true -addDiagonalConstraints=true -distanceCompliance=0.00001 -LRACompliance=0.00001 -bendingCompliance=0.00001 -dihedralBendingCompliance=0.0001 -LRADamping=0.01 -bendingDamping=0.001 -dihedralBendingDamping=1.0 -LRAMaxStretch=0.02 -mass=0.5 -massMode=FixedParticleMass -winWidth=1280 -winHeight=720
 ```
 
 ## 许可证
