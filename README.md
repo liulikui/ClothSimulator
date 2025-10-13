@@ -42,7 +42,7 @@ ClothSimulator/
 │   ├── RALResource.h    # 渲染资源接口
 │   ├── DX12RALResource.h # DirectX 12资源实现头文件
 │   ├── DX12RALResource.cpp # DirectX 12资源实现
-│   ├── DataFormat.h     # 数据格式定义
+│   ├── RALDataFormat.h  # 数据格式定义
 │   ├── TRefCountPtr.h   # 智能指针实现
 │   ├── AutoMem.h        # 自动内存管理
 │   ├── Commandline.h    # 命令行解析
