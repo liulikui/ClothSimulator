@@ -4,6 +4,7 @@
 #include "Sphere.h"
 #include "DX12RALDevice.h"
 #include "RALResource.h"
+#include "TRefCountPtr.h"
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -443,9 +444,9 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
     // 映射并更新缓冲区
     void* mappedData = nullptr;
     D3D12_RANGE readRange = { 0, 0 };
-    m_constBuffer->Map(&mappedData);
+    m_constBuffer.Get()->Map(&mappedData);
     memcpy(mappedData, &data, sizeof(SceneConstBuffer));
-    m_constBuffer->Unmap();
+    m_constBuffer.Get()->Unmap();
 }
 
 void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo)

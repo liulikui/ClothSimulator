@@ -1,5 +1,6 @@
 #include "DX12RALDevice.h"
 #include "Scene.h"
+#include "TRefCountPtr.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -203,11 +204,11 @@ bool DX12RALDevice::CreateDeviceAndSwapChain()
 
     // 查找支持DirectX 12的GPU
     bool foundAdapter = false;
-    TSharePtr<IDXGIAdapter1> adapter;
+    TRefCountPtr<IDXGIAdapter1> adapter;
     IDXGIAdapter1* adapterPtr = nullptr;
     for (uint32_t adapterIndex = 0; !foundAdapter && DXGI_ERROR_NOT_FOUND != m_factory->EnumAdapters1(adapterIndex, &adapterPtr); ++adapterIndex)
     {
-        adapter = TSharePtr<IDXGIAdapter1>(adapterPtr);
+        adapter = TRefCountPtr<IDXGIAdapter1>(adapterPtr);
         DXGI_ADAPTER_DESC1 desc;
         adapter->GetDesc1(&desc);
 

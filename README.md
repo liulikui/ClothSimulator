@@ -19,7 +19,8 @@ ClothSimulator/
 │   ├── BendingConstraint.h # 弯曲约束实现（备用）
 │   ├── LRAConstraint.h  # 低秩模态约束实现
 │   ├── SphereCollisionConstraint.h # 球体碰撞约束实现
-│   ├── XPBDSolver.h     # XPBD求解器实现
+│   ├── XPBDSolver.h     # XPBD求解器头文件
+│   ├── XPBDSolver.cpp   # XPBD求解器实现
 │   ├── Cloth.h          # 布料类定义
 │   ├── Cloth.cpp        # 布料类实现
 │   ├── Camera.h         # 相机类头文件
@@ -42,7 +43,9 @@ ClothSimulator/
 │   ├── DX12RALResource.h # DirectX 12资源实现头文件
 │   ├── DX12RALResource.cpp # DirectX 12资源实现
 │   ├── DataFormat.h     # 数据格式定义
-│   └── TSharePtr.h      # 智能指针实现
+│   ├── TRefCountPtr.h   # 智能指针实现
+│   ├── AutoMem.h        # 自动内存管理
+│   ├── Commandline.h    # 命令行解析
 └── xpbd_solver.pseudo   # XPBD求解器伪代码参考
 ```
 
