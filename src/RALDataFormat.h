@@ -1,4 +1,5 @@
-#pragma once
+#ifndef RAL_DATA_FORMAT_H
+#define RAL_DATA_FORMAT_H
 
 #include <cstdint>
 
@@ -190,3 +191,5 @@ inline uint32_t getFormatSize(DataFormat format)
         return 0;
     }
 }
+
+#endif// RAL_DATA_FORMAT_H

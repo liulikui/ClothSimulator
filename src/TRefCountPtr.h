@@ -1,17 +1,21 @@
-#pragma once
+#ifndef TREF_COUNT_PTR_H
+#define TREF_COUNT_PTR_H
 
-// TSharePtr - 支持引用计数的智能指针模板类
+#include <algorithm>  // for std::swap
+#include <utility>    // for std::forward
+
+// TRefCountPtr - 支持引用计数的智能指针模板类
 // 要求模板参数T必须提供AddRef()和Release()方法
 
 template <typename T>
-class TSharePtr
+class TRefCountPtr
 {
 public:
     // 默认构造函数
-    TSharePtr() : m_ptr(nullptr) {}
+    TRefCountPtr() : m_ptr(nullptr) {}
     
     // 从原始指针构造
-    explicit TSharePtr(T* ptr) : m_ptr(ptr)
+    explicit TRefCountPtr(T* ptr) : m_ptr(ptr)
     {
         if (m_ptr) 
         {
@@ -20,7 +24,7 @@ public:
     }
     
     // 拷贝构造函数
-    TSharePtr(const TSharePtr<T>& other) : m_ptr(other.m_ptr)
+    TRefCountPtr(const TRefCountPtr<T>& other) : m_ptr(other.m_ptr)
     {
         if (m_ptr) 
         {
@@ -29,13 +33,13 @@ public:
     }
     
     // 移动构造函数
-    TSharePtr(TSharePtr<T>&& other) noexcept : m_ptr(other.m_ptr)
+    TRefCountPtr(TRefCountPtr<T>&& other) noexcept : m_ptr(other.m_ptr)
     {
             other.m_ptr = nullptr;
         }
     
         // 析构函数
-    ~TSharePtr()
+    ~TRefCountPtr()
     {
         if (m_ptr) 
         {
@@ -44,7 +48,7 @@ public:
     }
     
     // 拷贝赋值运算符
-    TSharePtr<T>& operator=(const TSharePtr<T>& other)
+    TRefCountPtr<T>& operator=(const TRefCountPtr<T>& other)
     {
         if (this != &other) 
         {
@@ -67,7 +71,7 @@ public:
     }
     
     // 移动赋值运算符
-    TSharePtr<T>& operator=(TSharePtr<T>&& other) noexcept
+    TRefCountPtr<T>& operator=(TRefCountPtr<T>&& other) noexcept
     {
         if (this != &other) 
         {
@@ -84,7 +88,7 @@ public:
     }
     
     // 原始指针赋值运算符
-    TSharePtr<T>& operator=(T* ptr)
+    TRefCountPtr<T>& operator=(T* ptr)
     {
         if (m_ptr != ptr) 
         {
@@ -146,7 +150,7 @@ public:
     }
     
     // 交换两个智能指针
-    void Swap(TSharePtr<T>& other)
+    void Swap(TRefCountPtr<T>& other)
     {
         std::swap(m_ptr, other.m_ptr);
     }
@@ -157,26 +161,28 @@ private:
 
 // 比较运算符重载
 template <typename T>
-bool operator==(const TSharePtr<T>& lhs, const TSharePtr<T>& rhs)
+bool operator==(const TRefCountPtr<T>& lhs, const TRefCountPtr<T>& rhs)
 {
     return lhs.Get() == rhs.Get();
 }
 
 template <typename T>
-bool operator!=(const TSharePtr<T>& lhs, const TSharePtr<T>& rhs)
+bool operator!=(const TRefCountPtr<T>& lhs, const TRefCountPtr<T>& rhs)
 {
     return lhs.Get() != rhs.Get();
 }
 
 template <typename T>
-bool operator<(const TSharePtr<T>& lhs, const TSharePtr<T>& rhs)
+bool operator<(const TRefCountPtr<T>& lhs, const TRefCountPtr<T>& rhs)
 {
     return lhs.Get() < rhs.Get();
 }
 
-// 辅助函数：创建TSharePtr对象
+// 辅助函数：创建TRefCountPtr对象
 template <typename T, typename... Args>
-TSharePtr<T> MakeSharePtr(Args&&... args) 
+TRefCountPtr<T> MakeRefCountPtr(Args&&... args) 
 {
-    return TSharePtr<T>(new T(std::forward<Args>(args)...));
+    return TRefCountPtr<T>(new T(std::forward<Args>(args)...));
 }
+
+#endif // TREF_COUNT_PTR_H

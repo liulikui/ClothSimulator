@@ -4,7 +4,7 @@
 #include <DirectXMath.h>
 #include <vector>
 #include <cstdint>
-#include "TSharePtr.h"
+#include "TRefCountPtr.h"
 #include "IRALDevice.h"
 
 // 为了方便使用，定义一个简化的命名空间别名
@@ -18,8 +18,8 @@ class IRALConstBuffer;
 
 struct PrimitiveMesh
 {
-    TSharePtr<IRALVertexBuffer> vertexBuffer;
-    TSharePtr<IRALIndexBuffer> indexBuffer;
+    TRefCountPtr<IRALVertexBuffer> vertexBuffer;
+    TRefCountPtr<IRALIndexBuffer> indexBuffer;
 };
 
 class Primitive

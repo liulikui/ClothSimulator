@@ -18,10 +18,18 @@
 // 为了方便使用，创建一个命名空间别名
 namespace dx = DirectX;
 
-enum ClothParticleMassMode
+// 布料粒子质量模式
+enum class ClothParticleMassMode
 {
-	ClothParticleMassMode_FixedTotalMass, // 固定总质量，粒子质量随分辨率变化
-	ClothParticleMassMode_FixedParticleMass, // 固定粒子质量，总质量随分辨率变化
+	FixedTotalMass,     // 固定总质量，粒子质量随分辨率变化
+	FixedParticleMass,  // 固定粒子质量，总质量随分辨率变化
+};
+
+// 布料网格和约束模式
+enum class ClothMeshAndContraintMode
+{
+    Full,          // 完整网格和约束
+    Simplified,    // 简化网格和约束
 };
 
 class Cloth : public Mesh 
@@ -34,7 +42,9 @@ public:
     //   size - 布料的实际物理尺寸（以米为单位）
     //   mass - 每个粒子的质量
 	//   massMode - 质量模式
-    Cloth(int widthResolution, int heightResolution, float size, float mass, ClothParticleMassMode massMode);
+    //   meshAndContraintMode - 网格和约束模式
+    Cloth(int widthResolution, int heightResolution, float size, float mass, 
+        ClothParticleMassMode massMode, ClothMeshAndContraintMode meshAndContraintMode);
     
     // 析构函数
     ~Cloth() override;
@@ -204,6 +214,18 @@ public:
         m_LRAConstraintCompliance = compliance;
     }
 
+    // 获取LRA约束的阻尼
+    float GetLRAConstraintDamping() const
+    {
+        return m_LRAConstraintDamping;
+    }
+
+    // 设置LRA约束的阻尼
+    void SetLRAConstraintDamping(float damping)
+    {
+        m_LRAConstraintDamping = damping;
+    }
+
     // 获取是否增加二面角约束
     bool GetAddDihedralBendingConstraints() const
     {
@@ -235,9 +257,9 @@ public:
     }
 
     // 设置二面角约束的阻尼
-    void SetDihedralBendingConstraintClamping(float c)
+    void SetDihedralBendingConstraintDamping(float damping)
     {
-        m_dihedralBendingConstraintDamping = c;
+        m_dihedralBendingConstraintDamping = damping;
     }
     
     // 获取每个粒子的质量
@@ -259,14 +281,8 @@ public:
     void InitializeSphereCollisionConstraints(const dx::XMFLOAT3& sphereCenter, float sphereRadius);
 
 private:
-    // 创建布料的粒子
+    // 创建布料粒子
     void CreateParticles();
-    
-    // 创建布料的约束
-    void CreateConstraints();
-
-    // 计算法线
-    void ComputeNormals();
 
     // 增加距离约束
     void AddDistanceConstraint(const DistanceConstraint& constraint);
@@ -277,6 +293,24 @@ private:
     // 增加二面角约束
     void AddDihedralBendingConstraint(const DihedralBendingConstraint& constraint);
 
+    // 创建完整结构的布料的粒子
+    void CreateFullStructuredParticles();
+    
+    // 创建完整结构的布料的约束
+    void CreateFullStructuredConstraints();
+
+    // 计算完整结构的布料的法线
+    void ComputeFullStructuredNormals();
+
+    // 创建简化结构的布料的粒子
+    void CreateSimplifiedStructuredParticles();
+
+    // 创建简化结构的布料的约束
+    void CreateSimplifiedStructuredConstraints();
+
+    // 计算简化结构的布料的法线
+    void ComputeSimplifiedStructuredNormals();
+
 private:
     // 布料的尺寸参数
     int m_widthResolution; // 宽度方向的粒子数
@@ -284,13 +318,14 @@ private:
     float m_size;
     float m_mass;
 	ClothParticleMassMode m_massMode; // 质量模式
+    ClothMeshAndContraintMode m_meshAndContraintMode; // 网格和约束模式
     
     // 粒子和约束
     std::vector<Particle> m_particles; // 布料的所有粒子
     std::vector<DistanceConstraint> m_distanceConstraints; // 布料的所有距离约束
-    std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     std::vector<LRAConstraint> m_lraConstraints; // LRA约束
     std::vector<DihedralBendingConstraint> m_dihedralBendingConstraints; // 二面角约束
+    std::vector<Constraint*> m_CollisionConstraints; // 碰撞约束
     float m_distanceConstraintCompliance; // 距离约束的柔度系数
     float m_distanceConstraintDamping;  // 距离约束的阻尼系数
 

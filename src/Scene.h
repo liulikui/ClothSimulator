@@ -2,7 +2,7 @@
 #define SCENE_H
 
 #include "Primitive.h"
-#include "TSharePtr.h"
+#include "TRefCountPtr.h"
 #include "RALResource.h"
 #include <vector>
 #include <memory>
@@ -111,9 +111,9 @@ private:
         dx::XMMATRIX worldMatrix;
         bool visible;
         dx::XMFLOAT3 diffuseColor;
-        TSharePtr<IRALVertexBuffer> vertexBuffer;
-        TSharePtr<IRALIndexBuffer> indexBuffer;
-        TSharePtr<IRALConstBuffer> constBuffer;
+        TRefCountPtr<IRALVertexBuffer> vertexBuffer;
+        TRefCountPtr<IRALIndexBuffer> indexBuffer;
+        TRefCountPtr<IRALConstBuffer> constBuffer;
     };
 
     void UpdatePrimitiveRequests();
@@ -138,17 +138,17 @@ private:
     dx::XMFLOAT4 m_lightSpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };       // 默认光源颜色（白色）
 
     // 根签名对象
-    TSharePtr<IRALRootSignature> m_rootSignature;
+    TRefCountPtr<IRALRootSignature> m_rootSignature;
 
     // 着色器对象
-    TSharePtr<IRALVertexShader> m_vertexShader;
-    TSharePtr<IRALPixelShader> m_pixelShader;
+    TRefCountPtr<IRALVertexShader> m_vertexShader;
+    TRefCountPtr<IRALPixelShader> m_pixelShader;
 
     // 图形管道状态对象
-    TSharePtr<IRALGraphicsPipelineState> m_pipelineState;
+    TRefCountPtr<IRALGraphicsPipelineState> m_pipelineState;
 
     // 场景相关常量
-    TSharePtr<IRALConstBuffer> m_constBuffer;
+    TRefCountPtr<IRALConstBuffer> m_constBuffer;
 };
 
 #endif // SCENE_H

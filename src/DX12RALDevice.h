@@ -11,7 +11,7 @@
 #include "RALCommandList.h"
 #include "IRALDevice.h"
 #include "DX12RALResource.h"
-#include "TSharePtr.h"
+#include "TRefCountPtr.h"
 
 // 简化命名空间
 namespace dx = DirectX;
@@ -154,7 +154,7 @@ private:
     // 命令对象 - 主渲染
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[2];      // 命令分配器数组
     ComPtr<ID3D12CommandQueue> m_commandQueue;                  // 命令队列
-    TSharePtr<IRALGraphicsCommandList> m_graphicsCommandList;   // 渲染命令列表
+    TRefCountPtr<IRALGraphicsCommandList> m_graphicsCommandList;   // 渲染命令列表
 
     // 同步对象 - 主渲染
     ComPtr<ID3D12Fence> m_fence;                                // 围栏
