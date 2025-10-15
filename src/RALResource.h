@@ -744,12 +744,22 @@ struct RALRootDescriptor
 	uint32_t RegisterSpace;
 };
 
+// 描述符范围类型枚举
+enum class RALDescriptorRangeType
+{
+    SRV,
+    UAV,
+    CBV,
+    Sampler
+};
+
 // 根描述符表范围
 struct RALRootDescriptorTableRange
 {
-	uint32_t NumDescriptors;
-	uint32_t BaseShaderRegister;
-	uint32_t RegisterSpace;
+    RALDescriptorRangeType Type; // 新增：描述符范围类型
+    uint32_t NumDescriptors;
+    uint32_t BaseShaderRegister;
+    uint32_t RegisterSpace;
 };
 
 // 根描述符表

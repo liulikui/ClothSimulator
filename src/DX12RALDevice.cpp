@@ -1606,9 +1606,27 @@ bool ConvertToD3D12RootParameter(const RALRootParameter& ralParam, D3D12_ROOT_PA
             for (const auto& ralRange : ralParam.Data.DescriptorTable.Ranges)
             {
                 D3D12_DESCRIPTOR_RANGE range = {};
-                // 注意：这里简化处理，假设所有描述符都是CBV类型
-                // 在实际应用中，需要更复杂的类型映射
-                range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+                
+                // 根据RALDescriptorRangeType设置D3D12_DESCRIPTOR_RANGE_TYPE
+                switch (ralRange.Type)
+                {
+                case RALDescriptorRangeType::SRV:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+                    break;
+                case RALDescriptorRangeType::UAV:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+                    break;
+                case RALDescriptorRangeType::CBV:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+                    break;
+                case RALDescriptorRangeType::Sampler:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+                    break;
+                default:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV; // 默认为CBV
+                    break;
+                }
+                
                 range.NumDescriptors = ralRange.NumDescriptors;
                 range.BaseShaderRegister = ralRange.BaseShaderRegister;
                 range.RegisterSpace = ralRange.RegisterSpace;

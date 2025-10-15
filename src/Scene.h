@@ -147,8 +147,40 @@ private:
     // 图形管道状态对象
     TRefCountPtr<IRALGraphicsPipelineState> m_pipelineState;
 
+    // 延迟着色相关 - 几何阶段管道状态
+    TRefCountPtr<IRALGraphicsPipelineState> m_gbufferPipelineState;
+    TRefCountPtr<IRALVertexShader> m_gbufferVertexShader;
+    TRefCountPtr<IRALPixelShader> m_gbufferPixelShader;
+    TRefCountPtr<IRALRootSignature> m_gbufferRootSignature;
+
+    // 延迟着色相关 - 光照阶段管道状态
+    TRefCountPtr<IRALGraphicsPipelineState> m_lightPipelineState;
+    TRefCountPtr<IRALVertexShader> m_lightVertexShader;
+    TRefCountPtr<IRALPixelShader> m_lightPixelShader;
+    TRefCountPtr<IRALRootSignature> m_lightRootSignature;
+
+    // GBuffer相关
+    TRefCountPtr<IRALRenderTarget> m_gbufferA; // 世界空间法线
+    TRefCountPtr<IRALRenderTarget> m_gbufferB; // Metallic, Specular, Roughness
+    TRefCountPtr<IRALRenderTarget> m_gbufferC; // BaseColor RGB
+    TRefCountPtr<IRALDepthStencil> m_gbufferDepthStencil;
+    TRefCountPtr<IRALConstBuffer> m_lightPassConstBuffer;
+    TRefCountPtr<IRALVertexBuffer> m_fullscreenQuadVB;
+    TRefCountPtr<IRALIndexBuffer> m_fullscreenQuadIB;
+
     // 场景相关常量
     TRefCountPtr<IRALConstBuffer> m_constBuffer;
+
+    // 初始化延迟着色相关资源
+    bool InitializeDeferredRendering();
+    // 清理延迟着色相关资源
+    void CleanupDeferredRendering();
+    // 执行几何阶段
+    void ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    // 执行光照阶段
+    void ExecuteLightingPass();
+    // 创建全屏四边形
+    void CreateFullscreenQuad();
 };
 
 #endif // SCENE_H
