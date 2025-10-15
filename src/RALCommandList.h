@@ -138,7 +138,20 @@ public:
     virtual void ExecuteRenderPass(const void* renderPass, const void* framebuffer) = 0;
 
     // 设置图元拓扑
-    virtual void SetPrimitiveTopology(RALPrimitiveTopologyType topology) = 0;
+	virtual void SetPrimitiveTopology(RALPrimitiveTopologyType topology) = 0;
+
+	// 资源状态转换方法
+	// 将渲染目标转换为着色器资源视图
+	virtual void TransitionRenderTargetToShaderResource(IRALRenderTarget* renderTarget) = 0;
+	
+	// 将渲染目标转换为渲染目标视图
+	virtual void TransitionRenderTargetToRenderTarget(IRALRenderTarget* renderTarget) = 0;
+	
+	// 将深度/模板缓冲区转换为着色器资源视图
+	virtual void TransitionDepthStencilToShaderResource(IRALDepthStencil* depthStencil) = 0;
+	
+	// 将深度/模板缓冲区转换为深度/模板视图
+	virtual void TransitionDepthStencilToDepthStencil(IRALDepthStencil* depthStencil) = 0;
 };
 
 #endif // RALCOMMANDLIST_H

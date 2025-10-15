@@ -106,6 +106,12 @@ public:
     // 获得GraphicsCommandList
     IRALGraphicsCommandList* GetGraphicsCommandList();
 
+    // 创建渲染目标
+    IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, DataFormat format);
+
+    // 创建深度/模板缓冲区
+    IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, DataFormat format);
+
 private:
     // 通用着色器编译辅助方法
     ComPtr<ID3DBlob> CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target);

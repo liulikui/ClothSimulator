@@ -84,4 +84,10 @@ public:
 
     // 获得GraphicsCommandList
     virtual IRALGraphicsCommandList* GetGraphicsCommandList() = 0;
+
+    // 创建渲染目标
+    virtual IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, DataFormat format) = 0;
+
+    // 创建深度/模板缓冲区
+    virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, DataFormat format) = 0;
 };

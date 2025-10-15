@@ -1990,3 +1990,119 @@ void DX12RALDevice::Cleanup()
 
     // 释放资源（智能指针会自动处理）
 }
+
+// 创建渲染目标
+IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, DataFormat format)
+{
+    // 创建DX12RALRenderTarget对象
+    DX12RALRenderTarget* renderTarget = new DX12RALRenderTarget(width, height, format);
+
+    // 定义纹理描述符
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Alignment = 0;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = static_cast<DXGI_FORMAT>(format);
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+    // 设置堆属性（使用默认堆，适合GPU读取）
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    // 设置初始状态
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    // 创建底层D3D12资源
+    ComPtr<ID3D12Resource> d3d12Resource;
+    HRESULT hr = m_device->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        initialState,
+        nullptr,
+        IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
+    );
+
+    if (FAILED(hr))
+    {
+        delete renderTarget;
+        return nullptr;
+    }
+
+    // 设置原生资源
+    renderTarget->SetNativeResource(d3d12Resource.Get());
+    renderTarget->SetResourceState(RALResourceState::RenderTarget);
+
+    return renderTarget;
+}
+
+// 创建深度/模板缓冲区
+IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, DataFormat format)
+{
+    // 创建DX12RALDepthStencil对象
+    DX12RALDepthStencil* depthStencil = new DX12RALDepthStencil(width, height, format);
+
+    // 定义纹理描述符
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Alignment = 0;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = static_cast<DXGI_FORMAT>(format);
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    // 设置堆属性（使用默认堆，适合GPU读取）
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    // 设置初始状态
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
+    // 创建深度/模板资源描述符
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = static_cast<DXGI_FORMAT>(format);
+    clearValue.DepthStencil.Depth = 1.0f;
+    clearValue.DepthStencil.Stencil = 0;
+
+    // 创建底层D3D12资源
+    ComPtr<ID3D12Resource> d3d12Resource;
+    HRESULT hr = m_device->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        initialState,
+        &clearValue,
+        IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
+    );
+
+    if (FAILED(hr))
+    {
+        delete depthStencil;
+        return nullptr;
+    }
+
+    // 设置原生资源
+    depthStencil->SetNativeResource(d3d12Resource.Get());
+    depthStencil->SetResourceState(RALResourceState::DepthStencil);
+
+    return depthStencil;
+}

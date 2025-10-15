@@ -73,6 +73,12 @@ public:
 
     // 设置图元拓扑
     virtual void SetPrimitiveTopology(RALPrimitiveTopologyType topology) override;
+    
+    // 资源状态转换方法
+    virtual void TransitionRenderTargetToShaderResource(IRALRenderTarget* renderTarget) override;
+    virtual void TransitionRenderTargetToRenderTarget(IRALRenderTarget* renderTarget) override;
+    virtual void TransitionDepthStencilToShaderResource(IRALDepthStencil* depthStencil) override;
+    virtual void TransitionDepthStencilToDepthStencil(IRALDepthStencil* depthStencil) override;
 
 private:
     // 成员变量

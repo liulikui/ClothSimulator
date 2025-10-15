@@ -754,6 +754,13 @@ public:
 		m_nativeResource = resource;
 	}
 
+
+	// 创建渲染目标视图描述符
+	D3D12_CPU_DESCRIPTOR_HANDLE CreateRenderTargetView(ID3D12Device* device, ID3D12DescriptorHeap* heap, uint32_t descriptorSize, uint32_t index);
+
+	// 创建着色器资源视图描述符
+	D3D12_CPU_DESCRIPTOR_HANDLE CreateShaderResourceView(ID3D12Device* device, ID3D12DescriptorHeap* heap, uint32_t descriptorSize, uint32_t index);
+
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
 };
@@ -780,6 +787,10 @@ public:
 	{
 		m_nativeResource = resource;
 	}
+
+
+	// 创建深度/模板视图描述符
+	D3D12_CPU_DESCRIPTOR_HANDLE CreateDepthStencilView(ID3D12Device* device, ID3D12DescriptorHeap* heap, uint32_t descriptorSize, uint32_t index);
 
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
