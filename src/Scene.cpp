@@ -978,6 +978,13 @@ void Scene::ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATR
                 continue;
             }
 
+            PrimitiveMesh mesh;
+            mesh.vertexBuffer = primitiveInfo.vertexBuffer.Get();
+            mesh.indexBuffer = primitiveInfo.indexBuffer.Get();
+
+            // 更新Mesh
+            primitiveInfo.primitive->OnUpdateMesh(m_device, mesh);
+
             // 更新Primitive常量缓冲区
             UpdatePrimitiveConstBuffer(commandList, &primitiveInfo);
 
