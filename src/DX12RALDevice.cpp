@@ -2140,10 +2140,12 @@ IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* re
         return nullptr;
     }
 
-    // 设置渲染目标资源
+    // 设置渲染目标资源和设备信息
     rtv->SetRenderTarget(renderTarget);
     rtv->SetRTVHeap(rtvHeap);
     rtv->SetRTVHandle(rtvHandle);
+    rtv->SetRTVIndex(rtvIndex);
+    rtv->SetDevice(this);
 
     // 从renderTarget获取原生资源
     DX12RALRenderTarget* dx12RenderTarget = static_cast<DX12RALRenderTarget*>(renderTarget);
@@ -2292,6 +2294,7 @@ IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* de
     // 创建一个新的深度模板视图
     DX12RALDepthStencilView* dsv = new DX12RALDepthStencilView();
     dsv->SetDepthStencil(depthStencil);
+    dsv->SetDevice(this);
 
     // 分配DSV描述符
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
@@ -2305,6 +2308,8 @@ IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* de
     }
 
     dsv->SetDSVHandle(dsvHandle);
+    dsv->SetDSVHeap(dsvHeap);
+    dsv->SetDSVIndex(dsvIndex);
 
     // 创建DSV
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -2334,6 +2339,7 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     // 创建一个新的着色器资源视图
     DX12RALShaderResourceView* srv = new DX12RALShaderResourceView();
     srv->SetResource(resource);
+    srv->SetDevice(this);
 
     // 分配SRV描述符
     D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
@@ -2348,6 +2354,7 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
 
     srv->SetSRVHandle(srvHandle);
     srv->SetSRVHeap(srvHeap);
+    srv->SetSRVIndex(srvIndex);
 
     // 获取原生资源
     ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(resource->GetNativeResource());
@@ -2404,4 +2411,22 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     m_device->CreateShaderResourceView(d3d12Resource, &srvDesc, srvHandle);
     
     return srv;
+}
+
+// 释放渲染目标视图描述符
+void DX12RALDevice::ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+{
+    m_RTVDescriptorHeaps.FreeDescriptor(handle, heap, index);
+}
+
+// 释放深度模板视图描述符
+void DX12RALDevice::ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+{
+    m_DSVDescriptorHeaps.FreeDescriptor(handle, heap, index);
+}
+
+// 释放着色器资源视图描述符
+void DX12RALDevice::ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+{
+    m_SRVDescriptorHeaps.FreeDescriptor(handle, heap, index);
 }

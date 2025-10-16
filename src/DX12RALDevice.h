@@ -302,6 +302,15 @@ public:
     // 创建着色器资源视图
     IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc);
 
+    // 释放渲染目标视图描述符
+    void ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
+
+    // 释放深度模板视图描述符
+    void ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
+
+    // 释放着色器资源视图描述符
+    void ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
+
 private:
     // 通用着色器编译辅助方法
     ComPtr<ID3DBlob> CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target);
