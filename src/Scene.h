@@ -165,6 +165,19 @@ private:
     TRefCountPtr<IRALRenderTarget> m_gbufferB; // Metallic, Specular, Roughness
     TRefCountPtr<IRALRenderTarget> m_gbufferC; // BaseColor RGB
     TRefCountPtr<IRALDepthStencil> m_gbufferDepthStencil;
+    
+    // GBuffer对应的视图
+    TRefCountPtr<IRALRenderTargetView> m_gbufferARTV;
+    TRefCountPtr<IRALRenderTargetView> m_gbufferBRTV;
+    TRefCountPtr<IRALRenderTargetView> m_gbufferCRTV;
+    TRefCountPtr<IRALDepthStencilView> m_gbufferDSV;
+    
+    // GBuffer对应的SRV（用于光照阶段采样）
+    TRefCountPtr<IRALShaderResourceView> m_gbufferASRV;
+    TRefCountPtr<IRALShaderResourceView> m_gbufferBSRV;
+    TRefCountPtr<IRALShaderResourceView> m_gbufferCSRV;
+    TRefCountPtr<IRALShaderResourceView> m_gbufferDepthSRV;
+    
     TRefCountPtr<IRALConstBuffer> m_lightPassConstBuffer;
     TRefCountPtr<IRALVertexBuffer> m_fullscreenQuadVB;
     TRefCountPtr<IRALIndexBuffer> m_fullscreenQuadIB;

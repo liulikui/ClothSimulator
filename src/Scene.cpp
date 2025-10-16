@@ -248,12 +248,50 @@ bool Scene::InitializeDeferredRendering()
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA");
         return false;
     }
+    
+    // 创建GBufferA的RTV和SRV
+    RALRenderTargetViewDesc rtvDescA;
+    rtvDescA.format = RALDataFormat::R16G16B16A16_Float;
+    m_gbufferARTV = m_device->CreateRenderTargetView(m_gbufferA.Get(), rtvDescA);
+    if (!m_gbufferARTV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA RTV");
+        return false;
+    }
+    
+    RALShaderResourceViewDesc srvDescA;
+    srvDescA.format = RALDataFormat::R16G16B16A16_Float;
+    m_gbufferASRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferA.Get()), srvDescA);
+    if (!m_gbufferASRV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA SRV");
+        return false;
+    }
 
     // GBufferB: Metallic (R), Specular (G), Roughness (B) (RGB8_UNorm)
     m_gbufferB = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm);
     if (!m_gbufferB.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB");
+        return false;
+    }
+    
+    // 创建GBufferB的RTV和SRV
+    RALRenderTargetViewDesc rtvDescB;
+    rtvDescB.format = RALDataFormat::R8G8B8A8_UNorm;
+    m_gbufferBRTV = m_device->CreateRenderTargetView(m_gbufferB.Get(), rtvDescB);
+    if (!m_gbufferBRTV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB RTV");
+        return false;
+    }
+    
+    RALShaderResourceViewDesc srvDescB;
+    srvDescB.format = RALDataFormat::R8G8B8A8_UNorm;
+    m_gbufferBSRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferB.Get()), srvDescB);
+    if (!m_gbufferBSRV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB SRV");
         return false;
     }
 
@@ -264,12 +302,50 @@ bool Scene::InitializeDeferredRendering()
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC");
         return false;
     }
+    
+    // 创建GBufferC的RTV和SRV
+    RALRenderTargetViewDesc rtvDescC;
+    rtvDescC.format = RALDataFormat::R8G8B8A8_UNorm;
+    m_gbufferCRTV = m_device->CreateRenderTargetView(m_gbufferC.Get(), rtvDescC);
+    if (!m_gbufferCRTV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC RTV");
+        return false;
+    }
+    
+    RALShaderResourceViewDesc srvDescC;
+    srvDescC.format = RALDataFormat::R8G8B8A8_UNorm;
+    m_gbufferCSRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferC.Get()), srvDescC);
+    if (!m_gbufferCSRV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC SRV");
+        return false;
+    }
 
     // 创建深度/模板缓冲区
     m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::R32_Typeless);
     if (!m_gbufferDepthStencil.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil");
+        return false;
+    }
+    
+    // 创建深度模板缓冲区的DSV和SRV
+    RALDepthStencilViewDesc dsvDesc;
+    dsvDesc.format = RALDataFormat::D32_Float;
+    m_gbufferDSV = m_device->CreateDepthStencilView(m_gbufferDepthStencil.Get(), dsvDesc);
+    if (!m_gbufferDSV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil DSV");
+        return false;
+    }
+    
+    RALShaderResourceViewDesc depthSRVDesc;
+    depthSRVDesc.format = RALDataFormat::R32_Float;
+    m_gbufferDepthSRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferDepthStencil.Get()), depthSRVDesc);
+    if (!m_gbufferDepthSRV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil SRV");
         return false;
     }
 
