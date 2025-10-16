@@ -28,6 +28,9 @@ class IRALIndexBuffer;
 class IRALConstBuffer;
 class IRALCommandList;
 class IRALViewport;
+class IRALDepthStencilView;
+class IRALRenderTargetView;
+class IRALShaderResourceView;
 
 // 顶点属性语义（用于标识属性用途，辅助上层逻辑）
 enum class RALVertexSemantic
@@ -343,8 +346,11 @@ enum class RALResourceType
 	DepthStencil,
 	Viewport,
 	RootSignature,
+	DepthStencilView,
+	RenderTargetView,
+	ShaderResourceView,
 
-	Count,
+	Count
 };
 
 // Render Abstraction Layer Shader类型
@@ -1063,4 +1069,59 @@ protected:
 	uint32_t m_height;
 	RALDataFormat m_format;
 };
+
+// 深度模板视图接口
+class IRALDepthStencilView : public IRALResource
+{
+public:
+	IRALDepthStencilView()
+		: IRALResource(RALResourceType::DepthStencilView)
+	{
+	}
+
+	virtual ~IRALDepthStencilView() = default;
+
+	// 获取关联的深度模板资源
+	virtual IRALDepthStencil* GetDepthStencil() const = 0;
+
+	// 获取原生深度模板视图
+	virtual void* GetNativeDepthStencilView() const = 0;
+};
+
+// 渲染目标视图接口
+class IRALRenderTargetView : public IRALResource
+{
+public:
+	IRALRenderTargetView()
+		: IRALResource(RALResourceType::RenderTargetView)
+	{
+	}
+
+	virtual ~IRALRenderTargetView() = default;
+
+	// 获取关联的渲染目标资源
+	virtual IRALRenderTarget* GetRenderTarget() const = 0;
+
+	// 获取原生渲染目标视图
+	virtual void* GetNativeRenderTargetView() const = 0;
+};
+
+// 着色器资源视图接口
+class IRALShaderResourceView : public IRALResource
+{
+public:
+	IRALShaderResourceView()
+		: IRALResource(RALResourceType::ShaderResourceView)
+	{
+	}
+
+	virtual ~IRALShaderResourceView() = default;
+
+	// 获取关联的资源（可能是纹理、缓冲区等）
+	virtual IRALResource* GetResource() const = 0;
+
+	// 获取原生着色器资源视图
+	virtual void* GetNativeShaderResourceView() const = 0;
+};
+
 #endif // RALRESOURCE_H

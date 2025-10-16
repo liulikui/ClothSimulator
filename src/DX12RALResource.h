@@ -1026,4 +1026,199 @@ protected:
 	ComPtr<ID3D12PipelineState> m_nativePipelineState; // ID3D12PipelineState*
 };
 
+// DX12实现的深度模板视图
+class DX12RALDepthStencilView : public IRALDepthStencilView
+{
+public:
+	DX12RALDepthStencilView()
+		: IRALDepthStencilView()
+	{
+		m_dsvHandle.ptr = 0;
+	}
+
+	virtual ~DX12RALDepthStencilView() = default;
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() const override
+	{
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_dsvHandle));
+	}
+
+	// 实现IRALDepthStencilView接口
+	virtual IRALDepthStencil* GetDepthStencil() const override
+	{
+		return m_depthStencil;
+	}
+
+	virtual void* GetNativeDepthStencilView() const override
+	{
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_dsvHandle));
+	}
+
+	// 设置深度模板资源
+	void SetDepthStencil(IRALDepthStencil* depthStencil)
+	{
+		m_depthStencil = depthStencil;
+	}
+
+	// 设置DSV描述符句柄
+	void SetDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_dsvHandle = handle;
+	}
+
+	// 获取DSV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const
+	{
+		return m_dsvHandle;
+	}
+
+	// 设置DSV堆
+	void SetDSVHeap(const ComPtr<ID3D12DescriptorHeap>& dsvHeap)
+	{
+		m_dsvHeap = dsvHeap;
+	}
+
+	// 获取DSV堆
+	ID3D12DescriptorHeap* GetDSVHeap() const
+	{
+		return m_dsvHeap.Get();
+	}
+
+protected:
+	IRALDepthStencil* m_depthStencil;                   // 关联的深度模板资源
+	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;            // DSV描述符句柄
+	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;             // DSV堆
+};
+
+// DX12实现的渲染目标视图
+class DX12RALRenderTargetView : public IRALRenderTargetView
+{
+public:
+	DX12RALRenderTargetView()
+		: IRALRenderTargetView()
+	{
+		m_rtvHandle.ptr = 0;
+	}
+
+	virtual ~DX12RALRenderTargetView() = default;
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() const override
+	{
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_rtvHandle));
+	}
+
+	// 实现IRALRenderTargetView接口
+	virtual IRALRenderTarget* GetRenderTarget() const override
+	{
+		return m_renderTarget;
+	}
+
+	virtual void* GetNativeRenderTargetView() const override
+	{
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_rtvHandle));
+	}
+
+	// 设置渲染目标资源
+	void SetRenderTarget(IRALRenderTarget* renderTarget)
+	{
+		m_renderTarget = renderTarget;
+	}
+
+	// 设置RTV描述符句柄
+	void SetRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_rtvHandle = handle;
+	}
+
+	// 获取RTV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const
+	{
+		return m_rtvHandle;
+	}
+
+	// 设置RTV堆
+	void SetRTVHeap(const ComPtr<ID3D12DescriptorHeap>& rtvHeap)
+	{
+		m_rtvHeap = rtvHeap;
+	}
+
+	// 获取RTV堆
+	ID3D12DescriptorHeap* GetRTVHeap() const
+	{
+		return m_rtvHeap.Get();
+	}
+
+protected:
+	IRALRenderTarget* m_renderTarget;                   // 关联的渲染目标资源
+	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandle;            // RTV描述符句柄
+	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;             // RTV堆
+};
+
+// DX12实现的着色器资源视图
+class DX12RALShaderResourceView : public IRALShaderResourceView
+{
+public:
+	DX12RALShaderResourceView()
+		: IRALShaderResourceView()
+	{
+		m_srvHandle.ptr = 0;
+	}
+
+	virtual ~DX12RALShaderResourceView() = default;
+
+	// 实现IRALResource接口
+	virtual void* GetNativeResource() const override
+	{
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_srvHandle));
+	}
+
+	// 实现IRALShaderResourceView接口
+	virtual IRALResource* GetResource() const override
+	{
+		return m_resource;
+	}
+
+	virtual void* GetNativeShaderResourceView() const override
+	{
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_srvHandle));
+	}
+
+	// 设置关联的资源
+	void SetResource(IRALResource* resource)
+	{
+		m_resource = resource;
+	}
+
+	// 设置SRV描述符句柄
+	void SetSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_srvHandle = handle;
+	}
+
+	// 获取SRV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() const
+	{
+		return m_srvHandle;
+	}
+
+	// 设置SRV堆
+	void SetSRVHeap(const ComPtr<ID3D12DescriptorHeap>& srvHeap)
+	{
+		m_srvHeap = srvHeap;
+	}
+
+	// 获取SRV堆
+	ID3D12DescriptorHeap* GetSRVHeap() const
+	{
+		return m_srvHeap.Get();
+	}
+
+protected:
+	IRALResource* m_resource;                           // 关联的资源
+	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;            // SRV描述符句柄
+	ComPtr<ID3D12DescriptorHeap> m_srvHeap;             // SRV堆
+};
+
 #endif // DX12RALRESOURCE_H
