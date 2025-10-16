@@ -2,6 +2,7 @@
 #define DX12RALRESOURCE_H
 
 #include "RALResource.h"
+#include "TRefCountPtr.h"
 #include <dxgiformat.h>
 #include <d3dcommon.h>
 #include <d3d12.h>
@@ -1063,7 +1064,7 @@ public:
 	// 实现IRALDepthStencilView接口
 	virtual IRALDepthStencil* GetDepthStencil() const override
 	{
-		return m_depthStencil;
+		return m_depthStencil.Get();
 	}
 
 	virtual void* GetNativeDepthStencilView() const override
@@ -1096,7 +1097,7 @@ public:
 	}
 
 	// 设置DSV堆
-	void SetDSVHeap(const ComPtr<ID3D12DescriptorHeap>& heap)
+	void SetDSVHeap(ID3D12DescriptorHeap* heap)
 	{
 		m_dsvHeap = heap;
 	}
@@ -1107,8 +1108,6 @@ public:
 		return m_dsvHandle;
 	}
 
-
-
 	// 获取DSV堆
 	ID3D12DescriptorHeap* GetDSVHeap() const
 	{
@@ -1116,11 +1115,11 @@ public:
 	}
 
 protected:
-	IRALDepthStencil* m_depthStencil;             // 关联的深度模板资源
-	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;      // DSV描述符句柄
-	DX12RALDevice* m_device;                      // 设备指针
-	uint32_t m_dsvIndex;                          // DSV索引
-	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;       // DSV堆
+	TRefCountPtr<IRALDepthStencil> m_depthStencil;	// 关联的深度模板资源
+	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;		// DSV描述符句柄
+	DX12RALDevice* m_device;						// 设备指针
+	uint32_t m_dsvIndex;							// DSV索引
+	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;			// DSV堆
 };
 
 // DX12实现的渲染目标视图
@@ -1146,7 +1145,7 @@ public:
 	// 实现IRALRenderTargetView接口
 	virtual IRALRenderTarget* GetRenderTarget() const override
 	{
-		return m_renderTarget;
+		return m_renderTarget.Get();
 	}
 
 	virtual void* GetNativeRenderTargetView() const override
@@ -1191,17 +1190,17 @@ public:
 	}
 
 	// 设置RTV堆
-	void SetRTVHeap(const ComPtr<ID3D12DescriptorHeap>& rtvHeap)
+	void SetRTVHeap(ID3D12DescriptorHeap* rtvHeap)
 	{
 		m_rtvHeap = rtvHeap;
 	}
 
 protected:
-	IRALRenderTarget* m_renderTarget;                   // 关联的渲染目标资源
-	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandle;            // RTV描述符句柄
-	DX12RALDevice* m_device;                        // 设备指针
-	uint32_t m_rtvIndex;                            // RTV索引
-	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;             // RTV堆
+	TRefCountPtr<IRALRenderTarget> m_renderTarget;		// 关联的渲染目标资源
+	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandle;			// RTV描述符句柄
+	DX12RALDevice* m_device;							// 设备指针
+	uint32_t m_rtvIndex;								// RTV索引
+	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;				// RTV堆
 };
 
 // DX12实现的着色器资源视图
@@ -1227,7 +1226,7 @@ public:
 	// 实现IRALShaderResourceView接口
 	virtual IRALResource* GetResource() const override
 	{
-		return m_resource;
+		return m_resource.Get();
 	}
 
 	virtual void* GetNativeShaderResourceView() const override
@@ -1254,7 +1253,7 @@ public:
 	}
 
 	// 设置SRV堆
-	void SetSRVHeap(const ComPtr<ID3D12DescriptorHeap>& srvHeap)
+	void SetSRVHeap(ID3D12DescriptorHeap* srvHeap)
 	{
 		m_srvHeap = srvHeap;
 	}
@@ -1278,7 +1277,7 @@ public:
 	}
 
 protected:
-	IRALResource* m_resource;                           // 关联的资源
+	TRefCountPtr<IRALResource> m_resource;				// 关联的资源
 	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;            // SRV描述符句柄
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap;             // SRV堆
 	DX12RALDevice* m_device;                            // 设备指针

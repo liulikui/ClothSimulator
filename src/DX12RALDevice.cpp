@@ -2142,7 +2142,7 @@ IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* re
 
     // 设置渲染目标资源和设备信息
     rtv->SetRenderTarget(renderTarget);
-    rtv->SetRTVHeap(rtvHeap);
+    rtv->SetRTVHeap(rtvHeap.Get());
     rtv->SetRTVHandle(rtvHandle);
     rtv->SetRTVIndex(rtvIndex);
     rtv->SetDevice(this);
@@ -2308,7 +2308,7 @@ IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* de
     }
 
     dsv->SetDSVHandle(dsvHandle);
-    dsv->SetDSVHeap(dsvHeap);
+    dsv->SetDSVHeap(dsvHeap.Get());
     dsv->SetDSVIndex(dsvIndex);
 
     // 创建DSV
@@ -2353,7 +2353,7 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     }
 
     srv->SetSRVHandle(srvHandle);
-    srv->SetSRVHeap(srvHeap);
+    srv->SetSRVHeap(srvHeap.Get());
     srv->SetSRVIndex(srvIndex);
 
     // 获取原生资源
