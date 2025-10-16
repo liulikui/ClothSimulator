@@ -120,6 +120,17 @@ private:
     void UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
 	void UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, PrimitiveInfo* primitiveInfo);
 
+    // 初始化延迟着色相关资源
+    bool InitializeDeferredRendering();
+    // 清理延迟着色相关资源
+    void CleanupDeferredRendering();
+    // 执行几何阶段
+    void ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
+    // 执行光照阶段
+    void ExecuteLightingPass();
+    // 创建全屏四边形
+    void CreateFullscreenQuad();
+
 private:
     IRALDevice* m_device;
 
@@ -137,16 +148,6 @@ private:
     dx::XMFLOAT4 m_lightDiffuseColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
     dx::XMFLOAT4 m_lightSpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };       // 默认光源颜色（白色）
 
-    // 根签名对象
-    TRefCountPtr<IRALRootSignature> m_rootSignature;
-
-    // 着色器对象
-    TRefCountPtr<IRALVertexShader> m_vertexShader;
-    TRefCountPtr<IRALPixelShader> m_pixelShader;
-
-    // 图形管道状态对象
-    TRefCountPtr<IRALGraphicsPipelineState> m_pipelineState;
-
     // 延迟着色相关 - 几何阶段管道状态
     TRefCountPtr<IRALGraphicsPipelineState> m_gbufferPipelineState;
     TRefCountPtr<IRALVertexShader> m_gbufferVertexShader;
@@ -160,7 +161,7 @@ private:
     TRefCountPtr<IRALRootSignature> m_lightRootSignature;
 
     // GBuffer相关
-    TRefCountPtr<IRALRenderTarget> m_gbufferA; // 世界空间法线
+    TRefCountPtr<IRALRenderTarget> m_gbufferA; // RRG为世界空间法线
     TRefCountPtr<IRALRenderTarget> m_gbufferB; // Metallic, Specular, Roughness
     TRefCountPtr<IRALRenderTarget> m_gbufferC; // BaseColor RGB
     TRefCountPtr<IRALDepthStencil> m_gbufferDepthStencil;
@@ -169,18 +170,7 @@ private:
     TRefCountPtr<IRALIndexBuffer> m_fullscreenQuadIB;
 
     // 场景相关常量
-    TRefCountPtr<IRALConstBuffer> m_constBuffer;
-
-    // 初始化延迟着色相关资源
-    bool InitializeDeferredRendering();
-    // 清理延迟着色相关资源
-    void CleanupDeferredRendering();
-    // 执行几何阶段
-    void ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
-    // 执行光照阶段
-    void ExecuteLightingPass();
-    // 创建全屏四边形
-    void CreateFullscreenQuad();
+    TRefCountPtr<IRALConstBuffer> m_sceneConstBuffer;
 };
 
 #endif // SCENE_H
