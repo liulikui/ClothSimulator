@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <unordered_map>
 #include "Camera.h"
 #include "RALResource.h"
 #include "RALCommandList.h"
@@ -16,8 +17,188 @@
 // 简化命名空间
 namespace dx = DirectX;
 
-// 前向声明
-class Scene;
+template<D3D12_DESCRIPTOR_HEAP_TYPE HeapType, size_t size>
+class DX12DescriptorHeapManager
+{
+public:
+    DX12DescriptorHeapManager()
+        : m_descriptorSize(0)
+        , m_heapInfoHead(nullptr)
+        , m_totalCount(0)
+    {
+
+    }
+
+    ~DX12DescriptorHeapManager()
+    {
+        HeapInfo* heapinfo = m_heapInfoHead;
+
+        while (heapinfo != nullptr)
+        {
+            HeapInfo* nextHeapinfo = heapinfo->next;
+            delete heapinfo;
+            heapinfo = nextHeapinfo;
+        }
+    }
+
+    void SetDevice(const ComPtr<ID3D12Device>& device)
+    {
+        m_device = device;
+    }
+
+    void SetDescriptorSize(uint32_t size)
+    {
+        m_descriptorSize = size;
+    }
+
+    uint32_t GetDescriptorSize() const
+    {
+        return m_descriptorSize;
+    }
+
+    bool AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, ComPtr<ID3D12DescriptorHeap>& outHeap, uint32_t& outIndex)
+    {
+        if (GetAvailableDescriptor(outHandle, outHeap, outIndex))
+        {
+            m_totalCount++;
+            return true;
+        }
+
+        ComPtr<ID3D12DescriptorHeap> newHeap;
+        if (CreateDescriptorHeap(newHeap) && newHeap != nullptr)
+        {
+            HeapInfo* newHeapInfo = new HeapInfo;
+            newHeapInfo->heap = newHeap;
+            newHeapInfo->size = size;
+            newHeapInfo->next = m_heapInfoHead;
+            
+            if (m_heapInfoHead != nullptr)
+            {
+                m_heapInfoHead->prev = newHeapInfo;
+            }
+
+            m_heapInfoHead = newHeapInfo;
+
+            outHeap = newHeap;
+            outIndex = newHeapInfo->curIndex++;
+            outHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
+            outHandle.ptr += outIndex * m_descriptorSize;
+
+            m_totalCount++;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    bool FreeDescriptor(const ComPtr<ID3D12DescriptorHeap>& heap, uint32_t index)
+    {
+        HeapInfo* heapinfo = m_heapInfoHead;
+
+        while (headinfo != nullptr)
+        {
+            if (headinfo->heap == heap)
+            {
+                bool found = false;
+                if (size_t i = 0; i < heapinfo->freeSlots.size(); ++i)
+                {
+                    if (heapinfo->freeSlots[i] == index)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found)
+                {
+                    return false;
+                }
+                else
+                {
+                    heapinfo->freeSlots.push_back(index);
+
+                    return true;
+                }
+            }
+
+            headinfo = headinfo->next;
+        }
+
+        return false;
+    }
+
+private:
+    bool CreateDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& outHeap)
+    {
+        D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+        heapDesc.Type = HeapType;
+        heapDesc.NumDescriptors = size;
+
+        heapDesc.Flags = (HeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) ? 
+            D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+        HRESULT hr = m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(outHeap.ReleaseAndGetAddressOf()));
+
+        return SUCCEEDED(hr);
+    }
+
+    bool GetAvailableDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, ComPtr<ID3D12DescriptorHeap>& outHeap, uint32_t& outIndex)
+    {
+        HeapInfo* heapinfo = m_heapInfoHead;
+
+        while (heapinfo != nullptr)
+        {
+            if (heapinfo->freeSlots.size() > 0)
+            {
+                outHeap = heapinfo->heap;
+                outIndex = heapinfo->freeSlots.back();
+                heapinfo->freeSlots.pop_back();
+                outHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
+                outHandle.ptr += outIndex * m_descriptorSize;
+
+                return true;
+            }
+            else if (heapinfo->curIndex + 1 < heapinfo->size)
+            {
+                outHeap = heapinfo->heap;
+                outIndex = heapinfo->curIndex++;
+                outHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
+                outHandle.ptr += outIndex * m_descriptorSize;
+
+                return true;
+            }
+
+            heapinfo = heapinfo->next;
+        }
+
+        return false;
+    }
+
+private:
+    struct HeapInfo
+    {
+        HeapInfo()
+            : size(0)
+            , curIndex(0)
+            , next(nullptr)
+            , prev(nullptr)
+        {
+        }
+
+        ComPtr<ID3D12DescriptorHeap> heap;
+        uint32_t size;
+        uint32_t curIndex;
+        std::vector<uint32_t> freeSlots;
+        HeapInfo* next;
+        HeapInfo* prev;
+    };
+
+    ComPtr<ID3D12Device> m_device;
+    uint32_t m_descriptorSize;
+    HeapInfo* m_heapInfoHead;
+    size_t m_totalCount;
+};
 
 class DX12RALDevice : public IRALDevice
 {
@@ -126,10 +307,10 @@ private:
     void CreateDescriptorHeaps();
 
     // 创建渲染目标视图
-    void CreateRenderTargetViews();
+    void CreateMainRenderTargetViews();
 
     // 创建深度/模板视图
-    void CreateDepthStencilView();
+    void CreateMainDepthStencilView();
 
     // 创建缓冲区
     ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_RESOURCE_FLAGS flags,
@@ -169,13 +350,20 @@ private:
 
     uint32_t m_currentFrameIndex;                               // 当前帧索引，用于缓存
 
-    // 描述符堆
-    ComPtr<ID3D12DescriptorHeap> m_rtvHeap;                     // 渲染目标视图堆
-    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;                     // 深度/模板视图堆
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap;                     // 着色器资源视图堆
+    // 描述符堆和管理
+    // 主描述符堆（用于后缓冲区和主深度缓冲区）
+    ComPtr<ID3D12DescriptorHeap> m_mainRtvHeap;                 // 主渲染目标视图堆
+    ComPtr<ID3D12DescriptorHeap> m_mainDsvHeap;                 // 主深度/模板视图堆
+    ComPtr<ID3D12DescriptorHeap> m_mainSrvHeap;                 // 主着色器资源视图堆
+    
+    // 描述符大小
     uint32_t m_rtvDescriptorSize = 0;                           // 渲染目标视图描述符大小
     uint32_t m_dsvDescriptorSize = 0;                           // 深度/模板视图描述符大小
     uint32_t m_srvDescriptorSize = 0;                           // 着色器资源视图描述符大小
+    
+    DX12DescriptorHeapManager<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 32> m_RTVDescriptorHeaps;
+    DX12DescriptorHeapManager<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32> m_DSVDescriptorHeaps;
+    DX12DescriptorHeapManager<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 32> m_SRVDescriptorHeaps;
 
     // 资源
     std::vector<ComPtr<ID3D12Resource>> m_backBuffers;          // 后缓冲区

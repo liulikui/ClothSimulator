@@ -1,4 +1,5 @@
-#pragma once
+#ifndef IRAL_DEVICE_H
+#define IRAL_DEVICE_H
 
 #include "RALResource.h"
 #include "RALCommandList.h"
@@ -91,3 +92,4 @@ public:
     // 创建深度/模板缓冲区
     virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format) = 0;
 };
+#endif//IRAL_DEVICE_H

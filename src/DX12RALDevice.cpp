@@ -58,10 +58,10 @@ bool DX12RALDevice::Initialize()
     CreateDescriptorHeaps();
 
     // 创建渲染目标视图
-    CreateRenderTargetViews();
+    CreateMainRenderTargetViews();
 
     // 创建深度/模板视图
-    CreateDepthStencilView();
+    CreateMainDepthStencilView();
 
     return true;
 }
@@ -72,7 +72,7 @@ void DX12RALDevice::BeginFrame()
 
     // 获取当前后台缓冲区
     m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_mainRtvHeap->GetCPUDescriptorHandleForHeapStart();
     rtvHandle.ptr += m_currentBackBufferIndex * m_rtvDescriptorSize;
 
     // 重置当前帧的命令分配器
@@ -103,7 +103,7 @@ void DX12RALDevice::BeginFrame()
 
     dx12CommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     dx12CommandList->ClearDepthStencilView(
-        m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
+			m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart(),
         D3D12_CLEAR_FLAG_DEPTH,
         1.0f,
         0,
@@ -112,7 +112,7 @@ void DX12RALDevice::BeginFrame()
     );
 
     // 设置渲染目标和深度/模板视图
-    dx12CommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    dx12CommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     // 设置视口和裁剪矩形
     D3D12_VIEWPORT viewport = {};
@@ -315,6 +315,10 @@ bool DX12RALDevice::CreateDeviceAndSwapChain()
         return false;
     }
 
+    m_RTVDescriptorHeaps.SetDevice(m_device);
+    m_DSVDescriptorHeaps.SetDevice(m_device);
+    m_SRVDescriptorHeaps.SetDevice(m_device);
+
     return true;
 }
 
@@ -353,6 +357,7 @@ void DX12RALDevice::CreateCommandObjects()
     // 关闭命令列表（初始状态是打开的）
     commandList->Close();
 
+    // 创建DX12RALGraphicsCommandList实例
     m_graphicsCommandList = new DX12RALGraphicsCommandList(m_commandAllocators[0].Get(), commandList.Get());
 }
 
@@ -364,48 +369,52 @@ void DX12RALDevice::CreateDescriptorHeaps()
     m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
     m_srvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    // 创建渲染目标视图堆
+    m_RTVDescriptorHeaps.SetDescriptorSize(m_rtvDescriptorSize);
+    m_DSVDescriptorHeaps.SetDescriptorSize(m_dsvDescriptorSize);
+    m_SRVDescriptorHeaps.SetDescriptorSize(m_srvDescriptorSize);
+
+    // 创建主渲染目标视图堆（用于后缓冲区）
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     rtvHeapDesc.NumDescriptors = m_backBufferCount;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    HRESULT hr = m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(m_rtvHeap.ReleaseAndGetAddressOf()));
+    HRESULT hr = m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(m_mainRtvHeap.ReleaseAndGetAddressOf()));
     if (FAILED(hr))
     {
-        throw std::runtime_error("Failed to create RTV heap.");
+        throw std::runtime_error("Failed to create main RTV heap.");
     }
 
-    // 创建深度/模板视图堆
+    // 创建主深度/模板视图堆（用于主深度缓冲区）
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvHeapDesc.NumDescriptors = 1;
     dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    hr = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_dsvHeap.ReleaseAndGetAddressOf()));
+    hr = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_mainDsvHeap.ReleaseAndGetAddressOf()));
     if (FAILED(hr))
     {
-        throw std::runtime_error("Failed to create DSV heap.");
+        throw std::runtime_error("Failed to create main DSV heap.");
     }
 
-    // 创建着色器资源视图堆
+    // 创建主着色器资源视图堆
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     srvHeapDesc.NumDescriptors = 10;  // 预留一些描述符
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-    hr = m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.ReleaseAndGetAddressOf()));
+    hr = m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_mainSrvHeap.ReleaseAndGetAddressOf()));
     if (FAILED(hr))
     {
-        throw std::runtime_error("Failed to create SRV heap.");
+        throw std::runtime_error("Failed to create main SRV heap.");
     }
 }
 
 // 创建渲染目标视图
-void DX12RALDevice::CreateRenderTargetViews()
+void DX12RALDevice::CreateMainRenderTargetViews()
 {
     // 获取渲染目标视图堆的起始句柄
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_mainRtvHeap->GetCPUDescriptorHandleForHeapStart();
 
     // 为每个后台缓冲区创建渲染目标视图
     m_backBuffers.resize(m_backBufferCount);
@@ -427,7 +436,7 @@ void DX12RALDevice::CreateRenderTargetViews()
 }
 
 // 创建深度/模板视图
-void DX12RALDevice::CreateDepthStencilView()
+void DX12RALDevice::CreateMainDepthStencilView()
 {
     // 创建深度/模板缓冲区描述
     D3D12_RESOURCE_DESC depthStencilDesc = {};
@@ -480,7 +489,7 @@ void DX12RALDevice::CreateDepthStencilView()
     m_device->CreateDepthStencilView(
         m_depthStencilBuffer.Get(),
         &dsvDesc,
-        m_dsvHeap->GetCPUDescriptorHandleForHeapStart()
+        m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart()
     );
 }
 
@@ -1751,12 +1760,10 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
     }
 
     // 重新创建渲染目标视图
-    CreateRenderTargetViews();
+    CreateMainRenderTargetViews();
 
     // 重新创建深度/模板视图
-    CreateDepthStencilView();
-
-    // 注意：相机调整现在由Main.cpp处理
+    CreateMainDepthStencilView();
 }
 
 //// 创建图形命令列表
@@ -2005,8 +2012,6 @@ void DX12RALDevice::Cleanup()
         CloseHandle(m_fenceEvent);
         m_fenceEvent = nullptr;
     }
-
-    // 释放资源（智能指针会自动处理）
 }
 
 // 创建渲染目标
@@ -2023,7 +2028,7 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
     desc.Height = height;
     desc.DepthOrArraySize = 1;
     desc.MipLevels = 1;
-    desc.Format = static_cast<DXGI_FORMAT>(format);
+    desc.Format = toDXGIFormat(format);
     desc.SampleDesc.Count = 1;
     desc.SampleDesc.Quality = 0;
     desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -2057,7 +2062,56 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
         return nullptr;
     }
 
-    // 设置原生资源
+    // 分配RTV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+    uint32_t rtvIndex;
+    ComPtr<ID3D12DescriptorHeap> rtvHeap;
+
+    if (!m_RTVDescriptorHeaps.AllocateDescriptor(rtvHandle, rtvHeap, rtvIndex))
+    {
+        delete renderTarget;
+        return nullptr;
+    }
+
+    renderTarget->SetRTVHeap(rtvHeap);
+    renderTarget->SetRTVHandle(rtvHandle);
+    renderTarget->SetRTVIndex(rtvIndex);
+
+    // 分配SRV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
+    uint32_t srvIndex;
+    ComPtr<ID3D12DescriptorHeap> srvHeap;
+
+    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvHandle, srvHeap, srvIndex))
+    {
+        delete renderTarget;
+        return nullptr;
+    }
+
+    renderTarget->SetSRVHeap(srvHeap);
+    renderTarget->SetSRVHandle(srvHandle);
+    renderTarget->SetSRVIndex(srvIndex);
+
+    // 创建RTV
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format = toDXGIFormat(format);
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = 0;
+    rtvDesc.Texture2D.PlaneSlice = 0;
+
+    m_device->CreateRenderTargetView(d3d12Resource.Get(), &rtvDesc, rtvHandle);
+
+    // 创建SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    m_device->CreateShaderResourceView(d3d12Resource.Get(), &srvDesc, srvHandle);
+
+    // 设置原生资源和描述符信息
     renderTarget->SetNativeResource(d3d12Resource.Get());
     renderTarget->SetResourceState(RALResourceState::RenderTarget);
 
@@ -2078,7 +2132,7 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
     desc.Height = height;
     desc.DepthOrArraySize = 1;
     desc.MipLevels = 1;
-    desc.Format = static_cast<DXGI_FORMAT>(format);
+    desc.Format = toDXGIFormat(format);
     desc.SampleDesc.Count = 1;
     desc.SampleDesc.Quality = 0;
     desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -2097,7 +2151,7 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
 
     // 创建深度/模板资源描述符
     D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format = static_cast<DXGI_FORMAT>(format);
+    clearValue.Format = isTypelessFormat(format) ? toDXGIFormat(getDepthStencilFormatFromTypeless(format)) : toDXGIFormat(format);
     clearValue.DepthStencil.Depth = 1.0f;
     clearValue.DepthStencil.Stencil = 0;
 
@@ -2118,7 +2172,56 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
         return nullptr;
     }
 
-    // 设置原生资源
+    // 分配DSV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
+    uint32_t dsvIndex;
+    ComPtr<ID3D12DescriptorHeap> dsvHeap;
+
+    if (!m_DSVDescriptorHeaps.AllocateDescriptor(dsvHandle, dsvHeap, dsvIndex))
+    {
+        delete depthStencil;
+        return nullptr;
+    }
+
+    depthStencil->SetDSVHeap(dsvHeap);
+    depthStencil->SetDSVHandle(dsvHandle);
+    depthStencil->SetDSVIndex(dsvIndex);
+
+    // 分配SRV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
+    uint32_t srvIndex;
+    ComPtr<ID3D12DescriptorHeap> srvHeap;
+
+    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvHandle, srvHeap, srvIndex))
+    {
+        delete depthStencil;
+        return nullptr;
+    }
+
+    depthStencil->SetSRVHeap(srvHeap);
+    depthStencil->SetSRVHandle(srvHandle);
+    depthStencil->SetSRVIndex(srvIndex);
+
+    // 创建DSV
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = isTypelessFormat(format) ? toDXGIFormat(getDepthStencilFormatFromTypeless(format)) : toDXGIFormat(format);
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = 0;
+    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+    m_device->CreateDepthStencilView(d3d12Resource.Get(), &dsvDesc, dsvHandle);
+
+    // 创建SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    m_device->CreateShaderResourceView(d3d12Resource.Get(), &srvDesc, srvHandle);
+
+    // 设置原生资源和描述符信息
     depthStencil->SetNativeResource(d3d12Resource.Get());
     depthStencil->SetResourceState(RALResourceState::DepthStencil);
 

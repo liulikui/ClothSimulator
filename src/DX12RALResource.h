@@ -10,7 +10,8 @@
 using namespace Microsoft::WRL;
 
 // 将跨平台RALDataFormat转换为DX12的DXGI_FORMAT
-inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) {
+inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) 
+{
 	switch (format) 
 	{
 		// 单通道8位
@@ -30,6 +31,13 @@ inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) {
 	case RALDataFormat::R32_UInt:         return DXGI_FORMAT_R32_UINT;
 	case RALDataFormat::R32_SInt:         return DXGI_FORMAT_R32_SINT;
 	case RALDataFormat::R32_Float:        return DXGI_FORMAT_R32_FLOAT;
+	case RALDataFormat::R32_Typeless:     return DXGI_FORMAT_R32_TYPELESS; // 对应DXGI_FORMAT_R32_TYPELESS
+
+		// 单通道16位无类型
+	case RALDataFormat::R16_Typeless:     return DXGI_FORMAT_R16_TYPELESS;
+
+		// 单通道8位无类型
+	case RALDataFormat::R8_Typeless:      return DXGI_FORMAT_R8_TYPELESS;
 
 		// 双通道8位
 	case RALDataFormat::R8G8_UInt:        return DXGI_FORMAT_R8G8_UINT;
@@ -43,11 +51,16 @@ inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) {
 	case RALDataFormat::R16G16_UNorm:     return DXGI_FORMAT_R16G16_UNORM;
 	case RALDataFormat::R16G16_SNorm:     return DXGI_FORMAT_R16G16_SNORM;
 	case RALDataFormat::R16G16_Float:     return DXGI_FORMAT_R16G16_FLOAT;
+	case RALDataFormat::R16G16_Typeless:  return DXGI_FORMAT_R16G16_TYPELESS;
+
+		// 双通道8位无类型
+	case RALDataFormat::R8G8_Typeless:    return DXGI_FORMAT_R8G8_TYPELESS;
 
 		// 双通道32位
 	case RALDataFormat::R32G32_UInt:      return DXGI_FORMAT_R32G32_UINT;
 	case RALDataFormat::R32G32_SInt:      return DXGI_FORMAT_R32G32_SINT;
 	case RALDataFormat::R32G32_Float:     return DXGI_FORMAT_R32G32_FLOAT;
+	case RALDataFormat::R32G32_Typeless:  return DXGI_FORMAT_R32G32_TYPELESS;
 
 		// 三通道8位格式（DXGI不原生支持，返回UNKNOWN）
 	case RALDataFormat::R8G8B8_UInt:
@@ -59,6 +72,7 @@ inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) {
 
 	   // 三通道32位
 	case RALDataFormat::R32G32B32_Float:  return DXGI_FORMAT_R32G32B32_FLOAT;
+	case RALDataFormat::R32G32B32_Typeless: return DXGI_FORMAT_R32G32B32_TYPELESS;
 
 		// 四通道8位
 	case RALDataFormat::R8G8B8A8_UInt:    return DXGI_FORMAT_R8G8B8A8_UINT;
@@ -66,6 +80,13 @@ inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) {
 	case RALDataFormat::R8G8B8A8_UNorm:   return DXGI_FORMAT_R8G8B8A8_UNORM;
 	case RALDataFormat::R8G8B8A8_SNorm:   return DXGI_FORMAT_R8G8B8A8_SNORM;
 	case RALDataFormat::R8G8B8A8_SRGB:    return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SRGB对应DXGI的UNORM_SRGB
+	case RALDataFormat::R8G8B8A8_Typeless: return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+	// 注意：DXGI中没有R8G8B8X8_TYPELESS和B8G8R8X8_TYPELESS，使用对应的A8版本代替
+	case RALDataFormat::R8G8B8X8_Typeless: return DXGI_FORMAT_R8G8B8A8_TYPELESS; // 使用R8G8B8A8_TYPELESS代替
+	case RALDataFormat::B8G8R8A8_UNorm:   return DXGI_FORMAT_B8G8R8A8_UNORM;
+	case RALDataFormat::B8G8R8A8_SRGB:    return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+	case RALDataFormat::B8G8R8A8_Typeless: return DXGI_FORMAT_B8G8R8A8_TYPELESS;
+	case RALDataFormat::B8G8R8X8_Typeless: return DXGI_FORMAT_B8G8R8A8_TYPELESS; // 使用B8G8R8A8_TYPELESS代替
 
 		// 四通道16位
 	case RALDataFormat::R16G16B16A16_UInt:    return DXGI_FORMAT_R16G16B16A16_UINT;
@@ -73,17 +94,21 @@ inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) {
 	case RALDataFormat::R16G16B16A16_UNorm:   return DXGI_FORMAT_R16G16B16A16_UNORM;
 	case RALDataFormat::R16G16B16A16_SNorm:   return DXGI_FORMAT_R16G16B16A16_SNORM;
 	case RALDataFormat::R16G16B16A16_Float:   return DXGI_FORMAT_R16G16B16A16_FLOAT;
+	case RALDataFormat::R16G16B16A16_Typeless: return DXGI_FORMAT_R16G16B16A16_TYPELESS;
 
 		// 四通道32位
 	case RALDataFormat::R32G32B32A32_UInt:    return DXGI_FORMAT_R32G32B32A32_UINT;
 	case RALDataFormat::R32G32B32A32_SInt:    return DXGI_FORMAT_R32G32B32A32_SINT;
 	case RALDataFormat::R32G32B32A32_Float:   return DXGI_FORMAT_R32G32B32A32_FLOAT;
+	case RALDataFormat::R32G32B32A32_Typeless: return DXGI_FORMAT_R32G32B32A32_TYPELESS;
 
 		// 深度/模板格式（严格匹配DX12的深度模板布局）
 	case RALDataFormat::D16_UNorm:          return DXGI_FORMAT_D16_UNORM;
 	case RALDataFormat::D24_UNorm_S8_UInt:  return DXGI_FORMAT_D24_UNORM_S8_UINT;
 	case RALDataFormat::D32_Float:          return DXGI_FORMAT_D32_FLOAT;
 	case RALDataFormat::D32_Float_S8_UInt:  return DXGI_FORMAT_D32_FLOAT_S8X24_UINT; // DX12中S8需搭配X24对齐
+	case RALDataFormat::D24_UNorm_S8_UInt_Typeless: return DXGI_FORMAT_D24_UNORM_S8_UINT;
+	case RALDataFormat::D32_Float_S8_UInt_Typeless: return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 
 		// 压缩纹理格式（BC系列对应DXGI的压缩格式）
 	case RALDataFormat::BC1_UNorm:         return DXGI_FORMAT_BC1_UNORM;
@@ -737,10 +762,13 @@ class DX12RALRenderTarget : public IRALRenderTarget
 public:
 	DX12RALRenderTarget(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALRenderTarget(width, height, format)
+		, m_rtvIndex(0)
+		, m_srvIndex(0)
 	{
+		m_rtvHandle.ptr = 0;
 	}
 
-	virtual ~DX12RALRenderTarget() = default;
+	virtual ~DX12RALRenderTarget() override = default;
 
 	// 获取原生资源指针
 	void* GetNativeResource() const
@@ -754,15 +782,86 @@ public:
 		m_nativeResource = resource;
 	}
 
+	// 设置RTV堆
+	void SetRTVHeap(const ComPtr<ID3D12DescriptorHeap>& rtvHeap)
+	{
+		m_rtvHeap = rtvHeap;
+	}
 
-	// 创建渲染目标视图描述符
-	D3D12_CPU_DESCRIPTOR_HANDLE CreateRenderTargetView(ID3D12Device* device, ID3D12DescriptorHeap* heap, uint32_t descriptorSize, uint32_t index);
+	// 获取RTV堆
+	ID3D12DescriptorHeap* GetRTVHeap() const
+	{
+		return m_rtvHeap.Get();
+	}
 
-	// 创建着色器资源视图描述符
-	D3D12_CPU_DESCRIPTOR_HANDLE CreateShaderResourceView(ID3D12Device* device, ID3D12DescriptorHeap* heap, uint32_t descriptorSize, uint32_t index);
+	// 设置RTV描述符句柄
+	void SetRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_rtvHandle = handle;
+	}
+
+	// 获取RTV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const
+	{
+		return m_rtvHandle;
+	}
+
+	// 设置RTV索引
+	void SetRTVIndex(uint32_t index)
+	{
+		m_rtvIndex = index;
+	}
+
+	// 获取RTV索引
+	uint32_t GetRTVIndex() const
+	{
+		return m_rtvIndex;
+	}
+
+	// 设置SRV堆
+	void SetSRVHeap(const ComPtr<ID3D12DescriptorHeap>& srvHeap)
+	{
+		m_srvHeap = srvHeap;
+	}
+
+	// 获取SRV堆
+	ID3D12DescriptorHeap* GetSRVHeap() const
+	{
+		return m_srvHeap.Get();
+	}
+
+	// 设置SRV描述符句柄
+	void SetSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_srvHandle = handle;
+	}
+
+	// 获取RTV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() const
+	{
+		return m_srvHandle;
+	}
+
+	// 设置SRV索引
+	void SetSRVIndex(uint32_t index)
+	{
+		m_srvIndex = index;
+	}
+
+	// 获取SRV索引
+	uint32_t GetSRVIndex() const
+	{
+		return m_srvIndex;
+	}
 
 protected:
-	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
+	ComPtr<ID3D12Resource> m_nativeResource;        // ID3D12Resource*
+	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandle;        // RTV描述符句柄
+	uint32_t m_rtvIndex;                            // RTV索引
+	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;			// RTV堆
+	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;        // SRV描述符句柄
+	uint32_t m_srvIndex;                            // SRV索引
+	ComPtr<ID3D12DescriptorHeap> m_srvHeap;			// SRV堆
 };
 
 // DX12实现的DepthStencil
@@ -771,10 +870,13 @@ class DX12RALDepthStencil : public IRALDepthStencil
 public:
 	DX12RALDepthStencil(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALDepthStencil(width, height, format)
+		, m_dsvIndex(0)
+		, m_srvIndex(0)
 	{
+		m_dsvHandle.ptr = 0;
 	}
 
-	virtual ~DX12RALDepthStencil() = default;
+	virtual ~DX12RALDepthStencil() override = default;
 
 	// 获取原生资源指针
 	void* GetNativeResource() const
@@ -788,12 +890,86 @@ public:
 		m_nativeResource = resource;
 	}
 
+	// 设置DSV堆
+	void SetDSVHeap(const ComPtr<ID3D12DescriptorHeap>& dsvHeap)
+	{
+		m_dsvHeap = dsvHeap;
+	}
 
-	// 创建深度/模板视图描述符
-	D3D12_CPU_DESCRIPTOR_HANDLE CreateDepthStencilView(ID3D12Device* device, ID3D12DescriptorHeap* heap, uint32_t descriptorSize, uint32_t index);
+	// 获取SRV堆
+	ID3D12DescriptorHeap* GetDSVHeap() const
+	{
+		return m_dsvHeap.Get();
+	}
+
+	// 设置DSV描述符句柄
+	void SetDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_dsvHandle = handle;
+	}
+
+	// 获取DSV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const
+	{
+		return m_dsvHandle;
+	}
+
+	// 设置DSV索引
+	void SetDSVIndex(uint32_t index)
+	{
+		m_dsvIndex = index;
+	}
+
+	// 获取DSV索引
+	uint32_t GetDSVIndex() const
+	{
+		return m_dsvIndex;
+	}
+
+	// 设置SRV堆
+	void SetSRVHeap(const ComPtr<ID3D12DescriptorHeap>& srvHeap)
+	{
+		m_srvHeap = srvHeap;
+	}
+
+	// 获取SRV堆
+	ID3D12DescriptorHeap* GetSRVHeap() const
+	{
+		return m_srvHeap.Get();
+	}
+
+	// 设置SRV描述符句柄
+	void SetSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_srvHandle = handle;
+	}
+
+	// 获取RTV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() const
+	{
+		return m_srvHandle;
+	}
+
+	// 设置SRV索引
+	void SetSRVIndex(uint32_t index)
+	{
+		m_srvIndex = index;
+	}
+
+	// 获取SRV索引
+	uint32_t GetSRVIndex() const
+	{
+		return m_srvIndex;
+	}
 
 protected:
-	ComPtr<ID3D12Resource> m_nativeResource;           // ID3D12Resource*
+	ComPtr<ID3D12Resource> m_nativeResource;		// ID3D12Resource*
+	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;		// DSV描述符句柄
+	uint32_t m_dsvIndex;							// DSV索引
+	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;			// DSV堆
+	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;        // SRV描述符句柄
+	uint32_t m_srvIndex;                            // SRV索引
+	ComPtr<ID3D12DescriptorHeap> m_srvHeap;			// SRV堆
 };
 
 // DX12实现的根签名

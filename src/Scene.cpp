@@ -266,7 +266,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建深度/模板缓冲区
-    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::D32_Float);
+    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::R32_Typeless);
     if (!m_gbufferDepthStencil.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil");

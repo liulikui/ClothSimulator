@@ -6,41 +6,14 @@
 
 using Microsoft::WRL::ComPtr;
 
-// DX12RALCommandList类
-class DX12RALCommandList : public IRALCommandList
-{
-public:
-    // 构造函数和析构函数
-    DX12RALCommandList();
-    virtual ~DX12RALCommandList();
-
-    // 从IRALCommandList继承的方法
-    virtual void ResourceBarrier(const RALResourceBarrier& barrier) override;
-    virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) override;
-    
-    // 关闭命令列表（准备执行）
-    virtual void Close() override;
-
-    // 重置命令列表（重新开始录制）
-    virtual void Reset() override;
-
-    // 获取原生命令列表指针
-    virtual void* GetNativeCommandList() override;
-
-protected:
-    ComPtr<ID3D12Device> m_device;
-    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
-};
-
 // DX12RALGraphicsCommandList类
 class DX12RALGraphicsCommandList : public IRALGraphicsCommandList
 {
 public:
     // 构造函数和析构函数
-    DX12RALGraphicsCommandList(ID3D12CommandAllocator* dx12CommandAllocator, ID3D12GraphicsCommandList* dx12CommandList);
+    DX12RALGraphicsCommandList(ID3D12CommandAllocator* commandAllocator, ID3D12GraphicsCommandList* commandList);
     virtual ~DX12RALGraphicsCommandList();
-
+    
     // 从IRALCommandList继承的方法
     virtual void ResourceBarrier(const RALResourceBarrier& barrier) override;
     virtual void ResourceBarriers(const RALResourceBarrier* barriers, uint32_t count) override;
