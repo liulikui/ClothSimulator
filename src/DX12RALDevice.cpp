@@ -2062,55 +2062,6 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
         return nullptr;
     }
 
-    // 分配RTV描述符
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
-    uint32_t rtvIndex;
-    ComPtr<ID3D12DescriptorHeap> rtvHeap;
-
-    if (!m_RTVDescriptorHeaps.AllocateDescriptor(rtvHandle, rtvHeap, rtvIndex))
-    {
-        delete renderTarget;
-        return nullptr;
-    }
-
-    renderTarget->SetRTVHeap(rtvHeap);
-    renderTarget->SetRTVHandle(rtvHandle);
-    renderTarget->SetRTVIndex(rtvIndex);
-
-    // 分配SRV描述符
-    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
-    uint32_t srvIndex;
-    ComPtr<ID3D12DescriptorHeap> srvHeap;
-
-    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvHandle, srvHeap, srvIndex))
-    {
-        delete renderTarget;
-        return nullptr;
-    }
-
-    renderTarget->SetSRVHeap(srvHeap);
-    renderTarget->SetSRVHandle(srvHandle);
-    renderTarget->SetSRVIndex(srvIndex);
-
-    // 创建RTV
-    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.Format = toDXGIFormat(format);
-    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDesc.Texture2D.MipSlice = 0;
-    rtvDesc.Texture2D.PlaneSlice = 0;
-
-    m_device->CreateRenderTargetView(d3d12Resource.Get(), &rtvDesc, rtvHandle);
-
-    // 创建SRV
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D.MipLevels = 1;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-    m_device->CreateShaderResourceView(d3d12Resource.Get(), &srvDesc, srvHandle);
-
     // 设置原生资源和描述符信息
     renderTarget->SetNativeResource(d3d12Resource.Get());
     renderTarget->SetResourceState(RALResourceState::RenderTarget);
@@ -2223,55 +2174,6 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
         delete depthStencil;
         return nullptr;
     }
-
-    // 分配DSV描述符
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
-    uint32_t dsvIndex;
-    ComPtr<ID3D12DescriptorHeap> dsvHeap;
-
-    if (!m_DSVDescriptorHeaps.AllocateDescriptor(dsvHandle, dsvHeap, dsvIndex))
-    {
-        delete depthStencil;
-        return nullptr;
-    }
-
-    depthStencil->SetDSVHeap(dsvHeap);
-    depthStencil->SetDSVHandle(dsvHandle);
-    depthStencil->SetDSVIndex(dsvIndex);
-
-    // 分配SRV描述符
-    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
-    uint32_t srvIndex;
-    ComPtr<ID3D12DescriptorHeap> srvHeap;
-
-    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvHandle, srvHeap, srvIndex))
-    {
-        delete depthStencil;
-        return nullptr;
-    }
-
-    depthStencil->SetSRVHeap(srvHeap);
-    depthStencil->SetSRVHandle(srvHandle);
-    depthStencil->SetSRVIndex(srvIndex);
-
-    // 创建DSV
-    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format = isTypelessFormat(format) ? toDXGIFormat(getDepthStencilFormatFromTypeless(format)) : toDXGIFormat(format);
-    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsvDesc.Texture2D.MipSlice = 0;
-    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-
-    m_device->CreateDepthStencilView(d3d12Resource.Get(), &dsvDesc, dsvHandle);
-
-    // 创建SRV
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D.MipLevels = 1;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-    m_device->CreateShaderResourceView(d3d12Resource.Get(), &srvDesc, srvHandle);
 
     // 设置原生资源和描述符信息
     depthStencil->SetNativeResource(d3d12Resource.Get());

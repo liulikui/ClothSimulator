@@ -766,10 +766,7 @@ class DX12RALRenderTarget : public IRALRenderTarget
 public:
 	DX12RALRenderTarget(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALRenderTarget(width, height, format)
-		, m_rtvIndex(0)
-		, m_srvIndex(0)
 	{
-		m_rtvHandle.ptr = 0;
 	}
 
 	virtual ~DX12RALRenderTarget() override = default;
@@ -786,95 +783,8 @@ public:
 		m_nativeResource = resource;
 	}
 
-	// 设置RTV堆
-	void SetRTVHeap(const ComPtr<ID3D12DescriptorHeap>& rtvHeap)
-	{
-		m_rtvHeap = rtvHeap;
-	}
-
-	// 获取RTV堆
-	ID3D12DescriptorHeap* GetRTVHeap() const
-	{
-		return m_rtvHeap.Get();
-	}
-
-	// 设置RTV描述符句柄
-	void SetRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
-	{
-		m_rtvHandle = handle;
-	}
-
-	// 获取RTV描述符句柄
-	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const
-	{
-		return m_rtvHandle;
-	}
-
-	// 设置设备指针
-	void SetDevice(DX12RALDevice* device)
-	{
-		m_device = device;
-	}
-
-	// 设置RTV索引
-	void SetRTVIndex(uint32_t index)
-	{
-		m_rtvIndex = index;
-	}
-
-
-
-	// 获取RTV索引
-	uint32_t GetRTVIndex() const
-	{
-		return m_rtvIndex;
-	}
-
-	// 设置SRV堆
-	void SetSRVHeap(const ComPtr<ID3D12DescriptorHeap>& srvHeap)
-	{
-		m_srvHeap = srvHeap;
-	}
-
-	// 获取SRV堆
-	ID3D12DescriptorHeap* GetSRVHeap() const
-	{
-		return m_srvHeap.Get();
-	}
-
-	// 设置SRV描述符句柄
-	void SetSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
-	{
-		m_srvHandle = handle;
-	}
-
-	// 获取RTV描述符句柄
-	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() const
-	{
-		return m_srvHandle;
-	}
-
-	// 设置SRV索引
-	void SetSRVIndex(uint32_t index)
-	{
-		m_srvIndex = index;
-	}
-
-	// 获取SRV索引
-	uint32_t GetSRVIndex() const
-	{
-		return m_srvIndex;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;        // ID3D12Resource*
-	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandle;        // RTV描述符句柄
-	uint32_t m_rtvIndex;                            // RTV索引
-	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;			// RTV堆
-	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;        // SRV描述符句柄
-	uint32_t m_srvIndex;                            // SRV索引
-	ComPtr<ID3D12DescriptorHeap> m_srvHeap;			// SRV堆
-	DX12RALDevice* m_device;                        // 设备指针
 };
 
 // DX12实现的DepthStencil
@@ -883,10 +793,7 @@ class DX12RALDepthStencil : public IRALDepthStencil
 public:
 	DX12RALDepthStencil(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALDepthStencil(width, height, format)
-		, m_dsvIndex(0)
-		, m_srvIndex(0)
 	{
-		m_dsvHandle.ptr = 0;
 	}
 
 	virtual ~DX12RALDepthStencil() override = default;
@@ -903,88 +810,8 @@ public:
 		m_nativeResource = resource;
 	}
 
-	// 获取DSV堆
-	ID3D12DescriptorHeap* GetDSVHeap() const
-	{
-		return m_dsvHeap.Get();
-	}
-
-	// 设置DSV堆
-	void SetDSVHeap(const ComPtr<ID3D12DescriptorHeap>& dsvHeap)
-	{
-		m_dsvHeap = dsvHeap;
-	}
-
-
-
-	// 设置DSV描述符句柄
-	void SetDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
-	{
-		m_dsvHandle = handle;
-	}
-
-	// 获取DSV描述符句柄
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const
-	{
-		return m_dsvHandle;
-	}
-
-	// 设置DSV索引
-	void SetDSVIndex(uint32_t index)
-	{
-		m_dsvIndex = index;
-	}
-
-	// 获取DSV索引
-	uint32_t GetDSVIndex() const
-	{
-		return m_dsvIndex;
-	}
-
-	// 设置SRV堆
-	void SetSRVHeap(const ComPtr<ID3D12DescriptorHeap>& srvHeap)
-	{
-		m_srvHeap = srvHeap;
-	}
-
-	// 获取SRV堆
-	ID3D12DescriptorHeap* GetSRVHeap() const
-	{
-		return m_srvHeap.Get();
-	}
-
-	// 设置SRV描述符句柄
-	void SetSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
-	{
-		m_srvHandle = handle;
-	}
-
-	// 获取RTV描述符句柄
-	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() const
-	{
-		return m_srvHandle;
-	}
-
-	// 设置SRV索引
-	void SetSRVIndex(uint32_t index)
-	{
-		m_srvIndex = index;
-	}
-
-	// 获取SRV索引
-	uint32_t GetSRVIndex() const
-	{
-		return m_srvIndex;
-	}
-
 protected:
 	ComPtr<ID3D12Resource> m_nativeResource;		// ID3D12Resource*
-	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;		// DSV描述符句柄
-	uint32_t m_dsvIndex;							// DSV索引
-	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;			// DSV堆
-	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;        // SRV描述符句柄
-	uint32_t m_srvIndex;                            // SRV索引
-	ComPtr<ID3D12DescriptorHeap> m_srvHeap;			// SRV堆
 };
 
 // DX12实现的根签名

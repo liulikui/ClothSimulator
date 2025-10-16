@@ -292,7 +292,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc srvDescA;
     srvDescA.format = RALDataFormat::R16G16B16A16_Float;
-    m_gbufferASRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferA.Get()), srvDescA);
+    m_gbufferASRV = m_device->CreateShaderResourceView(m_gbufferA.Get(), srvDescA);
     if (!m_gbufferASRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA SRV");
@@ -319,7 +319,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc srvDescB;
     srvDescB.format = RALDataFormat::R8G8B8A8_UNorm;
-    m_gbufferBSRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferB.Get()), srvDescB);
+    m_gbufferBSRV = m_device->CreateShaderResourceView(m_gbufferB.Get(), srvDescB);
     if (!m_gbufferBSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB SRV");
@@ -346,7 +346,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc srvDescC;
     srvDescC.format = RALDataFormat::R8G8B8A8_UNorm;
-    m_gbufferCSRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferC.Get()), srvDescC);
+    m_gbufferCSRV = m_device->CreateShaderResourceView(m_gbufferC.Get(), srvDescC);
     if (!m_gbufferCSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC SRV");
@@ -373,7 +373,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc depthSRVDesc;
     depthSRVDesc.format = RALDataFormat::R32_Float;
-    m_gbufferDepthSRV = m_device->CreateShaderResourceView(static_cast<IRALResource*>(m_gbufferDepthStencil.Get()), depthSRVDesc);
+    m_gbufferDepthSRV = m_device->CreateShaderResourceView(m_gbufferDepthStencil.Get(), depthSRVDesc);
     if (!m_gbufferDepthSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil SRV");
