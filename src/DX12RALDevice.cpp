@@ -2369,7 +2369,7 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     
     // 确定资源类型并设置相应的视图维度
-    RALResourceType resourceType = resource->GetType();
+    RALResourceType resourceType = resource->GetResourceType();
     
     // 这里简化处理，主要支持纹理类型的资源
     // 对于其他资源类型（如缓冲区），可以根据需要扩展
@@ -2382,6 +2382,36 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     }
     else
     {
+        // 定义一个辅助函数来从无类型格式获取着色器资源格式
+        auto getShaderResourceFormatFromTypeless = [](DXGI_FORMAT format) -> DXGI_FORMAT {
+            // 简单的格式映射，可根据需要扩展
+            switch (format)
+            {
+            case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+                return DXGI_FORMAT_R32G32B32A32_FLOAT;
+            case DXGI_FORMAT_R32G32B32_TYPELESS:
+                return DXGI_FORMAT_R32G32B32_FLOAT;
+            case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+                return DXGI_FORMAT_R16G16B16A16_FLOAT;
+            case DXGI_FORMAT_R32G32_TYPELESS:
+                return DXGI_FORMAT_R32G32_FLOAT;
+            case DXGI_FORMAT_R16G16_TYPELESS:
+                return DXGI_FORMAT_R16G16_FLOAT;
+            case DXGI_FORMAT_R32_TYPELESS:
+                return DXGI_FORMAT_R32_FLOAT;
+            case DXGI_FORMAT_R16_TYPELESS:
+                return DXGI_FORMAT_R16_FLOAT;
+            case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+                return DXGI_FORMAT_R8G8B8A8_UNORM;
+            case DXGI_FORMAT_R8G8_TYPELESS:
+                return DXGI_FORMAT_R8G8_UNORM;
+            case DXGI_FORMAT_R8_TYPELESS:
+                return DXGI_FORMAT_R8_UNORM;
+            default:
+                return format; // 如果不是无类型格式，直接返回
+            }
+        };
+
         // 尝试根据资源类型获取格式
         if (resourceType == RALResourceType::RenderTarget)
         {
@@ -2391,7 +2421,7 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
         {
             // 对于深度模板资源，需要获取对应的SRV格式
             RALDataFormat depthFormat = static_cast<IRALDepthStencil*>(resource)->GetFormat();
-            srvDesc.Format = isTypelessFormat(depthFormat) ? toDXGIFormat(getShaderResourceFormatFromTypeless(depthFormat)) : toDXGIFormat(depthFormat);
+            srvDesc.Format = isTypelessFormat(depthFormat) ? getShaderResourceFormatFromTypeless(toDXGIFormat(depthFormat)) : toDXGIFormat(depthFormat);
         }
         else
         {
@@ -2404,8 +2434,7 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     // 设置MIP和数组切片信息
     srvDesc.Texture2D.MostDetailedMip = desc.mostDetailedMip;
     srvDesc.Texture2D.MipLevels = desc.mipLevels;
-    srvDesc.Texture2D.FirstArraySlice = desc.firstArraySlice;
-    srvDesc.Texture2D.ArraySize = desc.arraySize;
+    srvDesc.Texture2D.PlaneSlice = 0; // 单平面纹理
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
     
     m_device->CreateShaderResourceView(d3d12Resource, &srvDesc, srvHandle);
@@ -2414,19 +2443,19 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
 }
 
 // 释放渲染目标视图描述符
-void DX12RALDevice::ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+bool DX12RALDevice::ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
 {
-    m_RTVDescriptorHeaps.FreeDescriptor(handle, heap, index);
+    return m_RTVDescriptorHeaps.FreeDescriptor(heap, index);
 }
 
 // 释放深度模板视图描述符
-void DX12RALDevice::ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+bool DX12RALDevice::ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
 {
-    m_DSVDescriptorHeaps.FreeDescriptor(handle, heap, index);
+    return m_DSVDescriptorHeaps.FreeDescriptor(heap, index);
 }
 
 // 释放着色器资源视图描述符
-void DX12RALDevice::ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+bool DX12RALDevice::ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
 {
-    m_SRVDescriptorHeaps.FreeDescriptor(handle, heap, index);
+    return m_SRVDescriptorHeaps.FreeDescriptor(heap, index);
 }

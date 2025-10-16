@@ -9,6 +9,9 @@
 
 using namespace Microsoft::WRL;
 
+// 前置声明
+class DX12RALDevice;
+
 // 将跨平台RALDataFormat转换为DX12的DXGI_FORMAT
 inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) 
 {
@@ -818,17 +821,7 @@ public:
 		m_rtvIndex = index;
 	}
 
-	// 设置RTV堆
-	void SetRTVHeap(const ComPtr<ID3D12DescriptorHeap>& heap)
-	{
-		m_rtvHeap = heap;
-	}
 
-	// 设置RTV索引
-	void SetRTVIndex(uint32_t index)
-	{
-		m_rtvIndex = index;
-	}
 
 	// 获取RTV索引
 	uint32_t GetRTVIndex() const
@@ -880,6 +873,7 @@ protected:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;        // SRV描述符句柄
 	uint32_t m_srvIndex;                            // SRV索引
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap;			// SRV堆
+	DX12RALDevice* m_device;                        // 设备指针
 };
 
 // DX12实现的DepthStencil
@@ -908,17 +902,19 @@ public:
 		m_nativeResource = resource;
 	}
 
+	// 获取DSV堆
+	ID3D12DescriptorHeap* GetDSVHeap() const
+	{
+		return m_dsvHeap.Get();
+	}
+
 	// 设置DSV堆
 	void SetDSVHeap(const ComPtr<ID3D12DescriptorHeap>& dsvHeap)
 	{
 		m_dsvHeap = dsvHeap;
 	}
 
-	// 获取SRV堆
-	ID3D12DescriptorHeap* GetDSVHeap() const
-	{
-		return m_dsvHeap.Get();
-	}
+
 
 	// 设置DSV描述符句柄
 	void SetDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -1056,13 +1052,7 @@ public:
 		m_dsvHandle.ptr = 0;
 	}
 
-	virtual ~DX12RALDepthStencilView() override
-	{
-		if (m_device && m_dsvHandle.ptr != 0)
-		{
-			m_device->ReleaseDSVDescriptor(m_dsvHandle, m_dsvIndex, m_dsvHeap.Get());
-		}
-	}
+	virtual ~DX12RALDepthStencilView() override;
 
 	// 实现IRALResource接口
 	virtual void* GetNativeResource() const override
@@ -1117,11 +1107,7 @@ public:
 		return m_dsvHandle;
 	}
 
-	// 设置DSV堆
-	void SetDSVHeap(const ComPtr<ID3D12DescriptorHeap>& dsvHeap)
-	{
-		m_dsvHeap = dsvHeap;
-	}
+
 
 	// 获取DSV堆
 	ID3D12DescriptorHeap* GetDSVHeap() const
@@ -1137,9 +1123,6 @@ protected:
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;       // DSV堆
 };
 
-// 前置声明
-class DX12RALDevice;
-
 // DX12实现的渲染目标视图
 class DX12RALRenderTargetView : public IRALRenderTargetView
 {
@@ -1152,13 +1135,7 @@ public:
 		m_rtvHandle.ptr = 0;
 	}
 
-	virtual ~DX12RALRenderTargetView() override
-	{
-		if (m_device && m_rtvHandle.ptr != 0)
-		{
-			m_device->ReleaseRTVDescriptor(m_rtvHandle, m_rtvIndex, m_rtvHeap.Get());
-		}
-	}
+	virtual ~DX12RALRenderTargetView() override;
 
 	// 实现IRALResource接口
 	virtual void* GetNativeResource() const override
@@ -1189,22 +1166,34 @@ public:
 		m_rtvHandle = handle;
 	}
 
+	// 获取RTV堆
+	ID3D12DescriptorHeap* GetRTVHeap() const
+	{
+		return m_rtvHeap.Get();
+	}
+
 	// 获取RTV描述符句柄
 	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const
 	{
 		return m_rtvHandle;
 	}
 
+	// 设置RTV索引
+	void SetRTVIndex(uint32_t index)
+	{
+		m_rtvIndex = index;
+	}
+
+	// 设置设备指针
+	void SetDevice(DX12RALDevice* device)
+	{
+		m_device = device;
+	}
+
 	// 设置RTV堆
 	void SetRTVHeap(const ComPtr<ID3D12DescriptorHeap>& rtvHeap)
 	{
 		m_rtvHeap = rtvHeap;
-	}
-
-	// 获取RTV堆
-	ID3D12DescriptorHeap* GetRTVHeap() const
-	{
-		return m_rtvHeap.Get();
 	}
 
 protected:
@@ -1227,13 +1216,7 @@ public:
 		m_srvHandle.ptr = 0;
 	}
 
-	virtual ~DX12RALShaderResourceView() override
-	{
-		if (m_device && m_srvHandle.ptr != 0)
-		{
-			m_device->ReleaseSRVDescriptor(m_srvHandle, m_srvIndex, m_srvHeap.Get());
-		}
-	}
+	virtual ~DX12RALShaderResourceView() override;
 
 	// 实现IRALResource接口
 	virtual void* GetNativeResource() const override

@@ -92,16 +92,16 @@ public:
         return false;
     }
 
-    bool FreeDescriptor(const ComPtr<ID3D12DescriptorHeap>& heap, uint32_t index)
+    bool FreeDescriptor(ID3D12DescriptorHeap* heap, uint32_t index)
     {
         HeapInfo* heapinfo = m_heapInfoHead;
 
-        while (headinfo != nullptr)
+        while (heapinfo != nullptr)
         {
-            if (headinfo->heap == heap)
+            if (heapinfo->heap.Get() == heap)
             {
                 bool found = false;
-                if (size_t i = 0; i < heapinfo->freeSlots.size(); ++i)
+                for (size_t i = 0; i < heapinfo->freeSlots.size(); ++i)
                 {
                     if (heapinfo->freeSlots[i] == index)
                     {
@@ -122,7 +122,7 @@ public:
                 }
             }
 
-            headinfo = headinfo->next;
+            heapinfo = heapinfo->next;
         }
 
         return false;
@@ -303,13 +303,13 @@ public:
     IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc);
 
     // 释放渲染目标视图描述符
-    void ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
+    bool ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
 
     // 释放深度模板视图描述符
-    void ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
+    bool ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
 
     // 释放着色器资源视图描述符
-    void ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
+    bool ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
 
 private:
     // 通用着色器编译辅助方法
