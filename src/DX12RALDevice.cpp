@@ -2118,6 +2118,56 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
     return renderTarget;
 }
 
+// 创建渲染目标视图
+IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc)
+{
+    if (!renderTarget)
+    {
+        return nullptr;
+    }
+
+    // 创建DX12RALRenderTargetView对象
+    DX12RALRenderTargetView* rtv = new DX12RALRenderTargetView();
+
+    // 分配RTV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+    uint32_t rtvIndex;
+    ComPtr<ID3D12DescriptorHeap> rtvHeap;
+
+    if (!m_RTVDescriptorHeaps.AllocateDescriptor(rtvHandle, rtvHeap, rtvIndex))
+    {
+        delete rtv;
+        return nullptr;
+    }
+
+    // 设置渲染目标资源
+    rtv->SetRenderTarget(renderTarget);
+    rtv->SetRTVHeap(rtvHeap);
+    rtv->SetRTVHandle(rtvHandle);
+
+    // 从renderTarget获取原生资源
+    DX12RALRenderTarget* dx12RenderTarget = static_cast<DX12RALRenderTarget*>(renderTarget);
+    ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(dx12RenderTarget->GetNativeResource());
+
+    if (!d3d12Resource)
+    {
+        delete rtv;
+        return nullptr;
+    }
+
+    // 创建RTV
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    // 如果描述符中指定了格式，则使用指定的格式，否则使用渲染目标的格式
+    rtvDesc.Format = desc.format != RALDataFormat::Undefined ? toDXGIFormat(desc.format) : toDXGIFormat(renderTarget->GetFormat());
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = desc.mipSlice;
+    rtvDesc.Texture2D.PlaneSlice = desc.planeSlice;
+
+    m_device->CreateRenderTargetView(d3d12Resource, &rtvDesc, rtvHandle);
+
+    return rtv;
+}
+
 // 创建深度/模板缓冲区
 IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format)
 {

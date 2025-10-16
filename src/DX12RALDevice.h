@@ -292,6 +292,9 @@ public:
 
     // 创建深度/模板缓冲区
     IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format);
+    
+    // 创建渲染目标视图
+    IRALRenderTargetView* CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc);
 
 private:
     // 通用着色器编译辅助方法

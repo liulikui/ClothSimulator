@@ -1088,6 +1088,14 @@ public:
 	virtual void* GetNativeDepthStencilView() const = 0;
 };
 
+// 渲染目标视图描述符（跨平台封装）
+struct RALRenderTargetViewDesc
+{
+    RALDataFormat format = RALDataFormat::Undefined;
+    uint32_t mipSlice = 0;
+    uint32_t planeSlice = 0;
+};
+
 // 渲染目标视图接口
 class IRALRenderTargetView : public IRALResource
 {
