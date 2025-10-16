@@ -296,6 +296,9 @@ public:
     // 创建渲染目标视图
     IRALRenderTargetView* CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc);
 
+    // 创建深度模板视图
+    IRALDepthStencilView* CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc);
+
 private:
     // 通用着色器编译辅助方法
     ComPtr<ID3DBlob> CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target);

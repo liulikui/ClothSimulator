@@ -2277,3 +2277,48 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
 
     return depthStencil;
 }
+
+// 创建深度模板视图
+IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc)
+{
+    if (!depthStencil)
+    {
+        return nullptr;
+    }
+
+    DX12RALDepthStencil* dx12DepthStencil = static_cast<DX12RALDepthStencil*>(depthStencil);
+    ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(dx12DepthStencil->GetNativeResource());
+    
+    // 创建一个新的深度模板视图
+    DX12RALDepthStencilView* dsv = new DX12RALDepthStencilView();
+    dsv->SetDepthStencil(depthStencil);
+
+    // 分配DSV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
+    uint32_t dsvIndex;
+    ComPtr<ID3D12DescriptorHeap> dsvHeap;
+
+    if (!m_DSVDescriptorHeaps.AllocateDescriptor(dsvHandle, dsvHeap, dsvIndex))
+    {
+        delete dsv;
+        return nullptr;
+    }
+
+    dsv->SetDSVHandle(dsvHandle);
+
+    // 创建DSV
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    
+    // 确定使用的格式
+    RALDataFormat formatToUse = desc.format != RALDataFormat::Undefined ? desc.format : depthStencil->GetFormat();
+    
+    // 对于无类型格式，需要转换为对应的深度模板格式
+    dsvDesc.Format = isTypelessFormat(formatToUse) ? toDXGIFormat(getDepthStencilFormatFromTypeless(formatToUse)) : toDXGIFormat(formatToUse);
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = desc.mipSlice;
+    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+    
+    m_device->CreateDepthStencilView(d3d12Resource, &dsvDesc, dsvHandle);
+    
+    return dsv;
+}

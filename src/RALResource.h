@@ -1088,6 +1088,13 @@ public:
 	virtual void* GetNativeDepthStencilView() const = 0;
 };
 
+// 深度模板视图描述符（跨平台封装）
+struct RALDepthStencilViewDesc
+{
+    RALDataFormat format = RALDataFormat::Undefined;
+    uint32_t mipSlice = 0;
+};
+
 // 渲染目标视图描述符（跨平台封装）
 struct RALRenderTargetViewDesc
 {
