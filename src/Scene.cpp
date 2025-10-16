@@ -88,6 +88,37 @@ void Scene::Update(float deltaTime)
             primitiveInfo.primitive->Update(commandList, deltaTime);
         }
      }
+    
+    // 几何阶段完成后，将GBuffer和深度模板缓冲区转换为着色器资源状态，以便光照阶段读取
+    // 使用ResourceBarrier替代专门的状态转换方法
+    RALResourceBarrier barriers[4];
+    
+    // GBuffer A从渲染目标状态转换为着色器资源状态
+    barriers[0].type = RALResourceBarrierType::Transition;
+    barriers[0].resource = m_gbufferA.Get();
+    barriers[0].oldState = RALResourceState::RenderTarget;
+    barriers[0].newState = RALResourceState::ShaderResource;
+    
+    // GBuffer B从渲染目标状态转换为着色器资源状态
+    barriers[1].type = RALResourceBarrierType::Transition;
+    barriers[1].resource = m_gbufferB.Get();
+    barriers[1].oldState = RALResourceState::RenderTarget;
+    barriers[1].newState = RALResourceState::ShaderResource;
+    
+    // GBuffer C从渲染目标状态转换为着色器资源状态
+    barriers[2].type = RALResourceBarrierType::Transition;
+    barriers[2].resource = m_gbufferC.Get();
+    barriers[2].oldState = RALResourceState::RenderTarget;
+    barriers[2].newState = RALResourceState::ShaderResource;
+    
+    // 深度模板缓冲区从深度模板状态转换为着色器资源状态
+    barriers[3].type = RALResourceBarrierType::Transition;
+    barriers[3].resource = m_gbufferDepthStencil.Get();
+    barriers[3].oldState = RALResourceState::DepthStencil;
+    barriers[3].newState = RALResourceState::ShaderResource;
+    
+    // 一次性提交所有资源屏障
+    commandList->ResourceBarriers(barriers, 4);
 }
 
 void Scene::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix)
@@ -855,6 +886,37 @@ void Scene::ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATR
             commandList->DrawIndexed(indexBuffer->GetIndexCount(), 1, 0, 0, 0);
         }
     }
+    
+    // 几何阶段完成后，将GBuffer和深度模板缓冲区转换为着色器资源状态，以便光照阶段读取
+    // 使用ResourceBarrier替代专门的状态转换方法
+    RALResourceBarrier barriers[4];
+    
+    // GBuffer A从渲染目标状态转换为着色器资源状态
+    barriers[0].type = RALResourceBarrierType::Transition;
+    barriers[0].resource = m_gbufferA.Get();
+    barriers[0].oldState = RALResourceState::RenderTarget;
+    barriers[0].newState = RALResourceState::ShaderResource;
+    
+    // GBuffer B从渲染目标状态转换为着色器资源状态
+    barriers[1].type = RALResourceBarrierType::Transition;
+    barriers[1].resource = m_gbufferB.Get();
+    barriers[1].oldState = RALResourceState::RenderTarget;
+    barriers[1].newState = RALResourceState::ShaderResource;
+    
+    // GBuffer C从渲染目标状态转换为着色器资源状态
+    barriers[2].type = RALResourceBarrierType::Transition;
+    barriers[2].resource = m_gbufferC.Get();
+    barriers[2].oldState = RALResourceState::RenderTarget;
+    barriers[2].newState = RALResourceState::ShaderResource;
+    
+    // 深度模板缓冲区从深度模板状态转换为着色器资源状态
+    barriers[3].type = RALResourceBarrierType::Transition;
+    barriers[3].resource = m_gbufferDepthStencil.Get();
+    barriers[3].oldState = RALResourceState::DepthStencil;
+    barriers[3].newState = RALResourceState::ShaderResource;
+    
+    // 一次性提交所有资源屏障
+    commandList->ResourceBarriers(barriers, 4);
 }
 
 // 执行光照阶段
