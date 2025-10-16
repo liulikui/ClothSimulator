@@ -80,10 +80,10 @@ public:
     virtual ~IRALGraphicsCommandList() = default;
 
     // 清除渲染目标
-    virtual void ClearRenderTarget(IRALRenderTarget* renderTarget, const float color[4]) = 0;
+    virtual void ClearRenderTarget(IRALRenderTargetView* renderTargetView, const float color[4]) = 0;
 
     // 清除深度/模板视图
-    virtual void ClearDepthStencil(IRALDepthStencil* depthStencil, float depth, uint8_t stencil) = 0;
+    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil) = 0;
 
     // 设置视口
     virtual void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) = 0;
@@ -132,7 +132,7 @@ public:
     virtual void DrawIndexedIndirect(void* bufferLocation, uint32_t drawCount, uint32_t stride) = 0;
 
     // 设置渲染目标
-    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTarget** renderTargets, IRALDepthStencil* depthStencil = nullptr) = 0;
+    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTargetView** renderTargetViews, IRALDepthStencilView* depthStencilView = nullptr) = 0;
 
     // 执行渲染通道
     virtual void ExecuteRenderPass(const void* renderPass, const void* framebuffer) = 0;

@@ -84,15 +84,36 @@ void* DX12RALGraphicsCommandList::GetNativeCommandList()
 }
 
 // 清除渲染目标
-void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTarget* renderTarget, const float color[4])
+void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTargetView* renderTargetView, const float color[4])
 {
-    // 暂时跳过实现，避免编译错误
+    if (!renderTargetView)
+        return;
+    
+    // 通过封装接口获取原生渲染目标视图句柄
+    void* nativeRTV = renderTargetView->GetNativeRenderTargetView();
+    if (nativeRTV)
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeRTV);
+        m_commandList->ClearRenderTargetView(rtvHandle, color, 0, nullptr);
+    }
 }
 
 // 清除深度/模板视图
-void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencil* depthStencil, float depth, uint8_t stencil)
+void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil)
 {
-    // 暂时跳过实现，避免编译错误
+    if (!depthStencilView)
+        return;
+    
+    // 通过封装接口获取原生深度模板视图句柄
+    void* nativeDSV = depthStencilView->GetNativeDepthStencilView();
+    if (nativeDSV)
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeDSV);
+        
+        // 清除深度和模板
+        D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
+        m_commandList->ClearDepthStencilView(dsvHandle, clearFlags, depth, stencil, 0U, nullptr);
+    }
 }
 
 // 设置视口
@@ -256,7 +277,7 @@ void DX12RALGraphicsCommandList::DrawIndexedIndirect(void* bufferLocation, uint3
 }
 
 // 设置渲染目标
-void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IRALRenderTarget** renderTargets, IRALDepthStencil* depthStencil)
+void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IRALRenderTargetView** renderTargetViews, IRALDepthStencilView* depthStencilView)
 {
     // 确保渲染目标数量不超过D3D12支持的最大数量（通常为8）
     const uint32_t kMaxRenderTargets = 8;
@@ -272,33 +293,29 @@ void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IR
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvHandles(renderTargetCount);
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
     
-    // 由于现在我们不再在DX12RALGraphicsCommandList中管理descriptor heap，
-    // 我们假设渲染目标和深度模板已经在外部（DX12RALDevice）中创建了视图描述符
-    // 这里我们使用DX12RALRenderTarget和DX12RALDepthStencil类的方法来获取视图描述符
-    
     // 获取渲染目标视图描述符
-    // 注意：这里假设renderTargets数组中的每个元素都已经在DX12RALDevice中创建了对应的视图描述符
-    // 并且索引i对应于描述符堆中的位置
     for (uint32_t i = 0; i < renderTargetCount; ++i)
     {
-        if (renderTargets[i])
+        if (renderTargetViews[i])
         {
-            // 由于我们不再拥有descriptor heap，我们需要从DX12RALDevice中获取
-            // 这里我们暂时使用一个简化的方法，假设device中已经有了合适的descriptor heap
-            // 在实际实现中，应该通过适当的接口从DX12RALDevice获取这些信息
-            
-            // 为了编译通过，我们暂时使用空句柄
-            // 正确的实现应该是从DX12RALDevice获取descriptor heap和descriptor size
-            // 然后调用CreateRenderTargetView方法
+            // 通过封装接口获取原生渲染目标视图句柄
+            void* nativeRTV = renderTargetViews[i]->GetNativeRenderTargetView();
+            if (nativeRTV)
+            {
+                rtvHandles[i] = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeRTV);
+            }
         }
     }
     
     // 获取深度模板视图描述符
-    if (depthStencil)
+    if (depthStencilView)
     {
-        // 同样，我们暂时使用空句柄
-        // 正确的实现应该是从DX12RALDevice获取descriptor heap和descriptor size
-        // 然后调用CreateDepthStencilView方法
+        // 通过封装接口获取原生深度模板视图句柄
+        void* nativeDSV = depthStencilView->GetNativeDepthStencilView();
+        if (nativeDSV)
+        {
+            dsvHandle = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeDSV);
+        }
     }
     
     // 调用D3D12的OMSetRenderTargets方法设置渲染目标
@@ -306,7 +323,7 @@ void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IR
         renderTargetCount,
         renderTargetCount > 0 ? rtvHandles.data() : nullptr,
         FALSE, // 不绑定到所有视图
-        depthStencil ? &dsvHandle : nullptr
+        depthStencilView ? &dsvHandle : nullptr
     );
 }
 

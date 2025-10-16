@@ -797,16 +797,16 @@ void Scene::ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATR
 {
     IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
 
-    // 设置渲染目标和深度模板
-    IRALRenderTarget* renderTargets[3] = { m_gbufferA.Get(), m_gbufferB.Get(), m_gbufferC.Get() };
-    commandList->SetRenderTargets(3, renderTargets, m_gbufferDepthStencil.Get());
+    // 设置渲染目标视图和深度模板视图
+    IRALRenderTargetView* renderTargetViews[3] = { m_gbufferARTV.Get(), m_gbufferBRTV.Get(), m_gbufferCRTV.Get() };
+    commandList->SetRenderTargets(3, renderTargetViews, m_gbufferDSV.Get());
 
-    // 清除渲染目标和深度模板
+    // 清除渲染目标视图和深度模板视图
     float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    commandList->ClearRenderTarget(m_gbufferA.Get(), clearColor);
-    commandList->ClearRenderTarget(m_gbufferB.Get(), clearColor);
-    commandList->ClearRenderTarget(m_gbufferC.Get(), clearColor);
-    commandList->ClearDepthStencil(m_gbufferDepthStencil.Get(), 1.0f, 0);
+    commandList->ClearRenderTarget(m_gbufferARTV.Get(), clearColor);
+    commandList->ClearRenderTarget(m_gbufferBRTV.Get(), clearColor);
+    commandList->ClearRenderTarget(m_gbufferCRTV.Get(), clearColor);
+    commandList->ClearDepthStencil(m_gbufferDSV.Get(), 1.0f, 0);
 
     // 更新场景常量缓冲区
     UpdateSceneConstBuffer(commandList, viewMatrix, projectionMatrix);
@@ -863,7 +863,7 @@ void Scene::ExecuteLightingPass()
     IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
 
     // 清空渲染目标，准备光照阶段
-    commandList->SetRenderTargets(0, nullptr, nullptr);
+    commandList->SetRenderTargets(0, nullptr, nullptr); // nullptr参数类型为IRALRenderTargetView**和IRALDepthStencilView*
 
     // 更新光照阶段常量缓冲区
     LightPassConstBuffer lightData;
