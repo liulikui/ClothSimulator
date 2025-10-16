@@ -2322,3 +2322,86 @@ IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* de
     
     return dsv;
 }
+
+// 创建着色器资源视图
+IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc)
+{
+    if (!resource)
+    {
+        return nullptr;
+    }
+
+    // 创建一个新的着色器资源视图
+    DX12RALShaderResourceView* srv = new DX12RALShaderResourceView();
+    srv->SetResource(resource);
+
+    // 分配SRV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
+    uint32_t srvIndex;
+    ComPtr<ID3D12DescriptorHeap> srvHeap;
+
+    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvHandle, srvHeap, srvIndex))
+    {
+        delete srv;
+        return nullptr;
+    }
+
+    srv->SetSRVHandle(srvHandle);
+    srv->SetSRVHeap(srvHeap);
+
+    // 获取原生资源
+    ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(resource->GetNativeResource());
+    if (!d3d12Resource)
+    {
+        delete srv;
+        return nullptr;
+    }
+
+    // 创建SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    
+    // 确定资源类型并设置相应的视图维度
+    RALResourceType resourceType = resource->GetType();
+    
+    // 这里简化处理，主要支持纹理类型的资源
+    // 对于其他资源类型（如缓冲区），可以根据需要扩展
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    
+    // 设置格式
+    if (desc.format != RALDataFormat::Undefined)
+    {
+        srvDesc.Format = toDXGIFormat(desc.format);
+    }
+    else
+    {
+        // 尝试根据资源类型获取格式
+        if (resourceType == RALResourceType::RenderTarget)
+        {
+            srvDesc.Format = toDXGIFormat(static_cast<IRALRenderTarget*>(resource)->GetFormat());
+        }
+        else if (resourceType == RALResourceType::DepthStencil)
+        {
+            // 对于深度模板资源，需要获取对应的SRV格式
+            RALDataFormat depthFormat = static_cast<IRALDepthStencil*>(resource)->GetFormat();
+            srvDesc.Format = isTypelessFormat(depthFormat) ? toDXGIFormat(getShaderResourceFormatFromTypeless(depthFormat)) : toDXGIFormat(depthFormat);
+        }
+        else
+        {
+            // 如果无法确定格式，使用默认格式或抛出错误
+            // 这里简化处理，实际项目中应该有更完善的错误处理
+            srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        }
+    }
+    
+    // 设置MIP和数组切片信息
+    srvDesc.Texture2D.MostDetailedMip = desc.mostDetailedMip;
+    srvDesc.Texture2D.MipLevels = desc.mipLevels;
+    srvDesc.Texture2D.FirstArraySlice = desc.firstArraySlice;
+    srvDesc.Texture2D.ArraySize = desc.arraySize;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    
+    m_device->CreateShaderResourceView(d3d12Resource, &srvDesc, srvHandle);
+    
+    return srv;
+}

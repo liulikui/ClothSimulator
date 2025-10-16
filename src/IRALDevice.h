@@ -95,6 +95,9 @@ public:
     // 创建深度模板视图
     virtual IRALDepthStencilView* CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc) = 0;
 
+    // 创建着色器资源视图
+    virtual IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc) = 0;
+
     // 创建深度/模板缓冲区
     virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format) = 0;
 };

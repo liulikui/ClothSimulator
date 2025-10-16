@@ -299,6 +299,9 @@ public:
     // 创建深度模板视图
     IRALDepthStencilView* CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc);
 
+    // 创建着色器资源视图
+    IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc);
+
 private:
     // 通用着色器编译辅助方法
     ComPtr<ID3DBlob> CompileShaderBlob(const char* shaderCode, const char* entryPoint, const char* target);

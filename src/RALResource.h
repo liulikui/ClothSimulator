@@ -1121,6 +1121,16 @@ public:
 	virtual void* GetNativeRenderTargetView() const = 0;
 };
 
+// 着色器资源视图描述符（跨平台封装）
+struct RALShaderResourceViewDesc
+{
+    RALDataFormat format = RALDataFormat::Undefined;
+    uint32_t mostDetailedMip = 0;
+    uint32_t mipLevels = 1;
+    uint32_t firstArraySlice = 0;
+    uint32_t arraySize = 1;
+};
+
 // 着色器资源视图接口
 class IRALShaderResourceView : public IRALResource
 {
