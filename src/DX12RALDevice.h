@@ -107,10 +107,10 @@ public:
     IRALGraphicsCommandList* GetGraphicsCommandList();
 
     // 创建渲染目标
-    IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, DataFormat format);
+    IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format);
 
     // 创建深度/模板缓冲区
-    IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, DataFormat format);
+    IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format);
 
 private:
     // 通用着色器编译辅助方法

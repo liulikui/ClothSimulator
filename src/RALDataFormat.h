@@ -4,7 +4,7 @@
 #include <cstdint>
 
 // 跨平台数据格式枚举（覆盖顶点属性、纹理、缓冲区等通用格式）
-enum class DataFormat : uint32_t 
+enum class RALDataFormat : uint32_t 
 {
     // 未定义格式
     Undefined,
@@ -88,105 +88,105 @@ enum class DataFormat : uint32_t
 
 // 辅助函数：获取格式的字节大小
 // 计算单个数据元素的字节大小（如顶点属性、纹理像素）
-inline uint32_t getFormatSize(DataFormat format) 
+inline uint32_t getFormatSize(RALDataFormat format) 
 {
     switch (format) 
     {
         // 单通道8位格式（1字节）
-    case DataFormat::R8_UInt:
-    case DataFormat::R8_SInt:
-    case DataFormat::R8_UNorm:
-    case DataFormat::R8_SNorm:
+    case RALDataFormat::R8_UInt:
+    case RALDataFormat::R8_SInt:
+    case RALDataFormat::R8_UNorm:
+    case RALDataFormat::R8_SNorm:
         return 1;
 
         // 单通道16位格式（2字节）
-    case DataFormat::R16_UInt:
-    case DataFormat::R16_SInt:
-    case DataFormat::R16_UNorm:
-    case DataFormat::R16_SNorm:
-    case DataFormat::R16_Float:
+    case RALDataFormat::R16_UInt:
+    case RALDataFormat::R16_SInt:
+    case RALDataFormat::R16_UNorm:
+    case RALDataFormat::R16_SNorm:
+    case RALDataFormat::R16_Float:
         return 2;
 
         // 单通道32位格式（4字节）
-    case DataFormat::R32_UInt:
-    case DataFormat::R32_SInt:
-    case DataFormat::R32_Float:
+    case RALDataFormat::R32_UInt:
+    case RALDataFormat::R32_SInt:
+    case RALDataFormat::R32_Float:
         return 4;
 
         // 双通道8位格式（2字节 = 8bit * 2）
-    case DataFormat::R8G8_UInt:
-    case DataFormat::R8G8_SInt:
-    case DataFormat::R8G8_UNorm:
-    case DataFormat::R8G8_SNorm:
+    case RALDataFormat::R8G8_UInt:
+    case RALDataFormat::R8G8_SInt:
+    case RALDataFormat::R8G8_UNorm:
+    case RALDataFormat::R8G8_SNorm:
         return 2;
 
         // 双通道16位格式（4字节 = 16bit * 2）
-    case DataFormat::R16G16_UInt:
-    case DataFormat::R16G16_SInt:
-    case DataFormat::R16G16_UNorm:
-    case DataFormat::R16G16_SNorm:
-    case DataFormat::R16G16_Float:
+    case RALDataFormat::R16G16_UInt:
+    case RALDataFormat::R16G16_SInt:
+    case RALDataFormat::R16G16_UNorm:
+    case RALDataFormat::R16G16_SNorm:
+    case RALDataFormat::R16G16_Float:
         return 4;
 
         // 双通道32位格式（8字节 = 32bit * 2）
-    case DataFormat::R32G32_UInt:
-    case DataFormat::R32G32_SInt:
-    case DataFormat::R32G32_Float:
+    case RALDataFormat::R32G32_UInt:
+    case RALDataFormat::R32G32_SInt:
+    case RALDataFormat::R32G32_Float:
         return 8;
 
         // 三通道8位格式（3字节 = 8bit * 3）
-    case DataFormat::R8G8B8_UInt:
-    case DataFormat::R8G8B8_SInt:
-    case DataFormat::R8G8B8_UNorm:
-    case DataFormat::R8G8B8_SNorm:
+    case RALDataFormat::R8G8B8_UInt:
+    case RALDataFormat::R8G8B8_SInt:
+    case RALDataFormat::R8G8B8_UNorm:
+    case RALDataFormat::R8G8B8_SNorm:
         return 3;
 
         // 三通道32位格式（12字节 = 32bit * 3）
-    case DataFormat::R32G32B32_Float:
+    case RALDataFormat::R32G32B32_Float:
         return 12;
 
         // 四通道8位格式（4字节 = 8bit * 4）
-    case DataFormat::R8G8B8A8_UInt:
-    case DataFormat::R8G8B8A8_SInt:
-    case DataFormat::R8G8B8A8_UNorm:
-    case DataFormat::R8G8B8A8_SNorm:
-    case DataFormat::R8G8B8A8_SRGB:
+    case RALDataFormat::R8G8B8A8_UInt:
+    case RALDataFormat::R8G8B8A8_SInt:
+    case RALDataFormat::R8G8B8A8_UNorm:
+    case RALDataFormat::R8G8B8A8_SNorm:
+    case RALDataFormat::R8G8B8A8_SRGB:
         return 4;
 
         // 四通道16位格式（8字节 = 16bit * 4）
-    case DataFormat::R16G16B16A16_UInt:
-    case DataFormat::R16G16B16A16_SInt:
-    case DataFormat::R16G16B16A16_UNorm:
-    case DataFormat::R16G16B16A16_SNorm:
-    case DataFormat::R16G16B16A16_Float:
+    case RALDataFormat::R16G16B16A16_UInt:
+    case RALDataFormat::R16G16B16A16_SInt:
+    case RALDataFormat::R16G16B16A16_UNorm:
+    case RALDataFormat::R16G16B16A16_SNorm:
+    case RALDataFormat::R16G16B16A16_Float:
         return 8;
 
         // 四通道32位格式（16字节 = 32bit * 4）
-    case DataFormat::R32G32B32A32_UInt:
-    case DataFormat::R32G32B32A32_SInt:
-    case DataFormat::R32G32B32A32_Float:
+    case RALDataFormat::R32G32B32A32_UInt:
+    case RALDataFormat::R32G32B32A32_SInt:
+    case RALDataFormat::R32G32B32A32_Float:
         return 16;
 
         // 深度/模板格式（按实际存储大小）
-    case DataFormat::D16_UNorm:          // 16位深度（2字节）
+    case RALDataFormat::D16_UNorm:          // 16位深度（2字节）
         return 2;
-    case DataFormat::D24_UNorm_S8_UInt:  // 24位深度+8位模板（共4字节，32位对齐）
-    case DataFormat::D32_Float:          // 32位浮点深度（4字节）
-    case DataFormat::D32_Float_S8_UInt:  // 32位深度+8位模板（共8字节，64位对齐）
-        return format == DataFormat::D32_Float_S8_UInt ? 8 : 4;
+    case RALDataFormat::D24_UNorm_S8_UInt:  // 24位深度+8位模板（共4字节，32位对齐）
+    case RALDataFormat::D32_Float:          // 32位浮点深度（4字节）
+    case RALDataFormat::D32_Float_S8_UInt:  // 32位深度+8位模板（共8字节，64位对齐）
+        return format == RALDataFormat::D32_Float_S8_UInt ? 8 : 4;
 
         // 压缩纹理格式（按4x4像素块的大小计算）
-    case DataFormat::BC1_UNorm:          // BC1：8字节/4x4块
-    case DataFormat::BC4_UNorm:          // BC4：8字节/4x4块
+    case RALDataFormat::BC1_UNorm:          // BC1：8字节/4x4块
+    case RALDataFormat::BC4_UNorm:          // BC4：8字节/4x4块
         return 8;
-    case DataFormat::BC2_UNorm:          // BC2：16字节/4x4块
-    case DataFormat::BC3_UNorm:          // BC3：16字节/4x4块
-    case DataFormat::BC5_UNorm:          // BC5：16字节/4x4块
-    case DataFormat::BC7_UNorm:          // BC7：16字节/4x4块
+    case RALDataFormat::BC2_UNorm:          // BC2：16字节/4x4块
+    case RALDataFormat::BC3_UNorm:          // BC3：16字节/4x4块
+    case RALDataFormat::BC5_UNorm:          // BC5：16字节/4x4块
+    case RALDataFormat::BC7_UNorm:          // BC7：16字节/4x4块
         return 16;
 
         // 未定义格式（错误情况）
-    case DataFormat::Undefined:
+    case RALDataFormat::Undefined:
     default:
         return 0;
     }

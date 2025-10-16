@@ -285,9 +285,9 @@ struct RALGraphicsPipelineStateDesc
     
     // 渲染目标配置
     uint32_t numRenderTargets = 1;
-    DataFormat renderTargetFormats[8] = { DataFormat::R8G8B8A8_UNorm, DataFormat::Undefined, DataFormat::Undefined, DataFormat::Undefined, 
-                                        DataFormat::Undefined, DataFormat::Undefined, DataFormat::Undefined, DataFormat::Undefined };
-    DataFormat depthStencilFormat = DataFormat::D32_Float;
+    RALDataFormat renderTargetFormats[8] = { RALDataFormat::R8G8B8A8_UNorm, RALDataFormat::Undefined, RALDataFormat::Undefined, RALDataFormat::Undefined, 
+                                        RALDataFormat::Undefined, RALDataFormat::Undefined, RALDataFormat::Undefined, RALDataFormat::Undefined };
+    RALDataFormat depthStencilFormat = RALDataFormat::D32_Float;
     
     // 多重采样
     RALSampleDesc sampleDesc;
@@ -992,7 +992,7 @@ public:
 class IRALRenderTarget : public IRALResource
 {
 public:
-	IRALRenderTarget(uint32_t width, uint32_t height, DataFormat format)
+	IRALRenderTarget(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALResource(RALResourceType::RenderTarget)
 		, m_width(width)
 		, m_height(height)
@@ -1015,7 +1015,7 @@ public:
 	}
 	
 	// 获取格式
-	DataFormat GetFormat() const
+	RALDataFormat GetFormat() const
 	{
 		return m_format;
 	}
@@ -1023,14 +1023,14 @@ public:
 protected:
 	uint32_t m_width;
 	uint32_t m_height;
-	DataFormat m_format;
+	RALDataFormat m_format;
 };
 
 // DepthStencil基类
 class IRALDepthStencil : public IRALResource
 {
 public:
-	IRALDepthStencil(uint32_t width, uint32_t height, DataFormat format)
+	IRALDepthStencil(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALResource(RALResourceType::DepthStencil)
 		, m_width(width)
 		, m_height(height)
@@ -1053,7 +1053,7 @@ public:
 	}
 
 	// 获取格式
-	DataFormat GetFormat() const
+	RALDataFormat GetFormat() const
 	{
 		return m_format;
 	}
@@ -1061,6 +1061,6 @@ public:
 protected:
 	uint32_t m_width;
 	uint32_t m_height;
-	DataFormat m_format;
+	RALDataFormat m_format;
 };
 #endif // RALRESOURCE_H

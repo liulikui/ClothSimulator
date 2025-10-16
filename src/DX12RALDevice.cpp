@@ -2010,7 +2010,7 @@ void DX12RALDevice::Cleanup()
 }
 
 // 创建渲染目标
-IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, DataFormat format)
+IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format)
 {
     // 创建DX12RALRenderTarget对象
     DX12RALRenderTarget* renderTarget = new DX12RALRenderTarget(width, height, format);
@@ -2065,7 +2065,7 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
 }
 
 // 创建深度/模板缓冲区
-IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, DataFormat format)
+IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format)
 {
     // 创建DX12RALDepthStencil对象
     DX12RALDepthStencil* depthStencil = new DX12RALDepthStencil(width, height, format);

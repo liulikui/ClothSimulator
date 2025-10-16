@@ -48,8 +48,6 @@ bool Scene::Initialize(IRALDevice* pDevice)
 
     m_device = pDevice;
     
-    logDebug("[DEBUG] Scene::Initialize succeeded: graphics pipeline state created and stored");
-    
     m_sceneConstBuffer = pDevice->CreateConstBuffer(sizeof(SceneConstBuffer));
     if (!m_sceneConstBuffer.Get())
     {
@@ -244,7 +242,7 @@ bool Scene::InitializeDeferredRendering()
 
     // 创建GBuffer纹理
     // GBufferA: 世界空间法线 (RGBA16F用于精度)
-    m_gbufferA = m_device->CreateRenderTarget(width, height, DataFormat::R16G16B16A16_Float);
+    m_gbufferA = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_Float);
     if (!m_gbufferA.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA");
@@ -252,7 +250,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // GBufferB: Metallic (R), Specular (G), Roughness (B) (RGB8_UNorm)
-    m_gbufferB = m_device->CreateRenderTarget(width, height, DataFormat::R8G8B8A8_UNorm);
+    m_gbufferB = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm);
     if (!m_gbufferB.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB");
@@ -260,7 +258,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // GBufferC: BaseColor RGB (RGB8_UNorm)
-    m_gbufferC = m_device->CreateRenderTarget(width, height, DataFormat::R8G8B8A8_UNorm);
+    m_gbufferC = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm);
     if (!m_gbufferC.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC");
@@ -268,7 +266,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建深度/模板缓冲区
-    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, DataFormat::D32_Float);
+    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::D32_Float);
     if (!m_gbufferDepthStencil.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil");
@@ -451,10 +449,10 @@ bool Scene::InitializeDeferredRendering()
 
     // 配置渲染目标格式
     gbufferPipelineDesc.numRenderTargets = 3;
-    gbufferPipelineDesc.renderTargetFormats[0] = DataFormat::R16G16B16A16_Float; // GBufferA
-    gbufferPipelineDesc.renderTargetFormats[1] = DataFormat::R8G8B8A8_UNorm;   // GBufferB
-    gbufferPipelineDesc.renderTargetFormats[2] = DataFormat::R8G8B8A8_UNorm;   // GBufferC
-    gbufferPipelineDesc.depthStencilFormat = DataFormat::D32_Float;
+    gbufferPipelineDesc.renderTargetFormats[0] = RALDataFormat::R16G16B16A16_Float; // GBufferA
+    gbufferPipelineDesc.renderTargetFormats[1] = RALDataFormat::R8G8B8A8_UNorm;   // GBufferB
+    gbufferPipelineDesc.renderTargetFormats[2] = RALDataFormat::R8G8B8A8_UNorm;   // GBufferC
+    gbufferPipelineDesc.depthStencilFormat = RALDataFormat::D32_Float;
 
     // 创建几何阶段管道状态
     m_gbufferPipelineState = m_device->CreateGraphicsPipelineState(gbufferPipelineDesc);
@@ -633,8 +631,8 @@ bool Scene::InitializeDeferredRendering()
 
     // 配置渲染目标格式
     lightPipelineDesc.numRenderTargets = 1;
-    lightPipelineDesc.renderTargetFormats[0] = DataFormat::R8G8B8A8_UNorm;
-    lightPipelineDesc.depthStencilFormat = DataFormat::D32_Float;
+    lightPipelineDesc.renderTargetFormats[0] = RALDataFormat::R8G8B8A8_UNorm;
+    lightPipelineDesc.depthStencilFormat = RALDataFormat::D32_Float;
 
     // 创建光照阶段管道状态
     m_lightPipelineState = m_device->CreateGraphicsPipelineState(lightPipelineDesc);

@@ -9,92 +9,92 @@
 
 using namespace Microsoft::WRL;
 
-// 将跨平台DataFormat转换为DX12的DXGI_FORMAT
-inline DXGI_FORMAT toDXGIFormat(DataFormat format) {
+// 将跨平台RALDataFormat转换为DX12的DXGI_FORMAT
+inline DXGI_FORMAT toDXGIFormat(RALDataFormat format) {
 	switch (format) 
 	{
 		// 单通道8位
-	case DataFormat::R8_UInt:          return DXGI_FORMAT_R8_UINT;
-	case DataFormat::R8_SInt:          return DXGI_FORMAT_R8_SINT;
-	case DataFormat::R8_UNorm:         return DXGI_FORMAT_R8_UNORM;
-	case DataFormat::R8_SNorm:         return DXGI_FORMAT_R8_SNORM;
+	case RALDataFormat::R8_UInt:          return DXGI_FORMAT_R8_UINT;
+	case RALDataFormat::R8_SInt:          return DXGI_FORMAT_R8_SINT;
+	case RALDataFormat::R8_UNorm:         return DXGI_FORMAT_R8_UNORM;
+	case RALDataFormat::R8_SNorm:         return DXGI_FORMAT_R8_SNORM;
 
 		// 单通道16位
-	case DataFormat::R16_UInt:         return DXGI_FORMAT_R16_UINT;
-	case DataFormat::R16_SInt:         return DXGI_FORMAT_R16_SINT;
-	case DataFormat::R16_UNorm:        return DXGI_FORMAT_R16_UNORM;
-	case DataFormat::R16_SNorm:        return DXGI_FORMAT_R16_SNORM;
-	case DataFormat::R16_Float:        return DXGI_FORMAT_R16_FLOAT;
+	case RALDataFormat::R16_UInt:         return DXGI_FORMAT_R16_UINT;
+	case RALDataFormat::R16_SInt:         return DXGI_FORMAT_R16_SINT;
+	case RALDataFormat::R16_UNorm:        return DXGI_FORMAT_R16_UNORM;
+	case RALDataFormat::R16_SNorm:        return DXGI_FORMAT_R16_SNORM;
+	case RALDataFormat::R16_Float:        return DXGI_FORMAT_R16_FLOAT;
 
 		// 单通道32位
-	case DataFormat::R32_UInt:         return DXGI_FORMAT_R32_UINT;
-	case DataFormat::R32_SInt:         return DXGI_FORMAT_R32_SINT;
-	case DataFormat::R32_Float:        return DXGI_FORMAT_R32_FLOAT;
+	case RALDataFormat::R32_UInt:         return DXGI_FORMAT_R32_UINT;
+	case RALDataFormat::R32_SInt:         return DXGI_FORMAT_R32_SINT;
+	case RALDataFormat::R32_Float:        return DXGI_FORMAT_R32_FLOAT;
 
 		// 双通道8位
-	case DataFormat::R8G8_UInt:        return DXGI_FORMAT_R8G8_UINT;
-	case DataFormat::R8G8_SInt:        return DXGI_FORMAT_R8G8_SINT;
-	case DataFormat::R8G8_UNorm:       return DXGI_FORMAT_R8G8_UNORM;
-	case DataFormat::R8G8_SNorm:       return DXGI_FORMAT_R8G8_SNORM;
+	case RALDataFormat::R8G8_UInt:        return DXGI_FORMAT_R8G8_UINT;
+	case RALDataFormat::R8G8_SInt:        return DXGI_FORMAT_R8G8_SINT;
+	case RALDataFormat::R8G8_UNorm:       return DXGI_FORMAT_R8G8_UNORM;
+	case RALDataFormat::R8G8_SNorm:       return DXGI_FORMAT_R8G8_SNORM;
 
 		// 双通道16位
-	case DataFormat::R16G16_UInt:      return DXGI_FORMAT_R16G16_UINT;
-	case DataFormat::R16G16_SInt:      return DXGI_FORMAT_R16G16_SINT;
-	case DataFormat::R16G16_UNorm:     return DXGI_FORMAT_R16G16_UNORM;
-	case DataFormat::R16G16_SNorm:     return DXGI_FORMAT_R16G16_SNORM;
-	case DataFormat::R16G16_Float:     return DXGI_FORMAT_R16G16_FLOAT;
+	case RALDataFormat::R16G16_UInt:      return DXGI_FORMAT_R16G16_UINT;
+	case RALDataFormat::R16G16_SInt:      return DXGI_FORMAT_R16G16_SINT;
+	case RALDataFormat::R16G16_UNorm:     return DXGI_FORMAT_R16G16_UNORM;
+	case RALDataFormat::R16G16_SNorm:     return DXGI_FORMAT_R16G16_SNORM;
+	case RALDataFormat::R16G16_Float:     return DXGI_FORMAT_R16G16_FLOAT;
 
 		// 双通道32位
-	case DataFormat::R32G32_UInt:      return DXGI_FORMAT_R32G32_UINT;
-	case DataFormat::R32G32_SInt:      return DXGI_FORMAT_R32G32_SINT;
-	case DataFormat::R32G32_Float:     return DXGI_FORMAT_R32G32_FLOAT;
+	case RALDataFormat::R32G32_UInt:      return DXGI_FORMAT_R32G32_UINT;
+	case RALDataFormat::R32G32_SInt:      return DXGI_FORMAT_R32G32_SINT;
+	case RALDataFormat::R32G32_Float:     return DXGI_FORMAT_R32G32_FLOAT;
 
 		// 三通道8位格式（DXGI不原生支持，返回UNKNOWN）
-	case DataFormat::R8G8B8_UInt:
-	case DataFormat::R8G8B8_SInt:
-	case DataFormat::R8G8B8_UNorm:
-	case DataFormat::R8G8B8_SNorm:
+	case RALDataFormat::R8G8B8_UInt:
+	case RALDataFormat::R8G8B8_SInt:
+	case RALDataFormat::R8G8B8_UNorm:
+	case RALDataFormat::R8G8B8_SNorm:
 		// 注意：DXGI不支持纯R8G8B8格式（3字节未对齐），建议使用R8G8B8A8替代
 		return DXGI_FORMAT_UNKNOWN;
 
 	   // 三通道32位
-	case DataFormat::R32G32B32_Float:  return DXGI_FORMAT_R32G32B32_FLOAT;
+	case RALDataFormat::R32G32B32_Float:  return DXGI_FORMAT_R32G32B32_FLOAT;
 
 		// 四通道8位
-	case DataFormat::R8G8B8A8_UInt:    return DXGI_FORMAT_R8G8B8A8_UINT;
-	case DataFormat::R8G8B8A8_SInt:    return DXGI_FORMAT_R8G8B8A8_SINT;
-	case DataFormat::R8G8B8A8_UNorm:   return DXGI_FORMAT_R8G8B8A8_UNORM;
-	case DataFormat::R8G8B8A8_SNorm:   return DXGI_FORMAT_R8G8B8A8_SNORM;
-	case DataFormat::R8G8B8A8_SRGB:    return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SRGB对应DXGI的UNORM_SRGB
+	case RALDataFormat::R8G8B8A8_UInt:    return DXGI_FORMAT_R8G8B8A8_UINT;
+	case RALDataFormat::R8G8B8A8_SInt:    return DXGI_FORMAT_R8G8B8A8_SINT;
+	case RALDataFormat::R8G8B8A8_UNorm:   return DXGI_FORMAT_R8G8B8A8_UNORM;
+	case RALDataFormat::R8G8B8A8_SNorm:   return DXGI_FORMAT_R8G8B8A8_SNORM;
+	case RALDataFormat::R8G8B8A8_SRGB:    return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SRGB对应DXGI的UNORM_SRGB
 
 		// 四通道16位
-	case DataFormat::R16G16B16A16_UInt:    return DXGI_FORMAT_R16G16B16A16_UINT;
-	case DataFormat::R16G16B16A16_SInt:    return DXGI_FORMAT_R16G16B16A16_SINT;
-	case DataFormat::R16G16B16A16_UNorm:   return DXGI_FORMAT_R16G16B16A16_UNORM;
-	case DataFormat::R16G16B16A16_SNorm:   return DXGI_FORMAT_R16G16B16A16_SNORM;
-	case DataFormat::R16G16B16A16_Float:   return DXGI_FORMAT_R16G16B16A16_FLOAT;
+	case RALDataFormat::R16G16B16A16_UInt:    return DXGI_FORMAT_R16G16B16A16_UINT;
+	case RALDataFormat::R16G16B16A16_SInt:    return DXGI_FORMAT_R16G16B16A16_SINT;
+	case RALDataFormat::R16G16B16A16_UNorm:   return DXGI_FORMAT_R16G16B16A16_UNORM;
+	case RALDataFormat::R16G16B16A16_SNorm:   return DXGI_FORMAT_R16G16B16A16_SNORM;
+	case RALDataFormat::R16G16B16A16_Float:   return DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 		// 四通道32位
-	case DataFormat::R32G32B32A32_UInt:    return DXGI_FORMAT_R32G32B32A32_UINT;
-	case DataFormat::R32G32B32A32_SInt:    return DXGI_FORMAT_R32G32B32A32_SINT;
-	case DataFormat::R32G32B32A32_Float:   return DXGI_FORMAT_R32G32B32A32_FLOAT;
+	case RALDataFormat::R32G32B32A32_UInt:    return DXGI_FORMAT_R32G32B32A32_UINT;
+	case RALDataFormat::R32G32B32A32_SInt:    return DXGI_FORMAT_R32G32B32A32_SINT;
+	case RALDataFormat::R32G32B32A32_Float:   return DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 		// 深度/模板格式（严格匹配DX12的深度模板布局）
-	case DataFormat::D16_UNorm:          return DXGI_FORMAT_D16_UNORM;
-	case DataFormat::D24_UNorm_S8_UInt:  return DXGI_FORMAT_D24_UNORM_S8_UINT;
-	case DataFormat::D32_Float:          return DXGI_FORMAT_D32_FLOAT;
-	case DataFormat::D32_Float_S8_UInt:  return DXGI_FORMAT_D32_FLOAT_S8X24_UINT; // DX12中S8需搭配X24对齐
+	case RALDataFormat::D16_UNorm:          return DXGI_FORMAT_D16_UNORM;
+	case RALDataFormat::D24_UNorm_S8_UInt:  return DXGI_FORMAT_D24_UNORM_S8_UINT;
+	case RALDataFormat::D32_Float:          return DXGI_FORMAT_D32_FLOAT;
+	case RALDataFormat::D32_Float_S8_UInt:  return DXGI_FORMAT_D32_FLOAT_S8X24_UINT; // DX12中S8需搭配X24对齐
 
 		// 压缩纹理格式（BC系列对应DXGI的压缩格式）
-	case DataFormat::BC1_UNorm:         return DXGI_FORMAT_BC1_UNORM;
-	case DataFormat::BC2_UNorm:         return DXGI_FORMAT_BC2_UNORM;
-	case DataFormat::BC3_UNorm:         return DXGI_FORMAT_BC3_UNORM;
-	case DataFormat::BC4_UNorm:         return DXGI_FORMAT_BC4_UNORM;
-	case DataFormat::BC5_UNorm:         return DXGI_FORMAT_BC5_UNORM;
-	case DataFormat::BC7_UNorm:         return DXGI_FORMAT_BC7_UNORM;
+	case RALDataFormat::BC1_UNorm:         return DXGI_FORMAT_BC1_UNORM;
+	case RALDataFormat::BC2_UNorm:         return DXGI_FORMAT_BC2_UNORM;
+	case RALDataFormat::BC3_UNorm:         return DXGI_FORMAT_BC3_UNORM;
+	case RALDataFormat::BC4_UNorm:         return DXGI_FORMAT_BC4_UNORM;
+	case RALDataFormat::BC5_UNorm:         return DXGI_FORMAT_BC5_UNORM;
+	case RALDataFormat::BC7_UNorm:         return DXGI_FORMAT_BC7_UNORM;
 
 		// 未定义格式（错误情况，返回DXGI的未知格式）
-	case DataFormat::Undefined:
+	case RALDataFormat::Undefined:
 	default:
 		return DXGI_FORMAT_UNKNOWN;
 	}
@@ -735,7 +735,7 @@ protected:
 class DX12RALRenderTarget : public IRALRenderTarget
 {
 public:
-	DX12RALRenderTarget(uint32_t width, uint32_t height, DataFormat format)
+	DX12RALRenderTarget(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALRenderTarget(width, height, format)
 	{
 	}
@@ -769,7 +769,7 @@ protected:
 class DX12RALDepthStencil : public IRALDepthStencil
 {
 public:
-	DX12RALDepthStencil(uint32_t width, uint32_t height, DataFormat format)
+	DX12RALDepthStencil(uint32_t width, uint32_t height, RALDataFormat format)
 		: IRALDepthStencil(width, height, format)
 	{
 	}
