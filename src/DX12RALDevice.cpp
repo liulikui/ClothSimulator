@@ -682,11 +682,14 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     std::vector<D3D12_INPUT_ELEMENT_DESC> d3dInputLayout;
 
     // 设置输入布局
-    if (desc.inputLayout) {
-        for (const auto& attr : *desc.inputLayout) {
+    if (desc.inputLayout)
+    {
+        for (const auto& attr : *desc.inputLayout)
+        {
             D3D12_INPUT_ELEMENT_DESC element = {};
             // 设置元素名称
-            switch (attr.semantic) {
+            switch (attr.semantic)
+            {
             case RALVertexSemantic::Position:
                 element.SemanticName = "POSITION";
                 break;
@@ -727,7 +730,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
             }
 
             // 设置格式
-            switch (attr.format) {
+            switch (attr.format)
+            {
             case RALVertexFormat::Float1:
                 element.Format = DXGI_FORMAT_R32_FLOAT;
                 break;
@@ -763,39 +767,47 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     }
 
     // 设置根签名
-    if (desc.rootSignature) {
+    if (desc.rootSignature)
+    {
         psoDesc.pRootSignature = static_cast<ID3D12RootSignature*>(desc.rootSignature->GetNativeResource());
     }
 
     // 设置顶点着色器
-    if (desc.vertexShader) {
+    if (desc.vertexShader)
+    {
         auto dx12VertexShader = static_cast<DX12RALVertexShader*>(desc.vertexShader);
         ID3DBlob* shaderBlob = dx12VertexShader->GetNativeShader();
-        if (shaderBlob) {
+        if (shaderBlob)
+        {
             psoDesc.VS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
         }
     }
 
     // 设置像素着色器
-    if (desc.pixelShader) {
+    if (desc.pixelShader)
+    {
         auto dx12PixelShader = static_cast<DX12RALPixelShader*>(desc.pixelShader);
         ID3DBlob* shaderBlob = dx12PixelShader->GetNativeShader();
-        if (shaderBlob) {
+        if (shaderBlob)
+        {
             psoDesc.PS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
         }
     }
 
     // 设置几何着色器
-    if (desc.geometryShader) {
+    if (desc.geometryShader)
+    {
         auto dx12GeometryShader = static_cast<DX12RALGeometryShader*>(desc.geometryShader);
         ID3DBlob* shaderBlob = dx12GeometryShader->GetNativeShader();
-        if (shaderBlob) {
+        if (shaderBlob)
+        {
             psoDesc.GS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
         }
     }
 
     // 设置图元拓扑类型
-    switch (desc.primitiveTopologyType) {
+    switch (desc.primitiveTopologyType)
+    {
     case RALPrimitiveTopologyType::TriangleList:
     case RALPrimitiveTopologyType::TriangleStrip:
     case RALPrimitiveTopologyType::TriangleListAdj:
@@ -818,7 +830,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
 
     // 设置光栅化状态
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
-    switch (desc.rasterizerState.fillMode) {
+    switch (desc.rasterizerState.fillMode)
+    {
     case RALFillMode::Wireframe:
         rasterizerDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;
         break;
@@ -828,7 +841,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.rasterizerState.cullMode) {
+    switch (desc.rasterizerState.cullMode)
+    {
     case RALCullMode::None:
         rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
         break;
@@ -857,7 +871,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     blendDesc.AlphaToCoverageEnable = desc.blendState.alphaToCoverageEnable;
     blendDesc.IndependentBlendEnable = desc.blendState.independentBlendEnable;
 
-    for (uint32_t i = 0; i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT && i < desc.numRenderTargets; ++i) {
+    for (uint32_t i = 0; i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT && i < desc.numRenderTargets; ++i)
+    {
         const auto& rtBlendState = desc.renderTargetBlendStates[i];
         auto& rtBlendDesc = blendDesc.RenderTarget[i];
 
@@ -865,7 +880,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         rtBlendDesc.LogicOpEnable = rtBlendState.logicOpEnable;
 
         // 设置源混合因子和目标混合因子
-        switch (rtBlendState.srcBlend) {
+        switch (rtBlendState.srcBlend)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.SrcBlend = D3D12_BLEND_ZERO;
             break;
@@ -905,7 +921,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // 目标混合因子
-        switch (rtBlendState.destBlend) {
+        switch (rtBlendState.destBlend)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.DestBlend = D3D12_BLEND_ZERO;
             break;
@@ -942,7 +959,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // 混合操作
-        switch (rtBlendState.blendOp) {
+        switch (rtBlendState.blendOp)
+        {
         case RALBlendOp::Add:
             rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
             break;
@@ -964,7 +982,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // Alpha混合因子和操作（类似RGB部分）
-        switch (rtBlendState.srcBlendAlpha) {
+        switch (rtBlendState.srcBlendAlpha)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ZERO;
             break;
@@ -1000,7 +1019,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
             break;
         }
 
-        switch (rtBlendState.destBlendAlpha) {
+        switch (rtBlendState.destBlendAlpha)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
             break;
@@ -1036,7 +1056,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
             break;
         }
 
-        switch (rtBlendState.blendOpAlpha) {
+        switch (rtBlendState.blendOpAlpha)
+        {
         case RALBlendOp::Add:
             rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
             break;
@@ -1058,7 +1079,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // 逻辑操作
-        switch (rtBlendState.logicOp) {
+        switch (rtBlendState.logicOp)
+        {
         case RALLogicOp::Copy:
             rtBlendDesc.LogicOp = D3D12_LOGIC_OP_COPY;
             break;
@@ -1109,7 +1131,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     depthStencilDesc.DepthEnable = desc.depthStencilState.depthEnable;
     depthStencilDesc.DepthWriteMask = desc.depthStencilState.depthWriteMask ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
 
-    switch (desc.depthStencilState.depthFunc) {
+    switch (desc.depthStencilState.depthFunc)
+    {
     case RALCompareOp::Never:
         depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_NEVER;
         break;
@@ -1145,7 +1168,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     depthStencilDesc.StencilWriteMask = desc.depthStencilState.stencilWriteMask;
 
     // 设置前向面模板操作
-    switch (desc.depthStencilState.frontFace.failOp) {
+    switch (desc.depthStencilState.frontFace.failOp)
+    {
     case RALStencilOp::Keep:
         depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
         break;
@@ -1176,7 +1200,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.depthStencilState.frontFace.depthFailOp) {
+    switch (desc.depthStencilState.frontFace.depthFailOp)
+    {
     case RALStencilOp::Keep:
         depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
         break;
@@ -1207,7 +1232,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.depthStencilState.frontFace.passOp) {
+    switch (desc.depthStencilState.frontFace.passOp)
+    {
     case RALStencilOp::Keep:
         depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
         break;
@@ -1238,7 +1264,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.depthStencilState.frontFace.compareFunc) {
+    switch (desc.depthStencilState.frontFace.compareFunc)
+    {
     case RALCompareOp::Never:
         depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NEVER;
         break;
@@ -1290,7 +1317,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     // 创建D3D12管线状态对象
     ComPtr<ID3D12PipelineState> pipelineState;
     HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf()));
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         return nullptr;
     }
 

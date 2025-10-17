@@ -95,8 +95,17 @@ public:
 
     // 获取场景的光源颜色
     const dx::XMFLOAT4& GetLightDiffuseColor() const 
-    {
-        return m_lightDiffuseColor;
+    { 
+        return m_lightDiffuseColor; 
+    }
+    
+    // 设置场景的光源方向（自动归一化）
+    void SetLightDirection(const dx::XMFLOAT3& direction);
+
+    // 获取场景的光源方向
+    const dx::XMFLOAT3& GetLightDirection() const 
+    { 
+        return m_lightDirection; 
     }
 
 private:
@@ -141,12 +150,13 @@ private:
     std::vector<PrimitiveInfo> m_primitives;
 
     // 场景的背景颜色
-    dx::XMFLOAT4 m_backgroundColor = {0.9f, 0.9f, 0.9f, 1.0f}; // 默认浅灰色背景
+    dx::XMFLOAT4 m_backgroundColor; // 默认浅灰色背景
 
     // 光源属性
-    dx::XMFLOAT3 m_lightPosition = {10.0f, 10.0f, 10.0f}; // 默认光源位置
-    dx::XMFLOAT4 m_lightDiffuseColor = {1.0f, 1.0f, 1.0f, 1.0f};       // 默认光源颜色（白色）
-    dx::XMFLOAT4 m_lightSpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };       // 默认光源颜色（白色）
+    dx::XMFLOAT3 m_lightPosition; // 默认光源位置
+    dx::XMFLOAT3 m_lightDirection; // 默认光源方向
+    dx::XMFLOAT4 m_lightDiffuseColor;       // 默认光源颜色（白色）
+    dx::XMFLOAT4 m_lightSpecularColor;       // 默认光源颜色（白色）
 
     // 延迟着色相关 - 几何阶段管道状态
     TRefCountPtr<IRALGraphicsPipelineState> m_gbufferPipelineState;
@@ -177,6 +187,21 @@ private:
     TRefCountPtr<IRALShaderResourceView> m_gbufferBSRV;
     TRefCountPtr<IRALShaderResourceView> m_gbufferCSRV;
     TRefCountPtr<IRALShaderResourceView> m_gbufferDepthSRV;
+    
+    // 光照结果RT（用于保存Diffuse和Specular的光照计算结果）
+    TRefCountPtr<IRALRenderTarget> m_diffuseLightRT; // 保存Diffuse光照计算结果
+    TRefCountPtr<IRALRenderTarget> m_specularLightRT; // 保存Specular光照计算结果
+    
+    // 光照结果RT对应的视图
+    TRefCountPtr<IRALRenderTargetView> m_diffuseLightRTV;
+    TRefCountPtr<IRALRenderTargetView> m_specularLightRTV;
+    TRefCountPtr<IRALShaderResourceView> m_diffuseLightSRV;
+    TRefCountPtr<IRALShaderResourceView> m_specularLightSRV;
+    
+    // HDR场景颜色渲染目标（用于延迟着色Resolve结果）
+    TRefCountPtr<IRALRenderTarget> m_HDRSceneColor;        // HDR场景颜色RT
+    TRefCountPtr<IRALRenderTargetView> m_HDRSceneColorRTV; // HDR场景颜色RTV
+    TRefCountPtr<IRALShaderResourceView> m_HDRSceneColorSRV; // HDR场景颜色SRV
     
     TRefCountPtr<IRALConstBuffer> m_lightPassConstBuffer;
     TRefCountPtr<IRALVertexBuffer> m_fullscreenQuadVB;

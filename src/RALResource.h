@@ -82,6 +82,11 @@ struct RALVertexAttribute
 	RALVertexFormat format;      // 数据格式（如Float3）
 	uint32_t bufferSlot;      // 绑定的顶点缓冲区索引（支持多缓冲区）
 	uint32_t offset;          // 在缓冲区中的字节偏移量
+    
+	// 构造函数
+	RALVertexAttribute() : semantic(RALVertexSemantic::Position), format(RALVertexFormat::Float3), bufferSlot(0), offset(0) {}
+	RALVertexAttribute(RALVertexSemantic s, RALVertexFormat f, uint32_t slot, uint32_t off) 
+		: semantic(s), format(f), bufferSlot(slot), offset(off) {}
 };
 
 // 图元拓扑类型
@@ -191,88 +196,124 @@ enum class RALStencilOp
 // 模板操作状态
 struct RALStencilOpState
 {
-    RALStencilOp failOp = RALStencilOp::Keep;
-    RALStencilOp depthFailOp = RALStencilOp::Keep;
-    RALStencilOp passOp = RALStencilOp::Keep;
-    RALCompareOp compareFunc = RALCompareOp::Always;
+    RALStencilOp failOp;
+    RALStencilOp depthFailOp;
+    RALStencilOp passOp;
+    RALCompareOp compareFunc;
+    
+    // 构造函数
+    RALStencilOpState() 
+        : failOp(RALStencilOp::Keep), depthFailOp(RALStencilOp::Keep), 
+          passOp(RALStencilOp::Keep), compareFunc(RALCompareOp::Always) {}
+    RALStencilOpState(RALStencilOp fail, RALStencilOp depthFail, RALStencilOp pass, RALCompareOp func) 
+        : failOp(fail), depthFailOp(depthFail), passOp(pass), compareFunc(func) {}
 };
 
 // 多重采样描述
 struct RALSampleDesc
 {
-    uint32_t Count = 1;
-    uint32_t Quality = 0;
+    uint32_t Count;
+    uint32_t Quality;
+    
+    // 构造函数
+    RALSampleDesc() : Count(1), Quality(0) {}
+    RALSampleDesc(uint32_t count, uint32_t quality) : Count(count), Quality(quality) {}
 };
 
 // 光栅化状态
 struct RasterizerState
 {
-    RALCullMode cullMode = RALCullMode::Back;
-    RALFillMode fillMode = RALFillMode::Solid;
-    bool frontCounterClockwise = false;
-    float depthBias = 0.0f;
-    float depthBiasClamp = 0.0f;
-    float slopeScaledDepthBias = 0.0f;
-    bool depthClipEnable = true;
-    bool multisampleEnable = false;
-    bool antialiasedLineEnable = false;
-    uint32_t forcedSampleCount = 0;
-    bool conservativeRaster = false;
+    RALCullMode cullMode;
+    RALFillMode fillMode;
+    bool frontCounterClockwise;
+    float depthBias;
+    float depthBiasClamp;
+    float slopeScaledDepthBias;
+    bool depthClipEnable;
+    bool multisampleEnable;
+    bool antialiasedLineEnable;
+    uint32_t forcedSampleCount;
+    bool conservativeRaster;
+    
+    // 构造函数
+    RasterizerState() 
+        : cullMode(RALCullMode::Back), fillMode(RALFillMode::Solid), frontCounterClockwise(false),
+          depthBias(0.0f), depthBiasClamp(0.0f), slopeScaledDepthBias(0.0f),
+          depthClipEnable(true), multisampleEnable(false), antialiasedLineEnable(false),
+          forcedSampleCount(0), conservativeRaster(false) {}
 };
 
 // 混合状态
 struct RALPipelineBlendState
 {
-    bool alphaToCoverageEnable = false;
-    bool independentBlendEnable = false;
+    bool alphaToCoverageEnable;
+    bool independentBlendEnable;
+    
+    // 构造函数
+    RALPipelineBlendState() : alphaToCoverageEnable(false), independentBlendEnable(false) {}
+    RALPipelineBlendState(bool alphaCoverage, bool independentBlend) 
+        : alphaToCoverageEnable(alphaCoverage), independentBlendEnable(independentBlend) {}
 };
 
 // 渲染目标混合状态
 struct RALRenderTargetBlendState
 {
-    bool blendEnable = false;
-    bool logicOpEnable = false;
-    RALBlendFactor srcBlend = RALBlendFactor::One;
-    RALBlendFactor destBlend = RALBlendFactor::Zero;
-    RALBlendOp blendOp = RALBlendOp::Add;
-    RALBlendFactor srcBlendAlpha = RALBlendFactor::One;
-    RALBlendFactor destBlendAlpha = RALBlendFactor::Zero;
-    RALBlendOp blendOpAlpha = RALBlendOp::Add;
-    RALLogicOp logicOp = RALLogicOp::Noop;
-    uint8_t colorWriteMask = 0xF; // RGBA
+    bool blendEnable;
+    bool logicOpEnable;
+    RALBlendFactor srcBlend;
+    RALBlendFactor destBlend;
+    RALBlendOp blendOp;
+    RALBlendFactor srcBlendAlpha;
+    RALBlendFactor destBlendAlpha;
+    RALBlendOp blendOpAlpha;
+    RALLogicOp logicOp;
+    uint8_t colorWriteMask;
+    
+    // 构造函数
+    RALRenderTargetBlendState() 
+        : blendEnable(false), logicOpEnable(false), 
+          srcBlend(RALBlendFactor::One), destBlend(RALBlendFactor::Zero), blendOp(RALBlendOp::Add),
+          srcBlendAlpha(RALBlendFactor::One), destBlendAlpha(RALBlendFactor::Zero), blendOpAlpha(RALBlendOp::Add),
+          logicOp(RALLogicOp::Noop), colorWriteMask(0xF) {}
 };
 
 // 深度模板状态
 struct DepthStencilState
 {
-    bool depthEnable = true;
-    bool depthWriteMask = true;
-    RALCompareOp depthFunc = RALCompareOp::Less;
-    bool stencilEnable = false;
-    uint8_t stencilReadMask = 0xFF;
-    uint8_t stencilWriteMask = 0xFF;
+    bool depthEnable;
+    bool depthWriteMask;
+    RALCompareOp depthFunc;
+    bool stencilEnable;
+    uint8_t stencilReadMask;
+    uint8_t stencilWriteMask;
     RALStencilOpState frontFace;
     RALStencilOpState backFace;
+    
+    // 构造函数
+    DepthStencilState() 
+        : depthEnable(true), depthWriteMask(true), depthFunc(RALCompareOp::Less),
+          stencilEnable(false), stencilReadMask(0xFF), stencilWriteMask(0xFF),
+          frontFace(), backFace() {}
 };
 
 // 图形管线状态描述
 struct RALGraphicsPipelineStateDesc
 {
     // 输入布局
-    std::vector<RALVertexAttribute>* inputLayout = nullptr;
+    std::vector<RALVertexAttribute>* inputLayout;
     
     // 根签名
-    IRALRootSignature* rootSignature = nullptr;
+    IRALRootSignature* rootSignature;
     
     // 着色器
-    IRALVertexShader* vertexShader = nullptr;
-    IRALPixelShader* pixelShader = nullptr;
-    IRALGeometryShader* geometryShader = nullptr;
-    IRALHullShader* hullShader = nullptr;
-    IRALDomainShader* domainShader = nullptr;
+    IRALVertexShader* vertexShader;
+    IRALPixelShader* pixelShader;
+    IRALGeometryShader* geometryShader;
+    IRALHullShader* hullShader;
+    IRALDomainShader* domainShader;
     
     // 图元拓扑类型
-    RALPrimitiveTopologyType primitiveTopologyType = RALPrimitiveTopologyType::TriangleList;
+    RALPrimitiveTopologyType primitiveTopologyType;
     
     // 光栅化状态
     RasterizerState rasterizerState;
@@ -287,16 +328,34 @@ struct RALGraphicsPipelineStateDesc
     DepthStencilState depthStencilState;
     
     // 渲染目标配置
-    uint32_t numRenderTargets = 1;
-    RALDataFormat renderTargetFormats[8] = { RALDataFormat::R8G8B8A8_UNorm, RALDataFormat::Undefined, RALDataFormat::Undefined, RALDataFormat::Undefined, 
-                                        RALDataFormat::Undefined, RALDataFormat::Undefined, RALDataFormat::Undefined, RALDataFormat::Undefined };
-    RALDataFormat depthStencilFormat = RALDataFormat::D32_Float;
+    uint32_t numRenderTargets;
+    RALDataFormat renderTargetFormats[8];
+    RALDataFormat depthStencilFormat;
     
     // 多重采样
     RALSampleDesc sampleDesc;
     
     // 采样掩码
-    uint32_t sampleMask = UINT32_MAX;
+    uint32_t sampleMask;
+    
+    // 构造函数
+    RALGraphicsPipelineStateDesc() 
+        : inputLayout(nullptr), rootSignature(nullptr),
+          vertexShader(nullptr), pixelShader(nullptr), geometryShader(nullptr),
+          hullShader(nullptr), domainShader(nullptr),
+          primitiveTopologyType(RALPrimitiveTopologyType::TriangleList),
+          rasterizerState(), blendState(), renderTargetBlendStates(),
+          depthStencilState(), numRenderTargets(1),
+          depthStencilFormat(RALDataFormat::D32_Float),
+          sampleDesc(), sampleMask(UINT32_MAX)
+    {
+        // 初始化渲染目标格式数组
+        renderTargetFormats[0] = RALDataFormat::R8G8B8A8_UNorm;
+        for (int i = 1; i < 8; i++)
+        {
+            renderTargetFormats[i] = RALDataFormat::Undefined;
+        }
+    }
 };
 
 // 资源屏障类型
@@ -376,6 +435,11 @@ struct RALVertexBufferBinding
 	uint32_t stride;          // 每个顶点的字节步长（单个顶点数据总大小）
 	bool isInstanceData;      // 是否为实例化数据（false=顶点数据，true=实例数据）
 	uint32_t instanceStepRate;// 实例步长（每N个实例更新一次，仅isInstanceData=true有效）
+    
+	// 构造函数
+	RALVertexBufferBinding() : stride(0), isInstanceData(false), instanceStepRate(0) {}
+	RALVertexBufferBinding(uint32_t s, bool instanceData, uint32_t stepRate) 
+		: stride(s), isInstanceData(instanceData), instanceStepRate(stepRate) {}
 };
 
 // Render Abstraction Layer接口基类
@@ -577,28 +641,39 @@ public:
 
 // 颜色通道掩码（控制哪些通道允许写入）
 struct RALColorWriteMask {
-	bool red = true;
-	bool green = true;
-	bool blue = true;
-	bool alpha = true;
+	bool red;
+	bool green;
+	bool blue;
+	bool alpha;
+    
+	// 构造函数
+	RALColorWriteMask() : red(true), green(true), blue(true), alpha(true) {}
+	RALColorWriteMask(bool r, bool g, bool b, bool a) : red(r), green(g), blue(b), alpha(a) {}
 };
 
 // 渲染目标混合状态（每个渲染目标可独立配置）
 struct RALBlendState
 {
-	bool enable = false;                  // 是否启用混合
+	bool enable;                  // 是否启用混合
 
 	// RGB通道混合配置
-	RALBlendFactor srcRGB = RALBlendFactor::One;
-	RALBlendFactor dstRGB = RALBlendFactor::Zero;
-	RALBlendOp opRGB = RALBlendOp::Add;
+	RALBlendFactor srcRGB;
+	RALBlendFactor dstRGB;
+	RALBlendOp opRGB;
 
 	// Alpha通道混合配置（可独立于RGB设置）
-	RALBlendFactor srcAlpha = RALBlendFactor::One;
-	RALBlendFactor dstAlpha = RALBlendFactor::Zero;
-	RALBlendOp opAlpha = RALBlendOp::Add;
+	RALBlendFactor srcAlpha;
+	RALBlendFactor dstAlpha;
+	RALBlendOp opAlpha;
 
 	RALColorWriteMask writeMask;             // 颜色写入掩码
+    
+	// 构造函数
+	RALBlendState() 
+		: enable(false), 
+		  srcRGB(RALBlendFactor::One), dstRGB(RALBlendFactor::Zero), opRGB(RALBlendOp::Add),
+		  srcAlpha(RALBlendFactor::One), dstAlpha(RALBlendFactor::Zero), opAlpha(RALBlendOp::Add),
+		  writeMask() {}
 };
 
 // Pipeline描述
@@ -613,6 +688,14 @@ struct RALPipelineDesc
 	bool depthTestEnable;
 	bool depthWriteEnable;
 	RALCompareOp depthCompareOp;
+    
+	// 构造函数
+	RALPipelineDesc() 
+		: cullMode(RALCullMode::Back), fillMode(RALFillMode::Solid), depthClipEnable(true),
+		  depthTestEnable(true), depthWriteEnable(true), depthCompareOp(RALCompareOp::Less) {}
+	RALPipelineDesc(RALCullMode cm, RALFillMode fm, bool clip, bool test, bool write, RALCompareOp op) 
+		: cullMode(cm), fillMode(fm), depthClipEnable(clip),
+		  depthTestEnable(test), depthWriteEnable(write), depthCompareOp(op) {}
 };
 
 enum ETextureType
@@ -657,6 +740,10 @@ struct RALRange
 {
 	uint64_t begin;
 	uint64_t end;
+    
+	// 构造函数
+	RALRange() : begin(0), end(0) {}
+	RALRange(uint64_t b, uint64_t e) : begin(b), end(e) {}
 };
 
 class IRALBuffer : public IRALResource
@@ -748,6 +835,10 @@ struct RALRootDescriptor
 {
 	uint32_t ShaderRegister;
 	uint32_t RegisterSpace;
+    
+	// 构造函数
+	RALRootDescriptor() : ShaderRegister(0), RegisterSpace(0) {}
+	RALRootDescriptor(uint32_t reg, uint32_t space) : ShaderRegister(reg), RegisterSpace(space) {}
 };
 
 // 描述符范围类型枚举
@@ -766,12 +857,21 @@ struct RALRootDescriptorTableRange
     uint32_t NumDescriptors;
     uint32_t BaseShaderRegister;
     uint32_t RegisterSpace;
+    
+	// 构造函数
+	RALRootDescriptorTableRange() 
+		: Type(RALDescriptorRangeType::SRV), NumDescriptors(0), BaseShaderRegister(0), RegisterSpace(0) {}
+	RALRootDescriptorTableRange(RALDescriptorRangeType type, uint32_t num, uint32_t baseReg, uint32_t space) 
+		: Type(type), NumDescriptors(num), BaseShaderRegister(baseReg), RegisterSpace(space) {}
 };
 
 // 根描述符表
 struct RALRootDescriptorTable
 {
 	std::vector<RALRootDescriptorTableRange> Ranges;
+    
+	// 构造函数
+	RALRootDescriptorTable() : Ranges() {}
 };
 
 // 着色器可见性枚举
@@ -801,6 +901,18 @@ struct RALRootParameter
 	} Data;
 	
 	RALShaderVisibility ShaderVisibility;
+    
+	// 构造函数
+	RALRootParameter() 
+		: Type(RALRootParameterType::Invalid), 
+		  ShaderVisibility(RALShaderVisibility::All)
+	{
+		// 初始化常量数组
+		Data.Constants[0] = 0;
+		Data.Constants[1] = 0;
+		Data.Constants[2] = 0;
+		// Data.Descriptor和Data.DescriptorTable会使用它们自己的默认构造函数
+	}
 };
 
 // 初始化常量根参数
@@ -937,6 +1049,16 @@ struct RALStaticSampler
     uint32_t ShaderRegister;
     uint32_t RegisterSpace;
     RALShaderVisibility ShaderVisibility;
+    
+	// 构造函数
+	RALStaticSampler() 
+		: Filter(RALFilter::MinMagMipLinear), 
+		  AddressU(RALTextureAddressMode::Wrap), 
+		  AddressV(RALTextureAddressMode::Wrap), 
+		  AddressW(RALTextureAddressMode::Wrap),
+		  MipLODBias(0.0f), MaxAnisotropy(1), ComparisonFunc(RALComparisonFunc::Always),
+		  BorderColor(RALStaticBorderColor::TransparentBlack), MinLOD(0.0f), MaxLOD(3.402823466e+38f),
+		  ShaderRegister(0), RegisterSpace(0), ShaderVisibility(RALShaderVisibility::All) {}
 };
 
 // 初始化静态采样器
@@ -1091,16 +1213,25 @@ public:
 // 深度模板视图描述符（跨平台封装）
 struct RALDepthStencilViewDesc
 {
-    RALDataFormat format = RALDataFormat::Undefined;
-    uint32_t mipSlice = 0;
+    RALDataFormat format;
+    uint32_t mipSlice;
+    
+	// 构造函数
+	RALDepthStencilViewDesc() : format(RALDataFormat::Undefined), mipSlice(0) {}
+	RALDepthStencilViewDesc(RALDataFormat fmt, uint32_t mip) : format(fmt), mipSlice(mip) {}
 };
 
 // 渲染目标视图描述符（跨平台封装）
 struct RALRenderTargetViewDesc
 {
-    RALDataFormat format = RALDataFormat::Undefined;
-    uint32_t mipSlice = 0;
-    uint32_t planeSlice = 0;
+    RALDataFormat format;
+    uint32_t mipSlice;
+    uint32_t planeSlice;
+    
+	// 构造函数
+	RALRenderTargetViewDesc() : format(RALDataFormat::Undefined), mipSlice(0), planeSlice(0) {}
+	RALRenderTargetViewDesc(RALDataFormat fmt, uint32_t mip, uint32_t plane) 
+		: format(fmt), mipSlice(mip), planeSlice(plane) {}
 };
 
 // 渲染目标视图接口
@@ -1124,11 +1255,19 @@ public:
 // 着色器资源视图描述符（跨平台封装）
 struct RALShaderResourceViewDesc
 {
-    RALDataFormat format = RALDataFormat::Undefined;
-    uint32_t mostDetailedMip = 0;
-    uint32_t mipLevels = 1;
-    uint32_t firstArraySlice = 0;
-    uint32_t arraySize = 1;
+    RALDataFormat format;
+    uint32_t mostDetailedMip;
+    uint32_t mipLevels;
+    uint32_t firstArraySlice;
+    uint32_t arraySize;
+    
+	// 构造函数
+	RALShaderResourceViewDesc() 
+		: format(RALDataFormat::Undefined), mostDetailedMip(0), 
+		  mipLevels(1), firstArraySlice(0), arraySize(1) {}
+	RALShaderResourceViewDesc(RALDataFormat fmt, uint32_t detailedMip, uint32_t levels, uint32_t firstSlice, uint32_t size) 
+		: format(fmt), mostDetailedMip(detailedMip), mipLevels(levels), 
+		  firstArraySlice(firstSlice), arraySize(size) {}
 };
 
 // 着色器资源视图接口

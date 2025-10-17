@@ -21,6 +21,8 @@ struct SceneConstBuffer
     float padding1;                 // 4字节对齐填充
     dx::XMFLOAT4 lightDiffuseColor; // 光源漫反射颜色
     dx::XMFLOAT4 lightSpecularColor; // 光源高光颜色
+    dx::XMFLOAT3 lightDirection;    // 光源方向
+    float padding2;                 // 4字节对齐填充
 };
 
 struct ObjectConstBuffer
@@ -32,9 +34,18 @@ struct ObjectConstBuffer
 
 Scene::Scene()
     : m_device(nullptr)
+    , m_backgroundColor({0.9f, 0.9f, 0.9f, 1.0f})
+    , m_lightPosition({10.0f, 10.0f, 10.0f})
+    , m_lightDirection({-1.0f, -1.0f, -1.0f})
+    , m_lightDiffuseColor({1.0f, 1.0f, 1.0f, 1.0f})
+    , m_lightSpecularColor({1.0f, 1.0f, 1.0f, 1.0f})
 {
     // 初始化场景
     // cameraConstBuffer将在渲染器中创建并传入
+    // 对默认光源方向进行归一化
+    dx::XMVECTOR dir = dx::XMVector3Normalize(dx::XMLoadFloat3(&m_lightDirection));
+    dx::XMStoreFloat3(&m_lightDirection, dir);
+    
     logDebug("[DEBUG] Scene constructor called");
 }
 
@@ -155,6 +166,14 @@ void Scene::Clear()
     m_primitives.clear();
 }
 
+// 设置场景的光源方向（自动归一化）
+void Scene::SetLightDirection(const dx::XMFLOAT3& direction)
+{
+    // 对传入的方向向量进行归一化
+    dx::XMVECTOR dir = dx::XMVector3Normalize(dx::XMLoadFloat3(&direction));
+    dx::XMStoreFloat3(&m_lightDirection, dir);
+}
+
 void Scene::UpdatePrimitiveRequests()
 {
     for (std::vector<AddPrimitiveRequest>::iterator iter = m_addPrimitiveRequests.begin(); iter != m_addPrimitiveRequests.end(); ++iter)
@@ -193,7 +212,9 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
     data.lightPos = m_lightPosition;
     data.lightDiffuseColor = m_lightDiffuseColor;
     data.lightSpecularColor = m_lightSpecularColor;
+    data.lightDirection = m_lightDirection;
     data.padding1 = 0.0f;
+    data.padding2 = 0.0f;
 
     // 映射并更新缓冲区
     void* mappedData = nullptr;
@@ -346,6 +367,87 @@ bool Scene::InitializeDeferredRendering()
     if (!m_gbufferDepthSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil SRV");
+        return false;
+    }
+
+    // 创建光照结果RT - Diffuse光照结果 (R16G16B16A16_UNorm)
+    m_diffuseLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm);
+    if (!m_diffuseLightRT.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create diffuse light RT");
+        return false;
+    }
+    
+    // 创建Diffuse光照结果的RTV和SRV
+    RALRenderTargetViewDesc diffuseRTVDESC;
+    diffuseRTVDESC.format = RALDataFormat::R16G16B16A16_UNorm;
+    m_diffuseLightRTV = m_device->CreateRenderTargetView(m_diffuseLightRT.Get(), diffuseRTVDESC);
+    if (!m_diffuseLightRTV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create diffuse light RTV");
+        return false;
+    }
+    
+    RALShaderResourceViewDesc diffuseSRVDesc;
+    diffuseSRVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
+    m_diffuseLightSRV = m_device->CreateShaderResourceView(m_diffuseLightRT.Get(), diffuseSRVDesc);
+    if (!m_diffuseLightSRV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create diffuse light SRV");
+        return false;
+    }
+
+    // 创建光照结果RT - Specular光照结果 (R16G16B16A16_UNorm)
+    m_specularLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm);
+    if (!m_specularLightRT.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create specular light RT");
+        return false;
+    }
+    
+    // 创建Specular光照结果的RTV和SRV
+    RALRenderTargetViewDesc specularRTVDESC;
+    specularRTVDESC.format = RALDataFormat::R16G16B16A16_UNorm;
+    m_specularLightRTV = m_device->CreateRenderTargetView(m_specularLightRT.Get(), specularRTVDESC);
+    if (!m_specularLightRTV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create specular light RTV");
+        return false;
+    }
+    
+    RALShaderResourceViewDesc specularSRVDesc;
+    specularSRVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
+    m_specularLightSRV = m_device->CreateShaderResourceView(m_specularLightRT.Get(), specularSRVDesc);
+    if (!m_specularLightSRV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create specular light SRV");
+        return false;
+    }
+
+    // 创建HDR场景颜色渲染目标（用于延迟着色Resolve结果）
+    m_HDRSceneColor = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm);
+    if (!m_HDRSceneColor.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create HDR scene color render target");
+        return false;
+    }
+
+    // 创建HDR场景颜色RTV和SRV
+    RALRenderTargetViewDesc hdrRTVDesc;
+    hdrRTVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
+    m_HDRSceneColorRTV = m_device->CreateRenderTargetView(m_HDRSceneColor.Get(), hdrRTVDesc);
+    if (!m_HDRSceneColorRTV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create HDR scene color RTV");
+        return false;
+    }
+    
+    RALShaderResourceViewDesc hdrSRVDesc;
+    hdrSRVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
+    m_HDRSceneColorSRV = m_device->CreateShaderResourceView(m_HDRSceneColor.Get(), hdrSRVDesc);
+    if (!m_HDRSceneColorSRV.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create HDR scene color SRV");
         return false;
     }
 
@@ -640,7 +742,13 @@ bool Scene::InitializeDeferredRendering()
         "Texture2D<float4> gbufferB : register(t1);\n"
         "Texture2D<float4> gbufferC : register(t2);\n"
         "SamplerState samplerGBuffer : register(s0);\n"
-        "float4 main(PS_INPUT input) : SV_TARGET {\n"
+        "// 输出到两个渲染目标：Diffuse和Specular光照结果\n"
+        "struct PS_OUTPUT {\n"
+        "   float4 diffuseResult : SV_TARGET0; // Diffuse光照结果\n"
+        "   float4 specularResult : SV_TARGET1; // Specular光照结果\n"
+        "};\n"
+        "PS_OUTPUT main(PS_INPUT input) {\n"
+        "   PS_OUTPUT output;\n"
         "   // 从GBuffer中采样数据\n"
         "   float4 normalSample = gbufferA.Sample(samplerGBuffer, input.uv);\n"
         "   float4 materialSample = gbufferB.Sample(samplerGBuffer, input.uv);\n"
@@ -661,13 +769,21 @@ bool Scene::InitializeDeferredRendering()
         "   float3 lightDir = normalize(lightPos - float3(0, 0, 0));\n"
         "   float3 halfVec = normalize(lightDir + viewDir);\n"
         "   \n"
+        "   // 计算Diffuse和Specular分量\n"
         "   float diffuse = max(dot(normal, lightDir), 0.0f);\n"
         "   float specularTerm = pow(max(dot(normal, halfVec), 0.0f), 32.0f);\n"
         "   \n"
+        "   // 分别输出到两个渲染目标\n"
+        "   // Diffuse光照结果（包含环境光）\n"
         "   float3 ambient = float3(0.2f, 0.2f, 0.2f);\n"
-        "   float3 finalColor = ambient + diffuse * baseColorSample.rgb * lightDiffuseColor + specularTerm * specular * lightSpecularColor;\n"
+        "   output.diffuseResult.rgb = ambient + diffuse * baseColorSample.rgb * lightDiffuseColor;\n"
+        "   output.diffuseResult.a = baseColorSample.a;\n"
         "   \n"
-        "   return float4(finalColor, baseColorSample.a);\n"
+        "   // Specular光照结果\n"
+        "   output.specularResult.rgb = specularTerm * specular * lightSpecularColor;\n"
+        "   output.specularResult.a = 1.0f;\n"
+        "   \n"
+        "   return output;\n"
         "}";
 
     // 编译光照阶段着色器
@@ -721,15 +837,18 @@ bool Scene::InitializeDeferredRendering()
     lightBlendState.blendEnable = false;
     lightBlendState.logicOpEnable = false;
     lightBlendState.colorWriteMask = 0xF;
+    // 添加两个混合状态，与渲染目标数量匹配
+    lightPipelineDesc.renderTargetBlendStates.push_back(lightBlendState);
     lightPipelineDesc.renderTargetBlendStates.push_back(lightBlendState);
 
     // 配置深度模板状态
     lightPipelineDesc.depthStencilState.depthEnable = false;
     lightPipelineDesc.depthStencilState.depthWriteMask = false;
 
-    // 配置渲染目标格式
-    lightPipelineDesc.numRenderTargets = 1;
-    lightPipelineDesc.renderTargetFormats[0] = RALDataFormat::R8G8B8A8_UNorm;
+    // 配置渲染目标格式（支持两个渲染目标）
+    lightPipelineDesc.numRenderTargets = 2;
+    lightPipelineDesc.renderTargetFormats[0] = RALDataFormat::R16G16B16A16_UNorm; // Diffuse光照结果
+    lightPipelineDesc.renderTargetFormats[1] = RALDataFormat::R16G16B16A16_UNorm; // Specular光照结果
     lightPipelineDesc.depthStencilFormat = RALDataFormat::D32_Float;
 
     // 创建光照阶段管道状态
@@ -752,6 +871,29 @@ void Scene::CleanupDeferredRendering()
     m_gbufferB = nullptr;
     m_gbufferC = nullptr;
     m_gbufferDepthStencil = nullptr;
+    
+    // 清理GBuffer视图
+    m_gbufferARTV = nullptr;
+    m_gbufferBRTV = nullptr;
+    m_gbufferCRTV = nullptr;
+    m_gbufferDSV = nullptr;
+    m_gbufferASRV = nullptr;
+    m_gbufferBSRV = nullptr;
+    m_gbufferCSRV = nullptr;
+    m_gbufferDepthSRV = nullptr;
+    
+    // 清理光照结果RT及其视图
+    m_diffuseLightRT = nullptr;
+    m_specularLightRT = nullptr;
+    m_diffuseLightRTV = nullptr;
+    m_specularLightRTV = nullptr;
+    m_diffuseLightSRV = nullptr;
+    m_specularLightSRV = nullptr;
+    
+    // 清理HDR场景颜色RT及其视图
+    m_HDRSceneColor = nullptr;
+    m_HDRSceneColorRTV = nullptr;
+    m_HDRSceneColorSRV = nullptr;
     
     // 清理着色器和管道状态
     m_gbufferVertexShader = nullptr;
@@ -949,8 +1091,9 @@ void Scene::ExecuteLightingPass()
 {
     IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
 
-    // 清空渲染目标，准备光照阶段
-    commandList->SetRenderTargets(0, nullptr, nullptr); // nullptr参数类型为IRALRenderTargetView**和IRALDepthStencilView*
+    // 设置渲染目标为两个光照结果RT
+    IRALRenderTargetView* renderTargets[2] = { m_diffuseLightRTV.Get(), m_specularLightRTV.Get() };
+    commandList->SetRenderTargets(2, renderTargets, nullptr); // nullptr参数类型为IRALDepthStencilView*
 
     // 更新光照阶段常量缓冲区
     LightPassConstBuffer lightData;
