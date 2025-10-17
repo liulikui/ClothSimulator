@@ -17,6 +17,7 @@ struct SceneConstBuffer
     dx::XMFLOAT4X4 View;            // 世界矩阵
     dx::XMFLOAT4X4 Proj;            // 投影矩阵
     dx::XMFLOAT4X4 ViewProj;        // 视图-投影矩阵
+    dx::XMFLOAT4X4 invViewProj;     // 视图-投影矩阵的逆矩阵
     dx::XMFLOAT3 lightPos;          // 光源位置
     float padding1;                 // 4字节对齐填充
     dx::XMFLOAT4 lightDiffuseColor; // 光源漫反射颜色
@@ -204,11 +205,14 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
 {
     // 计算视图-投影矩阵
     dx::XMMATRIX viewProjMatrix = viewMatrix * projectionMatrix;
+    // 计算视图-投影矩阵的逆矩阵
+    dx::XMMATRIX invViewProjMatrix = dx::XMMatrixInverse(nullptr, viewProjMatrix);
 
     SceneConstBuffer data;
     dx::XMStoreFloat4x4(&data.View, dx::XMMatrixTranspose(viewMatrix));
     dx::XMStoreFloat4x4(&data.Proj, dx::XMMatrixTranspose(projectionMatrix));
     dx::XMStoreFloat4x4(&data.ViewProj, dx::XMMatrixTranspose(viewProjMatrix));
+    dx::XMStoreFloat4x4(&data.invViewProj, dx::XMMatrixTranspose(invViewProjMatrix));
     data.lightPos = m_lightPosition;
     data.lightDiffuseColor = m_lightDiffuseColor;
     data.lightSpecularColor = m_lightSpecularColor;
