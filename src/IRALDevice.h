@@ -72,10 +72,10 @@ public:
         RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout) = 0;
 
     // 创建顶点缓冲区
-    virtual IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic) = 0;
+    virtual IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData = nullptr) = 0;
 
     // 创建索引缓冲区
-    virtual IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic) = 0;
+    virtual IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData = nullptr) = 0;
 
     // 创建常量缓冲区
     virtual IRALConstBuffer* CreateConstBuffer(uint32_t size) = 0;

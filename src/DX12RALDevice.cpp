@@ -1817,7 +1817,7 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
 //}
 
 // 创建顶点缓冲区
-IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic)
+IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData)
 {
     // 创建DX12RALVertexBuffer对象
     DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size, stride);
@@ -1854,6 +1854,68 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
         initialState
     );
 
+    // 如果提供了初始数据
+    if (initialData && size > 0)
+    {
+        if (!isStatic)
+        {
+            // 对于UPLOAD堆，可以直接映射资源并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = d3d12Resource->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                d3d12Resource->Unmap(0, nullptr);
+            }
+        }
+        else
+        {
+            // 对于DEFAULT堆，需要创建临时上传缓冲区
+            D3D12_HEAP_PROPERTIES uploadHeapProps = {};
+            uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+            uploadHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            uploadHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            uploadHeapProps.CreationNodeMask = 1;
+            uploadHeapProps.VisibleNodeMask = 1;
+
+            ComPtr<ID3D12Resource> uploadBuffer = CreateBuffer(
+                size,
+                D3D12_RESOURCE_FLAG_NONE,
+                uploadHeapProps,
+                D3D12_RESOURCE_STATE_GENERIC_READ
+            );
+
+            // 映射上传缓冲区并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = uploadBuffer->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                uploadBuffer->Unmap(0, nullptr);
+
+                // 获取命令列表
+                ID3D12GraphicsCommandList* commandList = static_cast<ID3D12GraphicsCommandList*>(m_graphicsCommandList->GetNativeCommandList());
+
+                // 需要先转换DEFAULT堆资源到复制目标状态
+                D3D12_RESOURCE_BARRIER barrier = {};
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                barrier.Transition.pResource = d3d12Resource.Get();
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                commandList->ResourceBarrier(1, &barrier);
+
+                // 复制数据
+                commandList->CopyBufferRegion(d3d12Resource.Get(), 0, uploadBuffer.Get(), 0, size);
+
+                // 转换回顶点缓冲区状态
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+                commandList->ResourceBarrier(1, &barrier);
+            }
+        }
+    }
+
     // 设置原生资源
     vertexBuffer->SetNativeResource(d3d12Resource.Get());
     vertexBuffer->SetResourceState(RALResourceState::VertexBuffer);
@@ -1862,7 +1924,7 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
 }
 
 // 创建索引缓冲区
-IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic)
+IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData)
 {
     // 创建DX12RALIndexBuffer对象
     uint32_t size = is32BitIndex ? count * sizeof(int32_t) : count * sizeof(int16_t);
@@ -1900,6 +1962,68 @@ IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIn
         heapProps,
         initialState
     );
+
+    // 如果提供了初始数据
+    if (initialData && size > 0)
+    {
+        if (!isStatic)
+        {
+            // 对于UPLOAD堆，可以直接映射资源并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = d3d12Resource->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                d3d12Resource->Unmap(0, nullptr);
+            }
+        }
+        else
+        {
+            // 对于DEFAULT堆，需要创建临时上传缓冲区
+            D3D12_HEAP_PROPERTIES uploadHeapProps = {};
+            uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+            uploadHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            uploadHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            uploadHeapProps.CreationNodeMask = 1;
+            uploadHeapProps.VisibleNodeMask = 1;
+
+            ComPtr<ID3D12Resource> uploadBuffer = CreateBuffer(
+                size,
+                D3D12_RESOURCE_FLAG_NONE,
+                uploadHeapProps,
+                D3D12_RESOURCE_STATE_GENERIC_READ
+            );
+
+            // 映射上传缓冲区并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = uploadBuffer->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                uploadBuffer->Unmap(0, nullptr);
+
+                // 获取命令列表
+                ID3D12GraphicsCommandList* commandList = static_cast<ID3D12GraphicsCommandList*>(m_graphicsCommandList->GetNativeCommandList());
+
+                // 需要先转换DEFAULT堆资源到复制目标状态
+                D3D12_RESOURCE_BARRIER barrier = {};
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                barrier.Transition.pResource = d3d12Resource.Get();
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                commandList->ResourceBarrier(1, &barrier);
+
+                // 复制数据
+                commandList->CopyBufferRegion(d3d12Resource.Get(), 0, uploadBuffer.Get(), 0, size);
+
+                // 转换回索引缓冲区状态
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+                commandList->ResourceBarrier(1, &barrier);
+            }
+        }
+    }
 
     // 设置原生资源
     indexBuffer->SetNativeResource(d3d12Resource.Get());

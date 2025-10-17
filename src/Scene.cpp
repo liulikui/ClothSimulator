@@ -983,22 +983,14 @@ void Scene::CreateFullscreenQuad()
         { { -1.0f, -1.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } }  // 左下
     };
 
-    // 创建顶点缓冲区
-    m_fullscreenQuadVB = m_device->CreateVertexBuffer(sizeof(vertices), sizeof(FullscreenQuadVertex), true);
-    if (m_fullscreenQuadVB.Get())
-    {
-        m_device->UploadBuffer(m_fullscreenQuadVB.Get(), reinterpret_cast<const char*>(vertices), sizeof(vertices));
-    }
+    // 创建顶点缓冲区，直接传递初始数据
+    m_fullscreenQuadVB = m_device->CreateVertexBuffer(sizeof(vertices), sizeof(FullscreenQuadVertex), true, vertices);
 
     // 定义索引数据
     uint32_t indices[6] = { 0, 1, 2, 0, 2, 3 };
 
-    // 创建索引缓冲区
-    m_fullscreenQuadIB = m_device->CreateIndexBuffer(6, true, true);
-    if (m_fullscreenQuadIB.Get())
-    {
-        m_device->UploadBuffer(m_fullscreenQuadIB.Get(), reinterpret_cast<const char*>(indices), sizeof(indices));
-    }
+    // 创建索引缓冲区，直接传递初始数据
+    m_fullscreenQuadIB = m_device->CreateIndexBuffer(6, true, true, indices);
 }
 
 // 执行几何阶段

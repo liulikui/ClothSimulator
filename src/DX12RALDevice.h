@@ -291,10 +291,10 @@ public:
     //IRALGraphicsCommandList* CreateGraphicsCommandList();
 
     // 创建顶点缓冲区
-    IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic);
+    IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData = nullptr);
 
     // 创建索引缓冲区
-    IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic);
+    IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData = nullptr);
 
     // 创建常量缓冲区
     IRALConstBuffer* CreateConstBuffer(uint32_t size);
