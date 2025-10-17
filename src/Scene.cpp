@@ -645,11 +645,11 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建光照阶段根签名
-    std::vector<RALRootParameter> lightRootParameters(4);
-    // 根参数0：光照常量缓冲区
+    std::vector<RALRootParameter> lightRootParameters(5);
+    // 根参数0：场景常量缓冲区（包含invViewProj和光照信息）
     InitAsConstantBufferView(lightRootParameters[0], 0, 0, RALShaderVisibility::Pixel);
     
-    // 使用3个描述符表，每个对应一个GBuffer纹理
+    // 使用4个描述符表，对应三个GBuffer纹理和一个深度纹理
     // 根参数1：GBufferA描述符表
     std::vector<RALRootDescriptorTableRange> range1;
     RALRootDescriptorTableRange gbufferARange;
@@ -679,12 +679,22 @@ bool Scene::InitializeDeferredRendering()
     gbufferCRange.RegisterSpace = 0;
     range3.push_back(gbufferCRange);
     InitAsDescriptorTable(lightRootParameters[3], range3, RALShaderVisibility::Pixel);
+    
+    // 根参数4：深度纹理描述符表
+    std::vector<RALRootDescriptorTableRange> range4;
+    RALRootDescriptorTableRange depthRange;
+    depthRange.Type = RALDescriptorRangeType::SRV;
+    depthRange.NumDescriptors = 1; // 1个深度纹理
+    depthRange.BaseShaderRegister = 3;
+    depthRange.RegisterSpace = 0;
+    range4.push_back(depthRange);
+    InitAsDescriptorTable(lightRootParameters[4], range4, RALShaderVisibility::Pixel);
 
-    // 定义静态采样器
+    // 定义静态采样器（使用点采样）
     RALStaticSampler lightSampler;
     InitStaticSampler(
         lightSampler,
-        RALFilter::MinMagMipLinear,
+        RALFilter::MinMagMipPoint,
         RALTextureAddressMode::Clamp,
         RALTextureAddressMode::Clamp,
         RALTextureAddressMode::Clamp,
@@ -735,56 +745,87 @@ bool Scene::InitializeDeferredRendering()
         "   float4 pos : SV_POSITION;\n"
         "   float2 uv : TEXCOORD;\n"
         "};\n"
-        "cbuffer LightBuffer : register(b0) {\n"
+        "cbuffer SceneBuffer : register(b0) {\n"
+        "   float4x4 View;\n"
+        "   float4x4 Proj;\n"
+        "   float4x4 ViewProj;\n"
+        "   float4x4 invViewProj;\n"
         "   float3 lightPos;\n"
         "   float padding1;\n"
         "   float4 lightDiffuseColor;\n"
         "   float4 lightSpecularColor;\n"
+        "   float3 lightDirection;\n"
+        "   float padding2;\n"
         "};\n"
         "// 采样GBuffer纹理\n"
         "Texture2D<float4> gbufferA : register(t0);\n"
         "Texture2D<float4> gbufferB : register(t1);\n"
         "Texture2D<float4> gbufferC : register(t2);\n"
+        "Texture2D<float> depthTexture : register(t3);\n"
         "SamplerState samplerGBuffer : register(s0);\n"
         "// 输出到两个渲染目标：Diffuse和Specular光照结果\n"
         "struct PS_OUTPUT {\n"
-        "   float4 diffuseResult : SV_TARGET0; // Diffuse光照结果\n"
-        "   float4 specularResult : SV_TARGET1; // Specular光照结果\n"
+        "   float4 diffuseResult : SV_TARGET0; // Diffuse光照结果（不乘材质）\n"
+        "   float4 specularResult : SV_TARGET1; // Specular光照结果（不乘材质）\n"
         "};\n"
+        "// 从屏幕空间重建世界空间位置\n"
+        "float3 ReconstructWorldPosition(float2 uv, float depth) {\n"
+        "   // 将深度值从[0,1]范围转换到NDC空间\n"
+        "   float4 ndcPos = float4(uv * 2.0f - 1.0f, depth * 2.0f - 1.0f, 1.0f);\n"
+        "   \n"
+        "   // 使用ViewProj的逆矩阵将NDC坐标转换到世界空间\n"
+        "   float4 worldPos = mul(ndcPos, invViewProj);\n"
+        "   \n"
+        "   // 透视除法\n"
+        "   worldPos.xyz /= worldPos.w;\n"
+        "   \n"
+        "   return worldPos.xyz;\n"
+        "}\n"
         "PS_OUTPUT main(PS_INPUT input) {\n"
         "   PS_OUTPUT output;\n"
+        "   // 初始化输出\n"
+        "   output.diffuseResult = float4(0.0f, 0.0f, 0.0f, 1.0f);\n"
+        "   output.specularResult = float4(0.0f, 0.0f, 0.0f, 1.0f);\n"
+        "   \n"
         "   // 从GBuffer中采样数据\n"
         "   float4 normalSample = gbufferA.Sample(samplerGBuffer, input.uv);\n"
-        "   float4 materialSample = gbufferB.Sample(samplerGBuffer, input.uv);\n"
-        "   float4 baseColorSample = gbufferC.Sample(samplerGBuffer, input.uv);\n"
+        "   // 从深度纹理采样深度值\n"
+        "   float depth = depthTexture.Sample(samplerGBuffer, input.uv).r;\n"
         "   \n"
-        "   // 将法线从[0,1]映射回[-1,1]\n"
+        "   // 检查是否为背景像素\n"
+        "   if (depth >= 1.0f - 1e-6f) {\n"
+        "       return output; // 如果是背景，返回黑色\n"
+        "   }\n"
+        "   \n"
+        "   // 从[0,1]映射回[-1,1]并归一化法线\n"
         "   float3 normal = (normalSample.xyz * 2.0f) - 1.0f;\n"
         "   normal = normalize(normal);\n"
         "   \n"
-        "   // 提取材质属性\n"
-        "   float metallic = materialSample.r;\n"
-        "   float specular = materialSample.g;\n"
-        "   float roughness = materialSample.b;\n"
+        "   // 重建世界空间位置\n"
+        "   float3 worldPos = ReconstructWorldPosition(input.uv, depth);\n"
         "   \n"
-        "   // 简化的光照计算\n"
-        "   // 注意：这里假设摄像机在原点，世界空间位置需要额外的深度重建\n"
-        "   float3 viewDir = normalize(float3(0, 0, 5) - float3(0, 0, 0));\n"
-        "   float3 lightDir = normalize(lightPos - float3(0, 0, 0));\n"
+        "   // 计算视图方向（从世界空间点指向摄像机）\n"
+        "   // 注意：这里需要使用摄像机的世界位置，为简化可以从View矩阵中提取或传入常量\n"
+        "   // 为了简化，我们可以从View矩阵的最后一行提取摄像机位置\n"
+        "   float3 viewDir = normalize(float3(0.0f, 0.0f, 0.0f) - worldPos); // 假设摄像机在原点\n"
+        "   \n"
+        "   // 使用场景中的光源方向（已经归一化）\n"
+        "   float3 lightDir = -normalize(lightDirection); // 注意：lightDirection是指向光源的方向\n"
+        "   \n"
+        "   // 计算半程向量（Blinn-Phong模型）\n"
         "   float3 halfVec = normalize(lightDir + viewDir);\n"
         "   \n"
-        "   // 计算Diffuse和Specular分量\n"
-        "   float diffuse = max(dot(normal, lightDir), 0.0f);\n"
+        "   // 计算漫反射分量（不乘材质）\n"
+        "   float diffuseTerm = max(dot(normal, lightDir), 0.0f);\n"
+        "   // 计算高光分量（不乘材质，使用Blinn-Phong模型，假设shininess为32）\n"
         "   float specularTerm = pow(max(dot(normal, halfVec), 0.0f), 32.0f);\n"
         "   \n"
-        "   // 分别输出到两个渲染目标\n"
-        "   // Diffuse光照结果（包含环境光）\n"
-        "   float3 ambient = float3(0.2f, 0.2f, 0.2f);\n"
-        "   output.diffuseResult.rgb = ambient + diffuse * baseColorSample.rgb * lightDiffuseColor;\n"
-        "   output.diffuseResult.a = baseColorSample.a;\n"
+        "   // 输出漫反射光照结果（不乘材质）\n"
+        "   output.diffuseResult.rgb = diffuseTerm * lightDiffuseColor.rgb;\n"
+        "   output.diffuseResult.a = 1.0f;\n"
         "   \n"
-        "   // Specular光照结果\n"
-        "   output.specularResult.rgb = specularTerm * specular * lightSpecularColor;\n"
+        "   // 输出高光光照结果（不乘材质）\n"
+        "   output.specularResult.rgb = specularTerm * lightSpecularColor.rgb;\n"
         "   output.specularResult.a = 1.0f;\n"
         "   \n"
         "   return output;\n"
@@ -1099,31 +1140,22 @@ void Scene::ExecuteLightingPass()
     IRALRenderTargetView* renderTargets[2] = { m_diffuseLightRTV.Get(), m_specularLightRTV.Get() };
     commandList->SetRenderTargets(2, renderTargets, nullptr); // nullptr参数类型为IRALDepthStencilView*
 
-    // 更新光照阶段常量缓冲区
-    LightPassConstBuffer lightData;
-    lightData.lightPos = m_lightPosition;
-    lightData.lightDiffuseColor = m_lightDiffuseColor;
-    lightData.lightSpecularColor = m_lightSpecularColor;
-    lightData.padding1 = 0.0f;
-
-    // 更新光照常量缓冲区
-    void* mappedData = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
-    m_lightPassConstBuffer->Map(&mappedData);
-    memcpy(mappedData, &lightData, sizeof(LightPassConstBuffer));
-    m_lightPassConstBuffer->Unmap();
+    // 使用场景常量缓冲区，其中已经包含了所有需要的光照信息和invViewProj矩阵
+    // 不需要单独更新光照常量缓冲区
 
     // 设置光照阶段根签名和管线状态
     commandList->SetGraphicsRootSignature(m_lightRootSignature.Get());
     commandList->SetPipelineState(m_lightPipelineState.Get());
 
-    // 设置根参数0（光照常量）
-    commandList->SetGraphicsRootConstantBuffer(0, m_lightPassConstBuffer.Get());
+    // 设置根参数0（场景常量，包含invViewProj和光照信息）
+    commandList->SetGraphicsRootConstantBuffer(0, m_sceneConstBuffer.Get());
 
     // 绑定GBuffer纹理到描述符表
     commandList->SetGraphicsRootDescriptorTable(1, m_gbufferASRV.Get());
     commandList->SetGraphicsRootDescriptorTable(2, m_gbufferBSRV.Get());
     commandList->SetGraphicsRootDescriptorTable(3, m_gbufferCSRV.Get());
+    // 绑定深度纹理到描述符表（使用根参数4）
+    commandList->SetGraphicsRootDescriptorTable(4, m_gbufferDepthSRV.Get());
 
     // 设置全屏四边形
     IRALVertexBuffer* vertexBuffer = m_fullscreenQuadVB.Get();
