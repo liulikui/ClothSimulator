@@ -2109,11 +2109,12 @@ IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* re
     DX12RALRenderTargetView* rtv = new DX12RALRenderTargetView();
 
     // 分配RTV描述符
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE rtvGPUHandle;
     uint32_t rtvIndex;
     ComPtr<ID3D12DescriptorHeap> rtvHeap;
 
-    if (!m_RTVDescriptorHeaps.AllocateDescriptor(rtvHandle, rtvHeap, rtvIndex))
+    if (!m_RTVDescriptorHeaps.AllocateDescriptor(rtvCPUHandle, rtvGPUHandle, rtvHeap, rtvIndex))
     {
         delete rtv;
         return nullptr;
@@ -2122,7 +2123,8 @@ IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* re
     // 设置渲染目标资源和设备信息
     rtv->SetRenderTarget(renderTarget);
     rtv->SetRTVHeap(rtvHeap.Get());
-    rtv->SetRTVHandle(rtvHandle);
+    rtv->SetRTVCPUHandle(rtvCPUHandle);
+    rtv->SetRTVGPUHandle(rtvGPUHandle);
     rtv->SetRTVIndex(rtvIndex);
     rtv->SetDevice(this);
 
@@ -2144,7 +2146,7 @@ IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* re
     rtvDesc.Texture2D.MipSlice = desc.mipSlice;
     rtvDesc.Texture2D.PlaneSlice = desc.planeSlice;
 
-    m_device->CreateRenderTargetView(d3d12Resource, &rtvDesc, rtvHandle);
+    m_device->CreateRenderTargetView(d3d12Resource, &rtvDesc, rtvCPUHandle);
 
     return rtv;
 }
@@ -2227,17 +2229,19 @@ IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* de
     dsv->SetDevice(this);
 
     // 分配DSV描述符
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE dsvGPUHandle;
     uint32_t dsvIndex;
     ComPtr<ID3D12DescriptorHeap> dsvHeap;
 
-    if (!m_DSVDescriptorHeaps.AllocateDescriptor(dsvHandle, dsvHeap, dsvIndex))
+    if (!m_DSVDescriptorHeaps.AllocateDescriptor(dsvCPUHandle, dsvGPUHandle, dsvHeap, dsvIndex))
     {
         delete dsv;
         return nullptr;
     }
 
-    dsv->SetDSVHandle(dsvHandle);
+    dsv->SetDSVCPUHandle(dsvCPUHandle);
+    dsv->SetDSVGPUHandle(dsvGPUHandle);
     dsv->SetDSVHeap(dsvHeap.Get());
     dsv->SetDSVIndex(dsvIndex);
 
@@ -2253,7 +2257,7 @@ IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* de
     dsvDesc.Texture2D.MipSlice = desc.mipSlice;
     dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
     
-    m_device->CreateDepthStencilView(d3d12Resource, &dsvDesc, dsvHandle);
+    m_device->CreateDepthStencilView(d3d12Resource, &dsvDesc, dsvCPUHandle);
     
     return dsv;
 }
@@ -2272,17 +2276,19 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     srv->SetDevice(this);
 
     // 分配SRV描述符
-    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
+    D3D12_CPU_DESCRIPTOR_HANDLE srvCPUHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle;
     uint32_t srvIndex;
     ComPtr<ID3D12DescriptorHeap> srvHeap;
 
-    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvHandle, srvHeap, srvIndex))
+    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvCPUHandle, srvGPUHandle, srvHeap, srvIndex))
     {
         delete srv;
         return nullptr;
     }
 
-    srv->SetSRVHandle(srvHandle);
+    srv->SetSRVCPUHandle(srvCPUHandle);
+    srv->SetSRVGPUHandle(srvGPUHandle);
     srv->SetSRVHeap(srvHeap.Get());
     srv->SetSRVIndex(srvIndex);
 
@@ -2367,7 +2373,7 @@ IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* re
     srvDesc.Texture2D.PlaneSlice = 0; // 单平面纹理
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
     
-    m_device->CreateShaderResourceView(d3d12Resource, &srvDesc, srvHandle);
+    m_device->CreateShaderResourceView(d3d12Resource, &srvDesc, srvCPUHandle);
     
     return srv;
 }

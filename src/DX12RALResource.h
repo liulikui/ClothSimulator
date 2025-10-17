@@ -877,7 +877,7 @@ public:
 		, m_device(nullptr)
 		, m_dsvIndex(0)
 	{
-		m_dsvHandle.ptr = 0;
+		m_dsvCPUHandle.ptr = 0;
 	}
 
 	virtual ~DX12RALDepthStencilView() override;
@@ -885,7 +885,7 @@ public:
 	// 实现IRALResource接口
 	virtual void* GetNativeResource() const override
 	{
-		return const_cast<void*>(reinterpret_cast<const void*>(&m_dsvHandle));
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_dsvCPUHandle));
 	}
 
 	// 实现IRALDepthStencilView接口
@@ -896,7 +896,7 @@ public:
 
 	virtual void* GetNativeDepthStencilView() const override
 	{
-		return const_cast<void*>(reinterpret_cast<const void*>(&m_dsvHandle));
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_dsvCPUHandle));
 	}
 
 	// 设置深度模板资源
@@ -906,9 +906,15 @@ public:
 	}
 
 	// 设置DSV描述符句柄
-	void SetDSVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	void SetDSVCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 	{
-		m_dsvHandle = handle;
+		m_dsvCPUHandle = handle;
+	}
+
+	// 设置DSV GPU描述符句柄
+	void SetDSVGPUHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_dsvGPUHandle = handle;
 	}
 
 	// 设置设备指针
@@ -930,9 +936,15 @@ public:
 	}
 
 	// 获取DSV描述符句柄
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVCPUHandle() const
 	{
-		return m_dsvHandle;
+		return m_dsvCPUHandle;
+	}
+
+	// 获取DSV GPU描述符句柄
+	D3D12_GPU_DESCRIPTOR_HANDLE GetDSVGPUHandle() const
+	{
+		return m_dsvGPUHandle;
 	}
 
 	// 获取DSV堆
@@ -943,7 +955,8 @@ public:
 
 protected:
 	TRefCountPtr<IRALDepthStencil> m_depthStencil;	// 关联的深度模板资源
-	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;		// DSV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvCPUHandle;		// DSV CPU描述符句柄
+	D3D12_GPU_DESCRIPTOR_HANDLE m_dsvGPUHandle;		// DSV GPU描述符句柄
 	DX12RALDevice* m_device;						// 设备指针
 	uint32_t m_dsvIndex;							// DSV索引
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;			// DSV堆
@@ -958,7 +971,7 @@ public:
 		, m_device(nullptr)
 		, m_rtvIndex(0)
 	{
-		m_rtvHandle.ptr = 0;
+		m_rtvCPUHandle.ptr = 0;
 	}
 
 	virtual ~DX12RALRenderTargetView() override;
@@ -966,7 +979,7 @@ public:
 	// 实现IRALResource接口
 	virtual void* GetNativeResource() const override
 	{
-		return const_cast<void*>(reinterpret_cast<const void*>(&m_rtvHandle));
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_rtvCPUHandle));
 	}
 
 	// 实现IRALRenderTargetView接口
@@ -977,7 +990,7 @@ public:
 
 	virtual void* GetNativeRenderTargetView() const override
 	{
-		return const_cast<void*>(reinterpret_cast<const void*>(&m_rtvHandle));
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_rtvCPUHandle));
 	}
 
 	// 设置渲染目标资源
@@ -987,9 +1000,15 @@ public:
 	}
 
 	// 设置RTV描述符句柄
-	void SetRTVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	void SetRTVCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 	{
-		m_rtvHandle = handle;
+		m_rtvCPUHandle = handle;
+	}
+
+	// 设置RTV GPU描述符句柄
+	void SetRTVGPUHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_rtvGPUHandle = handle;
 	}
 
 	// 获取RTV堆
@@ -999,9 +1018,15 @@ public:
 	}
 
 	// 获取RTV描述符句柄
-	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const
+	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVCPUHandle() const
 	{
-		return m_rtvHandle;
+		return m_rtvCPUHandle;
+	}
+
+	// 获取RTV GPU描述符句柄
+	D3D12_GPU_DESCRIPTOR_HANDLE GetRTVGPUHandle() const
+	{
+		return m_rtvGPUHandle;
 	}
 
 	// 设置RTV索引
@@ -1024,7 +1049,8 @@ public:
 
 protected:
 	TRefCountPtr<IRALRenderTarget> m_renderTarget;		// 关联的渲染目标资源
-	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandle;			// RTV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvCPUHandle;			// RTV CPU描述符句柄
+	D3D12_GPU_DESCRIPTOR_HANDLE m_rtvGPUHandle;			// RTV GPU描述符句柄
 	DX12RALDevice* m_device;							// 设备指针
 	uint32_t m_rtvIndex;								// RTV索引
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;				// RTV堆
@@ -1039,7 +1065,7 @@ public:
 		, m_device(nullptr)
 		, m_srvIndex(0)
 	{
-		m_srvHandle.ptr = 0;
+		m_srvCPUHandle.ptr = 0;
 	}
 
 	virtual ~DX12RALShaderResourceView() override;
@@ -1047,7 +1073,7 @@ public:
 	// 实现IRALResource接口
 	virtual void* GetNativeResource() const override
 	{
-		return const_cast<void*>(reinterpret_cast<const void*>(&m_srvHandle));
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_srvCPUHandle));
 	}
 
 	// 实现IRALShaderResourceView接口
@@ -1058,7 +1084,7 @@ public:
 
 	virtual void* GetNativeShaderResourceView() const override
 	{
-		return const_cast<void*>(reinterpret_cast<const void*>(&m_srvHandle));
+		return const_cast<void*>(reinterpret_cast<const void*>(&m_srvCPUHandle));
 	}
 
 	// 设置关联的资源
@@ -1068,15 +1094,27 @@ public:
 	}
 
 	// 设置SRV描述符句柄
-	void SetSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	void SetSRVCPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 	{
-		m_srvHandle = handle;
+		m_srvCPUHandle = handle;
+	}
+
+	// 设置SRV GPU描述符句柄
+	void SetSRVGPUHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+	{
+		m_srvGPUHandle = handle;
 	}
 
 	// 获取SRV描述符句柄
-	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() const
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUHandle() const
 	{
-		return m_srvHandle;
+		return m_srvCPUHandle;
+	}
+
+	// 获取SRV GPU描述符句柄
+	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() const
+	{
+		return m_srvGPUHandle;
 	}
 
 	// 设置SRV堆
@@ -1105,7 +1143,8 @@ public:
 
 protected:
 	TRefCountPtr<IRALResource> m_resource;				// 关联的资源
-	D3D12_CPU_DESCRIPTOR_HANDLE m_srvHandle;            // SRV描述符句柄
+	D3D12_CPU_DESCRIPTOR_HANDLE m_srvCPUHandle;         // SRV CPU描述符句柄
+	D3D12_GPU_DESCRIPTOR_HANDLE m_srvGPUHandle;         // SRV GPU描述符句柄
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap;             // SRV堆
 	DX12RALDevice* m_device;                            // 设备指针
 	uint32_t m_srvIndex;                                // SRV索引

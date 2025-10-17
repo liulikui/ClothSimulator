@@ -33,6 +33,7 @@ public:
     virtual void SetGraphicsRootConstant(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t value) override;
     virtual void SetGraphicsRootConstants(uint32_t rootParameterIndex, uint32_t shaderRegister, uint32_t count, const uint32_t* values) override;
     virtual void SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable) override;
+    virtual void SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, IRALShaderResourceView* srv) override;
     virtual void SetGraphicsRootConstantBuffer(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) override;
     virtual void SetGraphicsRootShaderResource(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) override;
     virtual void SetGraphicsRootUnorderedAccess(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) override;

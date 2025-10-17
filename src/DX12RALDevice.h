@@ -56,9 +56,9 @@ public:
         return m_descriptorSize;
     }
 
-    bool AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, ComPtr<ID3D12DescriptorHeap>& outHeap, uint32_t& outIndex)
+    bool AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE& outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE& outGPUHandle, ComPtr<ID3D12DescriptorHeap>& outHeap, uint32_t& outIndex)
     {
-        if (GetAvailableDescriptor(outHandle, outHeap, outIndex))
+        if (GetAvailableDescriptor(outCPUHandle, outGPUHandle, outHeap, outIndex))
         {
             m_totalCount++;
             return true;
@@ -81,8 +81,14 @@ public:
 
             outHeap = newHeap;
             outIndex = newHeapInfo->curIndex++;
-            outHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
-            outHandle.ptr += outIndex * m_descriptorSize;
+            
+            // 设置CPU描述符句柄
+            outCPUHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
+            outCPUHandle.ptr += outIndex * m_descriptorSize;
+            
+            // 设置GPU描述符句柄
+            outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
+            outGPUHandle.ptr += outIndex * m_descriptorSize;
 
             m_totalCount++;
 
@@ -143,7 +149,7 @@ private:
         return SUCCEEDED(hr);
     }
 
-    bool GetAvailableDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, ComPtr<ID3D12DescriptorHeap>& outHeap, uint32_t& outIndex)
+    bool GetAvailableDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE& outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE& outGPUHandle, ComPtr<ID3D12DescriptorHeap>& outHeap, uint32_t& outIndex)
     {
         HeapInfo* heapinfo = m_heapInfoHead;
 
@@ -154,8 +160,14 @@ private:
                 outHeap = heapinfo->heap;
                 outIndex = heapinfo->freeSlots.back();
                 heapinfo->freeSlots.pop_back();
-                outHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
-                outHandle.ptr += outIndex * m_descriptorSize;
+                
+                // 设置CPU描述符句柄
+                outCPUHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
+                outCPUHandle.ptr += outIndex * m_descriptorSize;
+                
+                // 设置GPU描述符句柄
+                outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
+                outGPUHandle.ptr += outIndex * m_descriptorSize;
 
                 return true;
             }
@@ -163,8 +175,14 @@ private:
             {
                 outHeap = heapinfo->heap;
                 outIndex = heapinfo->curIndex++;
-                outHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
-                outHandle.ptr += outIndex * m_descriptorSize;
+                
+                // 设置CPU描述符句柄
+                outCPUHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
+                outCPUHandle.ptr += outIndex * m_descriptorSize;
+                
+                // 设置GPU描述符句柄
+                outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
+                outGPUHandle.ptr += outIndex * m_descriptorSize;
 
                 return true;
             }

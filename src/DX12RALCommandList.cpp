@@ -90,7 +90,7 @@ void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTargetView* renderT
         return;
     
     DX12RALRenderTargetView* dx12RTV = static_cast<DX12RALRenderTargetView*>(renderTargetView);
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dx12RTV->GetRTVHandle();
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dx12RTV->GetRTVCPUHandle();
     m_commandList->ClearRenderTargetView(rtvHandle, color, 0, nullptr);
 }
 
@@ -101,7 +101,7 @@ void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthSt
         return;
     
     DX12RALDepthStencilView* dx12DSV = static_cast<DX12RALDepthStencilView*>(depthStencilView);
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dx12DSV->GetDSVHandle();
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dx12DSV->GetDSVCPUHandle();
     
     // 将RALClearFlags转换为D3D12_CLEAR_FLAGS
     D3D12_CLEAR_FLAGS d3dClearFlags = (D3D12_CLEAR_FLAGS)0;
@@ -213,6 +213,27 @@ void DX12RALGraphicsCommandList::SetGraphicsRootDescriptorTable(uint32_t rootPar
     }
 }
 
+// 绑定根描述符表（通过SRV）
+void DX12RALGraphicsCommandList::SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, IRALShaderResourceView* srv)
+{
+    if (srv)
+    {
+        // 将IRALShaderResourceView转换为DX12RALShaderResourceView以获取GPU描述符句柄
+        DX12RALShaderResourceView* dx12SRV = static_cast<DX12RALShaderResourceView*>(srv);
+        if (dx12SRV)
+        {
+            ID3D12DescriptorHeap* srvHeap = dx12SRV->GetSRVHeap();
+            ID3D12DescriptorHeap* heaps[1];
+            heaps[0] = srvHeap;
+
+            m_commandList->SetDescriptorHeaps(1, heaps); // 绑定堆
+
+            D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = dx12SRV->GetSRVGPUHandle();
+            m_commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, gpuHandle);
+        }
+    }
+}
+
 // 绑定根常量缓冲区视图
 void DX12RALGraphicsCommandList::SetGraphicsRootConstantBuffer(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
 {
@@ -220,12 +241,14 @@ void DX12RALGraphicsCommandList::SetGraphicsRootConstantBuffer(uint32_t rootPara
     m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, dx12ConstBuffer->GetGPUVirtualAddress());
 }
 
-// 绑定根着色器资源视图
+// 绑定根着色器资源视图（常量缓冲区）
 void DX12RALGraphicsCommandList::SetGraphicsRootShaderResource(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
 {
     DX12RALConstBuffer* dx12ConstBuffer = (DX12RALConstBuffer*)constBuffer;
     m_commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, dx12ConstBuffer->GetGPUVirtualAddress());
 }
+
+// 注意：已删除SetGraphicsRootShaderResource(IRALShaderResourceView*)方法实现
 
 // 绑定根无序访问视图
 void DX12RALGraphicsCommandList::SetGraphicsRootUnorderedAccess(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
@@ -298,14 +321,14 @@ void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IR
         if (renderTargetViews[i])
         {
             DX12RALRenderTargetView* dx12Rtv = static_cast<DX12RALRenderTargetView*>(renderTargetViews[i]);
-            rtvHandles[i] = dx12Rtv->GetRTVHandle();
+            rtvHandles[i] = dx12Rtv->GetRTVCPUHandle();
         }
     }
     
     if (depthStencilView)
     {
         DX12RALDepthStencilView* dx12Dsv = static_cast<DX12RALDepthStencilView*>(depthStencilView);
-        dsvHandle = dx12Dsv->GetDSVHandle();
+        dsvHandle = dx12Dsv->GetDSVCPUHandle();
     }
     
     m_commandList->OMSetRenderTargets(

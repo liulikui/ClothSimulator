@@ -128,6 +128,7 @@ public:
 
     // 绑定根描述符表
     virtual void SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable) = 0;
+    virtual void SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, IRALShaderResourceView* srv) = 0;
 
     // 绑定根常量缓冲区视图
     virtual void SetGraphicsRootConstantBuffer(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) = 0;

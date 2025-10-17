@@ -539,18 +539,40 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建光照阶段根签名
-    std::vector<RALRootParameter> lightRootParameters(2);
+    std::vector<RALRootParameter> lightRootParameters(4);
+    // 根参数0：光照常量缓冲区
     InitAsConstantBufferView(lightRootParameters[0], 0, 0, RALShaderVisibility::Pixel);
     
-    // 使用描述符表而不是根描述符SRV，因为根描述符SRV只能用于Raw或结构化缓冲区
-    std::vector<RALRootDescriptorTableRange> ranges;
-    RALRootDescriptorTableRange range;
-    range.Type = RALDescriptorRangeType::SRV;
-    range.NumDescriptors = 3; // 3个GBuffer纹理
-    range.BaseShaderRegister = 0;
-    range.RegisterSpace = 0;
-    ranges.push_back(range);
-    InitAsDescriptorTable(lightRootParameters[1], ranges, RALShaderVisibility::Pixel);
+    // 使用3个描述符表，每个对应一个GBuffer纹理
+    // 根参数1：GBufferA描述符表
+    std::vector<RALRootDescriptorTableRange> range1;
+    RALRootDescriptorTableRange gbufferARange;
+    gbufferARange.Type = RALDescriptorRangeType::SRV;
+    gbufferARange.NumDescriptors = 1; // 1个GBuffer纹理
+    gbufferARange.BaseShaderRegister = 0;
+    gbufferARange.RegisterSpace = 0;
+    range1.push_back(gbufferARange);
+    InitAsDescriptorTable(lightRootParameters[1], range1, RALShaderVisibility::Pixel);
+    
+    // 根参数2：GBufferB描述符表
+    std::vector<RALRootDescriptorTableRange> range2;
+    RALRootDescriptorTableRange gbufferBRange;
+    gbufferBRange.Type = RALDescriptorRangeType::SRV;
+    gbufferBRange.NumDescriptors = 1; // 1个GBuffer纹理
+    gbufferBRange.BaseShaderRegister = 1;
+    gbufferBRange.RegisterSpace = 0;
+    range2.push_back(gbufferBRange);
+    InitAsDescriptorTable(lightRootParameters[2], range2, RALShaderVisibility::Pixel);
+    
+    // 根参数3：GBufferC描述符表
+    std::vector<RALRootDescriptorTableRange> range3;
+    RALRootDescriptorTableRange gbufferCRange;
+    gbufferCRange.Type = RALDescriptorRangeType::SRV;
+    gbufferCRange.NumDescriptors = 1; // 1个GBuffer纹理
+    gbufferCRange.BaseShaderRegister = 2;
+    gbufferCRange.RegisterSpace = 0;
+    range3.push_back(gbufferCRange);
+    InitAsDescriptorTable(lightRootParameters[3], range3, RALShaderVisibility::Pixel);
 
     // 定义静态采样器
     RALStaticSampler lightSampler;
@@ -951,10 +973,10 @@ void Scene::ExecuteLightingPass()
     // 设置根参数0（光照常量）
     commandList->SetGraphicsRootConstantBuffer(0, m_lightPassConstBuffer.Get());
 
-    // 将GBuffer纹理设置为着色器资源
-    // 注意：这里使用根描述符表来绑定多个着色器资源
-    // 简化实现：直接绑定光照常量缓冲区
-    commandList->SetGraphicsRootShaderResource(1, m_lightPassConstBuffer.Get());
+    // 绑定GBuffer纹理到描述符表
+    commandList->SetGraphicsRootDescriptorTable(1, m_gbufferASRV.Get());
+    commandList->SetGraphicsRootDescriptorTable(2, m_gbufferBSRV.Get());
+    commandList->SetGraphicsRootDescriptorTable(3, m_gbufferCSRV.Get());
 
     // 设置全屏四边形
     IRALVertexBuffer* vertexBuffer = m_fullscreenQuadVB.Get();
