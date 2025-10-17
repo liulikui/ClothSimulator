@@ -2047,12 +2047,40 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource;
+    
+    // 创建clear value以避免D3D12警告
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = desc.Format;
+    
+    // 根据不同的格式设置适当的clear值
+    switch (format) {
+    case RALDataFormat::R16G16B16A16_Float:  // GBufferA (法线)
+        clearValue.Color[0] = 0.0f;  // X
+        clearValue.Color[1] = 0.0f;  // Y
+        clearValue.Color[2] = 1.0f;  // Z (默认朝上法线)
+        clearValue.Color[3] = 1.0f;
+        break;
+    case RALDataFormat::R8G8B8A8_UNorm:  // GBufferB和GBufferC
+        clearValue.Color[0] = 0.0f;
+        clearValue.Color[1] = 0.0f;
+        clearValue.Color[2] = 0.0f;
+        clearValue.Color[3] = 1.0f;
+        break;
+    default:
+        // 其他格式使用黑色透明作为默认值
+        clearValue.Color[0] = 0.0f;
+        clearValue.Color[1] = 0.0f;
+        clearValue.Color[2] = 0.0f;
+        clearValue.Color[3] = 1.0f;
+        break;
+    }
+    
     HRESULT hr = m_device->CreateCommittedResource(
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
         &desc,
         initialState,
-        nullptr,
+        &clearValue,
         IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
     );
 

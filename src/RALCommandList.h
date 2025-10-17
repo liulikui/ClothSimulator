@@ -4,6 +4,25 @@
 #include "RALResource.h"
 #include <atomic>
 
+// 深度/模板清除标志枚举
+enum class RALClearFlags
+{
+    None    = 0,
+    Depth   = 1,
+    Stencil = 2
+};
+
+// 允许RALClearFlags枚举按位操作
+constexpr RALClearFlags operator|(RALClearFlags a, RALClearFlags b)
+{
+    return static_cast<RALClearFlags>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+constexpr RALClearFlags operator&(RALClearFlags a, RALClearFlags b)
+{
+    return static_cast<RALClearFlags>(static_cast<int>(a) & static_cast<int>(b));
+}
+
 // 命令列表类型枚举
 enum class RALCommandListType
 {
@@ -83,7 +102,7 @@ public:
     virtual void ClearRenderTarget(IRALRenderTargetView* renderTargetView, const float color[4]) = 0;
 
     // 清除深度/模板视图
-    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil) = 0;
+    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, RALClearFlags clearFlags, float depth, uint8_t stencil) = 0;
 
     // 设置视口
     virtual void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) = 0;

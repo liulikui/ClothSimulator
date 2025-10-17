@@ -89,31 +89,32 @@ void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTargetView* renderT
     if (!renderTargetView)
         return;
     
-    // 通过封装接口获取原生渲染目标视图句柄
-    void* nativeRTV = renderTargetView->GetNativeRenderTargetView();
-    if (nativeRTV)
-    {
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeRTV);
-        m_commandList->ClearRenderTargetView(rtvHandle, color, 0, nullptr);
-    }
+    DX12RALRenderTargetView* dx12RTV = static_cast<DX12RALRenderTargetView*>(renderTargetView);
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dx12RTV->GetRTVHandle();
+    m_commandList->ClearRenderTargetView(rtvHandle, color, 0, nullptr);
 }
 
 // 清除深度/模板视图
-void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthStencilView, float depth, uint8_t stencil)
+void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthStencilView, RALClearFlags clearFlags, float depth, uint8_t stencil)
 {
     if (!depthStencilView)
         return;
     
-    // 通过封装接口获取原生深度模板视图句柄
-    void* nativeDSV = depthStencilView->GetNativeDepthStencilView();
-    if (nativeDSV)
+    DX12RALDepthStencilView* dx12DSV = static_cast<DX12RALDepthStencilView*>(depthStencilView);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dx12DSV->GetDSVHandle();
+    
+    // 将RALClearFlags转换为D3D12_CLEAR_FLAGS
+    D3D12_CLEAR_FLAGS d3dClearFlags = (D3D12_CLEAR_FLAGS)0;
+    if ((clearFlags & RALClearFlags::Depth) != RALClearFlags::None)
     {
-        D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeDSV);
-        
-        // 清除深度和模板
-        D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
-        m_commandList->ClearDepthStencilView(dsvHandle, clearFlags, depth, stencil, 0U, nullptr);
+        d3dClearFlags |= D3D12_CLEAR_FLAG_DEPTH;
     }
+    if ((clearFlags & RALClearFlags::Stencil) != RALClearFlags::None)
+    {
+        d3dClearFlags |= D3D12_CLEAR_FLAG_STENCIL;
+    }
+    
+    m_commandList->ClearDepthStencilView(dsvHandle, d3dClearFlags, depth, stencil, 0U, nullptr);
 }
 
 // 设置视口
@@ -145,8 +146,9 @@ void DX12RALGraphicsCommandList::SetPipelineState(IRALResource* pipelineState)
 {
     if (pipelineState)
     {
-        ID3D12PipelineState* dxPipelineState = static_cast<ID3D12PipelineState*>(pipelineState->GetNativeResource());
-        m_commandList->SetPipelineState(dxPipelineState);
+        DX12RALGraphicsPipelineState* dx12PipelineState = static_cast<DX12RALGraphicsPipelineState*>(pipelineState);
+        ID3D12PipelineState* nativePipelineState = static_cast<ID3D12PipelineState*>(dx12PipelineState->GetNativeResource());
+        m_commandList->SetPipelineState(nativePipelineState);
     }
 }
 
@@ -286,9 +288,6 @@ void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IR
         renderTargetCount = kMaxRenderTargets;
     }
     
-    // 注意：根据要求，资源状态转换已移到外部，调用者需要确保渲染目标和深度模板
-    // 已经处于正确的状态（RenderTarget和DepthStencil）
-    
     // 创建描述符句柄数组
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvHandles(renderTargetCount);
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
@@ -298,27 +297,17 @@ void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IR
     {
         if (renderTargetViews[i])
         {
-            // 通过封装接口获取原生渲染目标视图句柄
-            void* nativeRTV = renderTargetViews[i]->GetNativeRenderTargetView();
-            if (nativeRTV)
-            {
-                rtvHandles[i] = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeRTV);
-            }
+            DX12RALRenderTargetView* dx12Rtv = static_cast<DX12RALRenderTargetView*>(renderTargetViews[i]);
+            rtvHandles[i] = dx12Rtv->GetRTVHandle();
         }
     }
     
-    // 获取深度模板视图描述符
     if (depthStencilView)
     {
-        // 通过封装接口获取原生深度模板视图句柄
-        void* nativeDSV = depthStencilView->GetNativeDepthStencilView();
-        if (nativeDSV)
-        {
-            dsvHandle = *static_cast<D3D12_CPU_DESCRIPTOR_HANDLE*>(nativeDSV);
-        }
+        DX12RALDepthStencilView* dx12Dsv = static_cast<DX12RALDepthStencilView*>(depthStencilView);
+        dsvHandle = dx12Dsv->GetDSVHandle();
     }
     
-    // 调用D3D12的OMSetRenderTargets方法设置渲染目标
     m_commandList->OMSetRenderTargets(
         renderTargetCount,
         renderTargetCount > 0 ? rtvHandles.data() : nullptr,
