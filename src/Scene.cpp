@@ -1527,10 +1527,13 @@ void Scene::ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATR
     RALClearValue clearValueA(RALDataFormat::R16G16B16A16_Float, 0.0f, 0.0f, 1.0f, 1.0f);
     commandList->ClearRenderTarget(m_gbufferARTV.Get(), clearValueA);
     
-    // GBuffer B和C使用与资源创建时匹配的clear value [0.0f, 0.0f, 0.0f, 1.0f]
-    RALClearValue clearValueBC(RALDataFormat::R8G8B8A8_UNorm, 0.0f, 0.0f, 0.0f, 1.0f);
-    commandList->ClearRenderTarget(m_gbufferBRTV.Get(), clearValueBC);
-    commandList->ClearRenderTarget(m_gbufferCRTV.Get(), clearValueBC);
+    // GBuffer B使用与资源创建时匹配的clear value [0.0f, 0.5f, 0.5f, 1.0f]
+    RALClearValue clearValueB(RALDataFormat::R8G8B8A8_UNorm, 0.0f, 0.5f, 0.5f, 1.0f);
+    commandList->ClearRenderTarget(m_gbufferBRTV.Get(), clearValueB);
+    
+    // GBuffer C使用与资源创建时匹配的clear value [0.5f, 0.5f, 0.5f, 1.0f]
+    RALClearValue clearValueC(RALDataFormat::R8G8B8A8_UNorm, 0.5f, 0.5f, 0.5f, 1.0f);
+    commandList->ClearRenderTarget(m_gbufferCRTV.Get(), clearValueC);
     
     // 清除深度模板缓冲区
     RALClearValue clearValueDepth(RALDataFormat::D32_Float, 1.0f, 0);
