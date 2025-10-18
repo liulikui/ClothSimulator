@@ -110,12 +110,15 @@ void Scene::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectio
         return;
     }
 
-    // 执行延迟着色的两个主要阶段
+    // 执行延迟着色的三个主要阶段
     // 1. 几何阶段：渲染场景到GBuffer
     ExecuteGeometryPass(viewMatrix, projectionMatrix);
     
     // 2. 光照阶段：使用GBuffer中的信息进行光照计算
     ExecuteLightingPass();
+    
+    // 3. Resolve阶段：将光照结果与材质信息结合，输出最终HDR场景颜色
+    ExecuteResolvePass();
 }
 
 bool Scene::AddPrimitive(Primitive* primitive)
@@ -906,6 +909,219 @@ bool Scene::InitializeDeferredRendering()
         return false;
     }
 
+    // 创建Resolve阶段根签名
+    std::vector<RALRootParameter> resolveRootParameters(5);
+    // 根参数0：场景常量缓冲区（包含光照信息）
+    InitAsConstantBufferView(resolveRootParameters[0], 0, 0, RALShaderVisibility::Pixel);
+    
+    // 使用4个描述符表，对应两个光照结果RT和GBufferB（材质信息）
+    // 根参数1：Diffuse光照结果描述符表
+    std::vector<RALRootDescriptorTableRange> diffuseLightRange;
+    RALRootDescriptorTableRange diffuseLightSRVRange;
+    diffuseLightSRVRange.Type = RALDescriptorRangeType::SRV;
+    diffuseLightSRVRange.NumDescriptors = 1; // 1个Diffuse光照结果纹理
+    diffuseLightSRVRange.BaseShaderRegister = 0;
+    diffuseLightSRVRange.RegisterSpace = 0;
+    diffuseLightRange.push_back(diffuseLightSRVRange);
+    InitAsDescriptorTable(resolveRootParameters[1], diffuseLightRange, RALShaderVisibility::Pixel);
+    
+    // 根参数2：Specular光照结果描述符表
+    std::vector<RALRootDescriptorTableRange> specularLightRange;
+    RALRootDescriptorTableRange specularLightSRVRange;
+    specularLightSRVRange.Type = RALDescriptorRangeType::SRV;
+    specularLightSRVRange.NumDescriptors = 1; // 1个Specular光照结果纹理
+    specularLightSRVRange.BaseShaderRegister = 1;
+    specularLightSRVRange.RegisterSpace = 0;
+    specularLightRange.push_back(specularLightSRVRange);
+    InitAsDescriptorTable(resolveRootParameters[2], specularLightRange, RALShaderVisibility::Pixel);
+    
+    // 根参数3：GBufferB描述符表（包含材质信息）
+    std::vector<RALRootDescriptorTableRange> materialRange;
+    RALRootDescriptorTableRange materialSRVRange;
+    materialSRVRange.Type = RALDescriptorRangeType::SRV;
+    materialSRVRange.NumDescriptors = 1; // 1个材质信息纹理
+    materialSRVRange.BaseShaderRegister = 2;
+    materialSRVRange.RegisterSpace = 0;
+    materialRange.push_back(materialSRVRange);
+    InitAsDescriptorTable(resolveRootParameters[3], materialRange, RALShaderVisibility::Pixel);
+    
+    // 根参数4：GBufferC描述符表（包含BaseColor信息）
+    std::vector<RALRootDescriptorTableRange> baseColorRange;
+    RALRootDescriptorTableRange baseColorSRVRange;
+    baseColorSRVRange.Type = RALDescriptorRangeType::SRV;
+    baseColorSRVRange.NumDescriptors = 1; // 1个BaseColor纹理
+    baseColorSRVRange.BaseShaderRegister = 3;
+    baseColorSRVRange.RegisterSpace = 0;
+    baseColorRange.push_back(baseColorSRVRange);
+    InitAsDescriptorTable(resolveRootParameters[4], baseColorRange, RALShaderVisibility::Pixel);
+
+    // 定义静态采样器（使用点采样）
+    RALStaticSampler resolveSampler;
+    InitStaticSampler(
+        resolveSampler,
+        RALFilter::MinMagMipPoint,
+        RALTextureAddressMode::Clamp,
+        RALTextureAddressMode::Clamp,
+        RALTextureAddressMode::Clamp,
+        0.0f,
+        1,
+        RALComparisonFunc::Always,
+        RALStaticBorderColor::TransparentBlack,
+        0.0f,
+        3.402823466e+38f,
+        0,
+        0,
+        RALShaderVisibility::Pixel
+    );
+
+    std::vector<RALStaticSampler> resolveSamplers = { resolveSampler };
+
+    // 创建Resolve阶段根签名
+    m_resolveRootSignature = m_device->CreateRootSignature(
+        resolveRootParameters,
+        resolveSamplers,
+        RALRootSignatureFlags::AllowInputAssemblerInputLayout,
+        L"ResolveRootSignature"
+    );
+    if (!m_resolveRootSignature.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create resolve pass root signature");
+        return false;
+    }
+
+    // 定义Resolve阶段着色器代码
+    const char* resolveVSCode = 
+        "struct VS_INPUT {\n"
+        "   float4 pos : POSITION;\n"
+        "   float2 uv : TEXCOORD;\n"
+        "};\n"
+        "struct VS_OUTPUT {\n"
+        "   float4 pos : SV_POSITION;\n"
+        "   float2 uv : TEXCOORD;\n"
+        "};\n"
+        "VS_OUTPUT main(VS_INPUT input) {\n"
+        "   VS_OUTPUT output;\n"
+        "   output.pos = input.pos;\n"
+        "   output.uv = input.uv;\n"
+        "   return output;\n"
+        "}";
+
+    const char* resolvePSCode = 
+        "struct PS_INPUT {\n"
+        "   float4 pos : SV_POSITION;\n"
+        "   float2 uv : TEXCOORD;\n"
+        "};\n"
+        "\n"
+        "// 采样纹理\n"
+        "Texture2D<float4> diffuseLightTexture : register(t0);\n"
+        "Texture2D<float4> specularLightTexture : register(t1);\n"
+        "Texture2D<float4> materialTexture : register(t2);\n"
+        "Texture2D<float4> baseColorTexture : register(t3);\n"
+        "\n"
+        "SamplerState samplerResolve : register(s0);\n"
+        "\n"
+        "// 输出到一个渲染目标：HDR场景颜色\n"
+        "struct PS_OUTPUT {\n"
+        "   float4 hdrColor : SV_TARGET0;\n"
+        "};\n"
+        "\n"
+        "PS_OUTPUT main(PS_INPUT input) {\n"
+        "   PS_OUTPUT output;\n"
+        "   \n"
+        "   // 采样光照结果和材质信息\n"
+        "   float4 diffuseLight = diffuseLightTexture.Sample(samplerResolve, input.uv);\n"
+        "   float4 specularLight = specularLightTexture.Sample(samplerResolve, input.uv);\n"
+        "   float4 material = materialTexture.Sample(samplerResolve, input.uv);\n"
+        "   float4 baseColor = baseColorTexture.Sample(samplerResolve, input.uv);\n"
+        "   \n"
+        "   // 从GBufferB提取材质信息\n"
+        "   float metallic = material.r;\n"
+        "   float specular = material.g;\n"
+        "   float roughness = material.b;\n"
+        "   \n"
+        "   // 计算最终的HDR场景颜色\n"
+        "   // 漫反射部分：漫反射光照 * 基础颜色\n"
+        "   // 高光部分：高光光照 * 材质高光颜色 * 金属度因素\n"
+        "   float3 diffuse = diffuseLight.rgb * baseColor.rgb;\n"
+        "   float3 specularColor = specularLight.rgb * specular * (metallic * baseColor.rgb + (1.0 - metallic) * float3(0.04, 0.04, 0.04));\n"
+        "   \n"
+        "   // 合并漫反射和高光结果\n"
+        "   output.hdrColor.rgb = diffuse + specularColor;\n"
+        "   output.hdrColor.a = 1.0f;\n"
+        "   \n"
+        "   return output;\n"
+        "}";
+
+    // 编译Resolve阶段着色器
+    m_resolveVertexShader = m_device->CompileVertexShader(resolveVSCode, "main");
+    if (!m_resolveVertexShader.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to compile resolve pass vertex shader");
+        return false;
+    }
+
+    m_resolvePixelShader = m_device->CompilePixelShader(resolvePSCode, "main");
+    if (!m_resolvePixelShader.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to compile resolve pass pixel shader");
+        return false;
+    }
+
+    // 创建Resolve阶段管道状态
+    RALGraphicsPipelineStateDesc resolvePipelineDesc = {};
+
+    // 配置输入布局 (全屏四边形)
+    std::vector<RALVertexAttribute> resolveInputLayout;
+    RALVertexAttribute resolvePosAttr;
+    resolvePosAttr.semantic = RALVertexSemantic::Position;
+    resolvePosAttr.format = RALVertexFormat::Float4;
+    resolvePosAttr.bufferSlot = 0;
+    resolvePosAttr.offset = 0;
+    resolveInputLayout.push_back(resolvePosAttr);
+
+    RALVertexAttribute resolveUvAttr;
+    resolveUvAttr.semantic = RALVertexSemantic::TexCoord0;
+    resolveUvAttr.format = RALVertexFormat::Float2;
+    resolveUvAttr.bufferSlot = 0;
+    resolveUvAttr.offset = 16; // float4是16字节
+    resolveInputLayout.push_back(resolveUvAttr);
+
+    resolvePipelineDesc.inputLayout = &resolveInputLayout;
+    resolvePipelineDesc.rootSignature = m_resolveRootSignature.Get();
+    resolvePipelineDesc.vertexShader = m_resolveVertexShader.Get();
+    resolvePipelineDesc.pixelShader = m_resolvePixelShader.Get();
+    resolvePipelineDesc.primitiveTopologyType = RALPrimitiveTopologyType::TriangleList;
+
+    // 配置光栅化状态
+    resolvePipelineDesc.rasterizerState.cullMode = RALCullMode::None;
+    resolvePipelineDesc.rasterizerState.fillMode = RALFillMode::Solid;
+    
+    // 配置混合状态
+    resolvePipelineDesc.blendState.alphaToCoverageEnable = false;
+    resolvePipelineDesc.blendState.independentBlendEnable = false;
+    RALRenderTargetBlendState resolveBlendState;
+    resolveBlendState.blendEnable = false;
+    resolveBlendState.logicOpEnable = false;
+    resolveBlendState.colorWriteMask = 0xF;
+    resolvePipelineDesc.renderTargetBlendStates.push_back(resolveBlendState);
+
+    // 配置深度模板状态
+    resolvePipelineDesc.depthStencilState.depthEnable = false;
+    resolvePipelineDesc.depthStencilState.depthWriteMask = false;
+
+    // 配置渲染目标格式（单一渲染目标 - HDR场景颜色）
+    resolvePipelineDesc.numRenderTargets = 1;
+    resolvePipelineDesc.renderTargetFormats[0] = RALDataFormat::R16G16B16A16_UNorm; // HDR场景颜色
+    resolvePipelineDesc.depthStencilFormat = RALDataFormat::D32_Float;
+
+    // 创建Resolve阶段管道状态
+    m_resolvePipelineState = m_device->CreateGraphicsPipelineState(resolvePipelineDesc, L"ResolvePipelineState");
+    if (!m_resolvePipelineState.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create resolve pass pipeline state");
+        return false;
+    }
+
     logDebug("[DEBUG] Scene::InitializeDeferredRendering succeeded");
     return true;
 }
@@ -953,8 +1169,11 @@ void Scene::CleanupDeferredRendering()
     m_lightRootSignature = nullptr;
     m_lightPipelineState = nullptr;
     
-    // 清理常量缓冲区
-    m_lightPassConstBuffer = nullptr;
+    // 清理Resolve阶段相关资源
+    m_resolvePipelineState = nullptr;
+    m_resolveVertexShader = nullptr;
+    m_resolvePixelShader = nullptr;
+    m_resolveRootSignature = nullptr;
     
     // 清理全屏四边形
     m_fullscreenQuadVB = nullptr;
@@ -1159,4 +1378,68 @@ void Scene::ExecuteLightingPass()
 
     // 绘制全屏四边形
     commandList->DrawIndexed(6, 1, 0, 0, 0);
+}
+
+// 执行GBuffer Resolve阶段
+void Scene::ExecuteResolvePass()
+{
+    IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
+    
+    // 资源屏障：确保HDR场景颜色RT处于正确的状态
+    RALResourceBarrier barriers[5];
+    
+    // 将HDRSceneColor转换为渲染目标状态
+    barriers[0].type = RALResourceBarrierType::Transition;
+    barriers[0].resource = m_HDRSceneColor.Get();
+    barriers[0].oldState = RALResourceState::ShaderResource;
+    barriers[0].newState = RALResourceState::RenderTarget;
+    
+    // 确保所有输入资源处于着色器资源状态
+    barriers[1].type = RALResourceBarrierType::Transition;
+    barriers[1].resource = m_diffuseLightRT.Get();
+    barriers[1].oldState = RALResourceState::RenderTarget;
+    barriers[1].newState = RALResourceState::ShaderResource;
+    
+    barriers[2].type = RALResourceBarrierType::Transition;
+    barriers[2].resource = m_specularLightRT.Get();
+    barriers[2].oldState = RALResourceState::RenderTarget;
+    barriers[2].newState = RALResourceState::ShaderResource;
+    
+    // 提交资源屏障
+    commandList->ResourceBarriers(barriers, 3);
+    
+    // 设置渲染目标为HDR场景颜色
+    IRALRenderTargetView* renderTargets[1] = { m_HDRSceneColorRTV.Get() };
+    commandList->SetRenderTargets(1, renderTargets, nullptr);
+    
+    // 设置Resolve阶段根签名和管线状态
+    commandList->SetGraphicsRootSignature(m_resolveRootSignature.Get());
+    commandList->SetPipelineState(m_resolvePipelineState.Get());
+    
+    // 设置根参数0（场景常量缓冲区）
+    commandList->SetGraphicsRootConstantBuffer(0, m_sceneConstBuffer.Get());
+    
+    // 绑定所有需要的纹理到描述符表
+    commandList->SetGraphicsRootDescriptorTable(1, m_diffuseLightSRV.Get());
+    commandList->SetGraphicsRootDescriptorTable(2, m_specularLightSRV.Get());
+    commandList->SetGraphicsRootDescriptorTable(3, m_gbufferBSRV.Get());
+    commandList->SetGraphicsRootDescriptorTable(4, m_gbufferCSRV.Get());
+    
+    // 设置全屏四边形
+    IRALVertexBuffer* vertexBuffer = m_fullscreenQuadVB.Get();
+    commandList->SetVertexBuffers(0, 1, &vertexBuffer);
+    commandList->SetIndexBuffer(m_fullscreenQuadIB.Get());
+    commandList->SetPrimitiveTopology(RALPrimitiveTopologyType::TriangleList);
+    
+    // 绘制全屏四边形
+    commandList->DrawIndexed(6, 1, 0, 0, 0);
+    
+    // 渲染完成后，将HDRSceneColor转换回ShaderResource状态，以便后续使用
+    RALResourceBarrier finalBarrier;
+    finalBarrier.type = RALResourceBarrierType::Transition;
+    finalBarrier.resource = m_HDRSceneColor.Get();
+    finalBarrier.oldState = RALResourceState::RenderTarget;
+    finalBarrier.newState = RALResourceState::ShaderResource;
+    
+    commandList->ResourceBarriers(&finalBarrier, 1);
 }

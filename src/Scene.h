@@ -137,6 +137,8 @@ private:
     void ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
     // 执行光照阶段
     void ExecuteLightingPass();
+    // 执行GBuffer Resolve阶段
+    void ExecuteResolvePass();
     // 创建全屏四边形
     void CreateFullscreenQuad();
 
@@ -169,6 +171,12 @@ private:
     TRefCountPtr<IRALVertexShader> m_lightVertexShader;
     TRefCountPtr<IRALPixelShader> m_lightPixelShader;
     TRefCountPtr<IRALRootSignature> m_lightRootSignature;
+    
+    // 延迟着色相关 - Resolve阶段管道状态
+    TRefCountPtr<IRALGraphicsPipelineState> m_resolvePipelineState;
+    TRefCountPtr<IRALVertexShader> m_resolveVertexShader;
+    TRefCountPtr<IRALPixelShader> m_resolvePixelShader;
+    TRefCountPtr<IRALRootSignature> m_resolveRootSignature;
 
     // GBuffer相关
     TRefCountPtr<IRALRenderTarget> m_gbufferA; // RRG为世界空间法线
