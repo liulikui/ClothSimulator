@@ -264,7 +264,9 @@ bool Scene::CreateRenderingResources(uint32_t width, uint32_t height)
 {
     // 创建GBuffer纹理
     // GBufferA: 世界空间法线 (RGBA16F用于精度)
-    m_gbufferA = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_Float, L"GBufferA_Normals");
+    // 法线的默认值设置为向上法线(0,0,1,1)
+    RALClearValue gbufferAClearValue(RALDataFormat::R16G16B16A16_Float, 0.0f, 0.0f, 1.0f, 1.0f);
+    m_gbufferA = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_Float, &gbufferAClearValue, L"GBufferA_Normals");
     if (!m_gbufferA.Get())
     {
         logDebug("[DEBUG] Scene::CreateRenderingResources failed: failed to create GBufferA");
@@ -291,7 +293,9 @@ bool Scene::CreateRenderingResources(uint32_t width, uint32_t height)
     }
 
     // GBufferB: Metallic (R), Specular (G), Roughness (B) (RGB8_UNorm)
-    m_gbufferB = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm, L"GBufferB_MetallicSpecRough");
+    // 默认值：无金属度(0), 中等高光(0.5), 中等粗糙度(0.5)
+    RALClearValue gbufferBClearValue(RALDataFormat::R8G8B8A8_UNorm, 0.0f, 0.5f, 0.5f, 1.0f);
+    m_gbufferB = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm, &gbufferBClearValue, L"GBufferB_MetallicSpecRough");
     if (!m_gbufferB.Get())
     {
         logDebug("[DEBUG] Scene::CreateRenderingResources failed: failed to create GBufferB");
@@ -318,7 +322,9 @@ bool Scene::CreateRenderingResources(uint32_t width, uint32_t height)
     }
 
     // GBufferC: BaseColor RGB (RGB8_UNorm)
-    m_gbufferC = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm, L"GBufferC_BaseColor");
+    // 默认值：灰色基础颜色
+    RALClearValue gbufferCClearValue(RALDataFormat::R8G8B8A8_UNorm, 0.5f, 0.5f, 0.5f, 1.0f);
+    m_gbufferC = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm, &gbufferCClearValue, L"GBufferC_BaseColor");
     if (!m_gbufferC.Get())
     {
         logDebug("[DEBUG] Scene::CreateRenderingResources failed: failed to create GBufferC");
@@ -345,7 +351,8 @@ bool Scene::CreateRenderingResources(uint32_t width, uint32_t height)
     }
 
     // 创建深度/模板缓冲区
-    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::R32_Typeless, L"GBuffer_DepthStencil");
+    RALClearValue depthClearValue(RALDataFormat::R32_Typeless, 1.0f, 0);
+    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::R32_Typeless, &depthClearValue, L"GBuffer_DepthStencil");
     if (!m_gbufferDepthStencil.Get())
     {
         logDebug("[DEBUG] Scene::CreateRenderingResources failed: failed to create depth stencil");
@@ -372,7 +379,9 @@ bool Scene::CreateRenderingResources(uint32_t width, uint32_t height)
     }
 
     // 创建光照结果RT - Diffuse光照结果 (R16G16B16A16_UNorm)
-    m_diffuseLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, L"DiffuseLightRT");
+    // 默认值：黑色(无光照)
+    RALClearValue diffuseClearValue(RALDataFormat::R16G16B16A16_UNorm, 0.0f, 0.0f, 0.0f, 1.0f);
+    m_diffuseLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, &diffuseClearValue, L"DiffuseLightRT");
     if (!m_diffuseLightRT.Get())
     {
         logDebug("[DEBUG] Scene::CreateRenderingResources failed: failed to create diffuse light RT");
@@ -399,7 +408,9 @@ bool Scene::CreateRenderingResources(uint32_t width, uint32_t height)
     }
 
     // 创建光照结果RT - Specular光照结果 (R16G16B16A16_UNorm)
-    m_specularLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, L"SpecularLightRT");
+    // 默认值：黑色(无光照)
+    RALClearValue specularClearValue(RALDataFormat::R16G16B16A16_UNorm, 0.0f, 0.0f, 0.0f, 1.0f);
+    m_specularLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, &specularClearValue, L"SpecularLightRT");
     if (!m_specularLightRT.Get())
     {
         logDebug("[DEBUG] Scene::CreateRenderingResources failed: failed to create specular light RT");
@@ -426,7 +437,9 @@ bool Scene::CreateRenderingResources(uint32_t width, uint32_t height)
     }
 
     // 创建HDR场景颜色渲染目标（用于延迟着色Resolve结果）
-    m_HDRSceneColor = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, L"HDRSceneColor");
+    // 默认值：黑色
+    RALClearValue hdrClearValue(RALDataFormat::R16G16B16A16_UNorm, 0.0f, 0.0f, 0.0f, 1.0f);
+    m_HDRSceneColor = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, &hdrClearValue, L"HDRSceneColor");
     if (!m_HDRSceneColor.Get())
     {
         logDebug("[DEBUG] Scene::CreateRenderingResources failed: failed to create HDR scene color render target");
@@ -1511,14 +1524,17 @@ void Scene::ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATR
 
     // 清除渲染目标视图和深度模板视图
     // GBuffer A使用与资源创建时匹配的clear value [0.0f, 0.0f, 1.0f, 1.0f]（默认法线值）
-    float clearColorA[] = { 0.0f, 0.0f, 1.0f, 1.0f };
-    commandList->ClearRenderTarget(m_gbufferARTV.Get(), clearColorA);
+    RALClearValue clearValueA(RALDataFormat::R16G16B16A16_Float, 0.0f, 0.0f, 1.0f, 1.0f);
+    commandList->ClearRenderTarget(m_gbufferARTV.Get(), clearValueA);
     
     // GBuffer B和C使用与资源创建时匹配的clear value [0.0f, 0.0f, 0.0f, 1.0f]
-    float clearColorBC[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    commandList->ClearRenderTarget(m_gbufferBRTV.Get(), clearColorBC);
-    commandList->ClearRenderTarget(m_gbufferCRTV.Get(), clearColorBC);
-    commandList->ClearDepthStencil(m_gbufferDSV.Get(), RALClearFlags::Depth | RALClearFlags::Stencil, 1.0f, 0);
+    RALClearValue clearValueBC(RALDataFormat::R8G8B8A8_UNorm, 0.0f, 0.0f, 0.0f, 1.0f);
+    commandList->ClearRenderTarget(m_gbufferBRTV.Get(), clearValueBC);
+    commandList->ClearRenderTarget(m_gbufferCRTV.Get(), clearValueBC);
+    
+    // 清除深度模板缓冲区
+    RALClearValue clearValueDepth(RALDataFormat::D32_Float, 1.0f, 0);
+    commandList->ClearDepthStencil(m_gbufferDSV.Get(), clearValueDepth);
 
     // 更新场景常量缓冲区
     UpdateSceneConstBuffer(commandList, viewMatrix, projectionMatrix);
@@ -1713,8 +1729,8 @@ void Scene::ExecuteTonemappingPass()
     commandList->SetRenderTargets(1, &backBufferRTV, nullptr);
 
     // 清除渲染目标（可选，但为了干净的输出）
-    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    commandList->ClearRenderTarget(backBufferRTV, clearColor);
+    RALClearValue clearValueBackBuffer(RALDataFormat::R8G8B8A8_UNorm, 0.0f, 0.0f, 0.0f, 1.0f);
+    commandList->ClearRenderTarget(backBufferRTV, clearValueBackBuffer);
 
     // 设置根签名
     commandList->SetGraphicsRootSignature(m_tonemappingRootSignature.Get());

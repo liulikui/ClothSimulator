@@ -22,8 +22,8 @@ public:
     virtual void* GetNativeCommandList() override;
 
     // 从IRALGraphicsCommandList继承的方法
-    virtual void ClearRenderTarget(IRALRenderTargetView* renderTargetView, const float color[4]) override;
-    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, RALClearFlags clearFlags, float depth, uint8_t stencil) override;
+    virtual void ClearRenderTarget(IRALRenderTargetView* renderTargetView, const RALClearValue& clearValue) override;
+    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, const RALClearValue& clearValue) override;
     virtual void SetViewport(float x, float y, float width, float height, float minDepth, float maxDepth) override;
     virtual void SetScissorRect(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
     virtual void SetPipelineState(IRALResource* pipelineState) override;

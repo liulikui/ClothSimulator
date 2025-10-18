@@ -2296,7 +2296,7 @@ void DX12RALDevice::Cleanup()
 }
 
 // 创建渲染目标
-IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName)
+IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const RALClearValue* clearValue, const wchar_t* debugName)
 {
     // 创建DX12RALRenderTarget对象
     DX12RALRenderTarget* renderTarget = new DX12RALRenderTarget(width, height, format);
@@ -2330,30 +2330,25 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
     ComPtr<ID3D12Resource> d3d12Resource;
     
     // 创建clear value以避免D3D12警告
-    D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format = desc.Format;
+    D3D12_CLEAR_VALUE dx12ClearValue = {};
+    dx12ClearValue.Format = desc.Format;
     
-    // 根据不同的格式设置适当的clear值
-    switch (format) {
-    case RALDataFormat::R16G16B16A16_Float:  // GBufferA (法线)
-        clearValue.Color[0] = 0.0f;  // X
-        clearValue.Color[1] = 0.0f;  // Y
-        clearValue.Color[2] = 1.0f;  // Z (默认朝上法线)
-        clearValue.Color[3] = 1.0f;
-        break;
-    case RALDataFormat::R8G8B8A8_UNorm:  // GBufferB和GBufferC
-        clearValue.Color[0] = 0.0f;
-        clearValue.Color[1] = 0.0f;
-        clearValue.Color[2] = 0.0f;
-        clearValue.Color[3] = 1.0f;
-        break;
-    default:
-        // 其他格式使用黑色透明作为默认值
-        clearValue.Color[0] = 0.0f;
-        clearValue.Color[1] = 0.0f;
-        clearValue.Color[2] = 0.0f;
-        clearValue.Color[3] = 1.0f;
-        break;
+    // 如果提供了clearValue参数，则使用它的值
+    if (clearValue)
+    {
+        // 复制RALClearValue中的颜色数据到D3D12_CLEAR_VALUE
+        dx12ClearValue.Color[0] = clearValue->clearValue.color[0];
+        dx12ClearValue.Color[1] = clearValue->clearValue.color[1];
+        dx12ClearValue.Color[2] = clearValue->clearValue.color[2];
+        dx12ClearValue.Color[3] = clearValue->clearValue.color[3];
+    }
+    else
+    {
+        // 没有提供clearValue时，默认使用黑色作为清除值
+        dx12ClearValue.Color[0] = 0.0f;
+        dx12ClearValue.Color[1] = 0.0f;
+        dx12ClearValue.Color[2] = 0.0f;
+        dx12ClearValue.Color[3] = 1.0f;
     }
     
     HRESULT hr = m_device->CreateCommittedResource(
@@ -2361,7 +2356,7 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
         D3D12_HEAP_FLAG_NONE,
         &desc,
         initialState,
-        &clearValue,
+        &dx12ClearValue,
         IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
     );
     
@@ -2439,7 +2434,7 @@ IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* re
 }
 
 // 创建深度/模板缓冲区
-IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName)
+IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const RALClearValue* clearValue, const wchar_t* debugName)
 {
     // 创建DX12RALDepthStencil对象
     DX12RALDepthStencil* depthStencil = new DX12RALDepthStencil(width, height, format);
@@ -2470,10 +2465,21 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
     D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
     // 创建深度/模板资源描述符
-    D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format = isTypelessFormat(format) ? toDXGIFormat(getDepthStencilFormatFromTypeless(format)) : toDXGIFormat(format);
-    clearValue.DepthStencil.Depth = 1.0f;
-    clearValue.DepthStencil.Stencil = 0;
+    D3D12_CLEAR_VALUE dx12ClearValue = {};
+    dx12ClearValue.Format = isTypelessFormat(format) ? toDXGIFormat(getDepthStencilFormatFromTypeless(format)) : toDXGIFormat(format);
+    
+    // 如果提供了clearValue参数，则使用它的值
+    if (clearValue)
+    {
+        dx12ClearValue.DepthStencil.Depth = clearValue->clearValue.depthStencil.depth;
+        dx12ClearValue.DepthStencil.Stencil = clearValue->clearValue.depthStencil.stencil;
+    }
+    else
+    {
+        // 默认值
+        dx12ClearValue.DepthStencil.Depth = 1.0f;
+        dx12ClearValue.DepthStencil.Stencil = 0;
+    }
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource;
@@ -2482,7 +2488,7 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
         D3D12_HEAP_FLAG_NONE,
         &desc,
         initialState,
-        &clearValue,
+        &dx12ClearValue,
         IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
     );
 

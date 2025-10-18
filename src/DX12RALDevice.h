@@ -327,10 +327,10 @@ public:
     virtual IRALGraphicsCommandList* GetGraphicsCommandList() override;
 
     // 创建渲染目标
-    virtual IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName = nullptr) override;
+    virtual IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const RALClearValue* clearValue = nullptr, const wchar_t* debugName = nullptr) override;
 
     // 创建深度/模板缓冲区
-    virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName = nullptr) override;
+    virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const RALClearValue* clearValue = nullptr, const wchar_t* debugName = nullptr) override;
     
     // 创建渲染目标视图
     virtual IRALRenderTargetView* CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc, const wchar_t* debugName = nullptr) override;

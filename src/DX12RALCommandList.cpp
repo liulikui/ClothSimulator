@@ -84,18 +84,20 @@ void* DX12RALGraphicsCommandList::GetNativeCommandList()
 }
 
 // 清除渲染目标
-void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTargetView* renderTargetView, const float color[4])
+void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTargetView* renderTargetView, const RALClearValue& clearValue)
 {
     if (!renderTargetView)
         return;
     
     DX12RALRenderTargetView* dx12RTV = static_cast<DX12RALRenderTargetView*>(renderTargetView);
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dx12RTV->GetRTVCPUHandle();
-    m_commandList->ClearRenderTargetView(rtvHandle, color, 0, nullptr);
+    
+    // 直接使用RALClearValue中的颜色数据
+    m_commandList->ClearRenderTargetView(rtvHandle, clearValue.clearValue.color, 0, nullptr);
 }
 
 // 清除深度/模板视图
-void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthStencilView, RALClearFlags clearFlags, float depth, uint8_t stencil)
+void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthStencilView, const RALClearValue& clearValue)
 {
     if (!depthStencilView)
         return;
@@ -103,18 +105,18 @@ void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthSt
     DX12RALDepthStencilView* dx12DSV = static_cast<DX12RALDepthStencilView*>(depthStencilView);
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dx12DSV->GetDSVCPUHandle();
     
-    // 将RALClearFlags转换为D3D12_CLEAR_FLAGS
-    D3D12_CLEAR_FLAGS d3dClearFlags = (D3D12_CLEAR_FLAGS)0;
-    if ((clearFlags & RALClearFlags::Depth) != RALClearFlags::None)
-    {
-        d3dClearFlags |= D3D12_CLEAR_FLAG_DEPTH;
-    }
-    if ((clearFlags & RALClearFlags::Stencil) != RALClearFlags::None)
-    {
-        d3dClearFlags |= D3D12_CLEAR_FLAG_STENCIL;
-    }
+    // 根据格式判断清除类型，默认同时清除深度和模板
+    D3D12_CLEAR_FLAGS d3dClearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
     
-    m_commandList->ClearDepthStencilView(dsvHandle, d3dClearFlags, depth, stencil, 0U, nullptr);
+    // 使用RALClearValue中提供的值
+    m_commandList->ClearDepthStencilView(
+        dsvHandle, 
+        d3dClearFlags, 
+        clearValue.clearValue.depthStencil.depth, 
+        clearValue.clearValue.depthStencil.stencil, 
+        0U, 
+        nullptr
+    );
 }
 
 // 设置视口

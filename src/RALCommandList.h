@@ -99,10 +99,10 @@ public:
     virtual ~IRALGraphicsCommandList() = default;
 
     // 清除渲染目标
-    virtual void ClearRenderTarget(IRALRenderTargetView* renderTargetView, const float color[4]) = 0;
+    virtual void ClearRenderTarget(IRALRenderTargetView* renderTargetView, const RALClearValue& clearValue) = 0;
 
     // 清除深度/模板视图
-    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, RALClearFlags clearFlags, float depth, uint8_t stencil) = 0;
+    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, const RALClearValue& clearValue) = 0;
 
     // 设置视口
     virtual void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) = 0;

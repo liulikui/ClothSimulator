@@ -277,6 +277,46 @@ struct RALRenderTargetBlendState
           logicOp(RALLogicOp::Noop), colorWriteMask(0xF) {}
 };
 
+// 清除值结构体 - 封装D3D12_CLEAR_VALUE
+struct RALClearValue
+{
+    RALDataFormat format;        // 纹理格式
+    union
+    {
+        float color[4];           // 渲染目标清除颜色 (RGBA)
+        struct
+        {
+            float depth;          // 深度缓冲区清除值
+            uint8_t stencil;      // 模板缓冲区清除值
+        } depthStencil;           // 深度/模板清除值
+    } clearValue;
+    
+    // 构造函数 - 默认构造
+    RALClearValue() : format(RALDataFormat::Undefined) 
+    {
+        clearValue.color[0] = 0.0f;
+        clearValue.color[1] = 0.0f;
+        clearValue.color[2] = 0.0f;
+        clearValue.color[3] = 1.0f;
+    }
+    
+    // 构造函数 - 渲染目标清除值
+    RALClearValue(RALDataFormat fmt, float r, float g, float b, float a) : format(fmt) 
+    {
+        clearValue.color[0] = r;
+        clearValue.color[1] = g;
+        clearValue.color[2] = b;
+        clearValue.color[3] = a;
+    }
+    
+    // 构造函数 - 深度模板清除值
+    RALClearValue(RALDataFormat fmt, float d, uint8_t s) : format(fmt) 
+    {
+        clearValue.depthStencil.depth = d;
+        clearValue.depthStencil.stencil = s;
+    }
+};
+
 // 深度模板状态
 struct DepthStencilState
 {
