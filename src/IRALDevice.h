@@ -64,21 +64,21 @@ public:
     virtual IRALRayCallableShader* CompileRayCallableShader(const char* shaderCode, const char* entryPoint = "main") = 0;
 
     // 创建图形管线状态
-    virtual IRALGraphicsPipelineState* CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc) = 0;
+    virtual IRALGraphicsPipelineState* CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc, const wchar_t* debugName = nullptr) = 0;
 
     // 创建根签名 
     virtual IRALRootSignature* CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
         const std::vector<RALStaticSampler>& staticSamplers = {},
-        RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout) = 0;
+        RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout, const wchar_t* debugName = nullptr) = 0;
 
     // 创建顶点缓冲区
-    virtual IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData = nullptr) = 0;
+    virtual IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData = nullptr, const wchar_t* debugName = nullptr) = 0;
 
     // 创建索引缓冲区
-    virtual IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData = nullptr) = 0;
+    virtual IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData = nullptr, const wchar_t* debugName = nullptr) = 0;
 
     // 创建常量缓冲区
-    virtual IRALConstBuffer* CreateConstBuffer(uint32_t size) = 0;
+    virtual IRALConstBuffer* CreateConstBuffer(uint32_t size, const wchar_t* debugName = nullptr) = 0;
 
     // 更新Buffer
     virtual bool UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size) = 0;
@@ -87,18 +87,18 @@ public:
     virtual IRALGraphicsCommandList* GetGraphicsCommandList() = 0;
 
     // 创建渲染目标
-    virtual IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format) = 0;
+    virtual IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName = nullptr) = 0;
 
     // 创建渲染目标视图
-    virtual IRALRenderTargetView* CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc) = 0;
+    virtual IRALRenderTargetView* CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc, const wchar_t* debugName = nullptr) = 0;
 
     // 创建深度模板视图
-    virtual IRALDepthStencilView* CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc) = 0;
+    virtual IRALDepthStencilView* CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc, const wchar_t* debugName = nullptr) = 0;
 
     // 创建着色器资源视图
-    virtual IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc) = 0;
+    virtual IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc, const wchar_t* debugName = nullptr) = 0;
 
     // 创建深度/模板缓冲区
-    virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format) = 0;
+    virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName = nullptr) = 0;
 };
 #endif//IRAL_DEVICE_H

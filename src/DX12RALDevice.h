@@ -17,6 +17,18 @@
 // 简化命名空间
 namespace dx = DirectX;
 
+namespace std 
+{
+    template<> struct hash<ComPtr<ID3D12Resource>> 
+    {
+        size_t operator()(const ComPtr<ID3D12Resource>& u) const 
+        {
+			size_t hash_vallue = u.Get() ? std::hash<void*>()(u.Get()) : 0;
+            return hash_vallue;
+        }
+    };
+}
+
 template<D3D12_DESCRIPTOR_HEAP_TYPE HeapType, size_t size>
 class DX12DescriptorHeapManager
 {
@@ -86,9 +98,12 @@ public:
             outCPUHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
             outCPUHandle.ptr += outIndex * m_descriptorSize;
             
-            // 设置GPU描述符句柄
-            outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
-            outGPUHandle.ptr += outIndex * m_descriptorSize;
+            if (HeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+            {
+                // 设置GPU描述符句柄
+                outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
+                outGPUHandle.ptr += outIndex * m_descriptorSize;
+            }
 
             m_totalCount++;
 
@@ -165,9 +180,12 @@ private:
                 outCPUHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
                 outCPUHandle.ptr += outIndex * m_descriptorSize;
                 
-                // 设置GPU描述符句柄
-                outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
-                outGPUHandle.ptr += outIndex * m_descriptorSize;
+                if (HeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+                {
+                    // 设置GPU描述符句柄
+                    outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
+					outGPUHandle.ptr += outIndex * m_descriptorSize;
+                }
 
                 return true;
             }
@@ -180,9 +198,12 @@ private:
                 outCPUHandle = outHeap->GetCPUDescriptorHandleForHeapStart();
                 outCPUHandle.ptr += outIndex * m_descriptorSize;
                 
-                // 设置GPU描述符句柄
-                outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
-                outGPUHandle.ptr += outIndex * m_descriptorSize;
+                if (HeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+                {
+                    // 设置GPU描述符句柄
+                    outGPUHandle = outHeap->GetGPUDescriptorHandleForHeapStart();
+                    outGPUHandle.ptr += outIndex * m_descriptorSize;
+                }
 
                 return true;
             }
@@ -226,99 +247,99 @@ public:
     ~DX12RALDevice();
 
     // 初始化DirectX 12
-    bool Initialize();
+    virtual bool Initialize() override;
 
     // 开始一帧
-    void BeginFrame();
+    virtual void BeginFrame() override;
 
     //// 提交CommandLists
     //void ExecuteCommandLists(uint32_t count, IRALCommandList** ppCommandList);
 
     // 结束一帧
-    void EndFrame();
+    virtual void EndFrame() override;
 
     // 清理资源
-    void Cleanup();
+    virtual void Cleanup() override;
 
     // 调整窗口大小
-    void Resize(uint32_t width, uint32_t height);
+    virtual void Resize(uint32_t width, uint32_t height) override;
 
     // 获取窗口宽度
-    uint32_t GetWidth() const { return m_width; }
+    virtual uint32_t GetWidth() const override { return m_width; }
 
     // 获取窗口高度
-    uint32_t GetHeight() const { return m_height; }
+    virtual uint32_t GetHeight() const override { return m_height; }
     
     // 编译顶点着色器
-    IRALVertexShader* CompileVertexShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALVertexShader* CompileVertexShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译像素着色器
-    IRALPixelShader* CompilePixelShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALPixelShader* CompilePixelShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译几何着色器
-    IRALGeometryShader* CompileGeometryShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALGeometryShader* CompileGeometryShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译计算着色器
-    IRALComputeShader* CompileComputeShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALComputeShader* CompileComputeShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译网格着色器
-    IRALMeshShader* CompileMeshShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALMeshShader* CompileMeshShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译放大着色器
-    IRALAmplificationShader* CompileAmplificationShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALAmplificationShader* CompileAmplificationShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译光线生成着色器
-    IRALRayGenShader* CompileRayGenShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALRayGenShader* CompileRayGenShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译光线未命中着色器
-    IRALRayMissShader* CompileRayMissShader(const char* shaderCode, const char* entryPoint = "main");
+    virtual IRALRayMissShader* CompileRayMissShader(const char* shaderCode, const char* entryPoint = "main") override;
     
     // 编译光线命中组着色器
-	IRALRayHitGroupShader* CompileRayHitGroupShader(const char* shaderCode, const char* entryPoint = "main");
+	virtual IRALRayHitGroupShader* CompileRayHitGroupShader(const char* shaderCode, const char* entryPoint = "main") override;
 	
 	// 编译光线可调用着色器
-	IRALRayCallableShader* CompileRayCallableShader(const char* shaderCode, const char* entryPoint = "main");
+	virtual IRALRayCallableShader* CompileRayCallableShader(const char* shaderCode, const char* entryPoint = "main") override;
 	
 	// 创建图形管线状态
-	IRALGraphicsPipelineState* CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc);
+    virtual IRALGraphicsPipelineState* CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc, const wchar_t* debugName = nullptr) override;
 
     // 创建根签名 
-    IRALRootSignature* CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
+    virtual IRALRootSignature* CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
         const std::vector<RALStaticSampler>& staticSamplers = {},
-        RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout);
+        RALRootSignatureFlags flags = RALRootSignatureFlags::AllowInputAssemblerInputLayout, const wchar_t* debugName = nullptr) override;
         
     //// 创建图形命令列表
     //IRALGraphicsCommandList* CreateGraphicsCommandList();
 
     // 创建顶点缓冲区
-    IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData = nullptr);
+    virtual IRALVertexBuffer* CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData = nullptr, const wchar_t* debugName = nullptr) override;
 
     // 创建索引缓冲区
-    IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData = nullptr);
+    virtual IRALIndexBuffer* CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData = nullptr, const wchar_t* debugName = nullptr) override;
 
     // 创建常量缓冲区
-    IRALConstBuffer* CreateConstBuffer(uint32_t size);
+    virtual IRALConstBuffer* CreateConstBuffer(uint32_t size, const wchar_t* debugName = nullptr) override;
 
     // 更新Buffer
-    bool UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size);
+    virtual bool UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size) override;
 
     // 获得GraphicsCommandList
-    IRALGraphicsCommandList* GetGraphicsCommandList();
+    virtual IRALGraphicsCommandList* GetGraphicsCommandList() override;
 
     // 创建渲染目标
-    IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format);
+    virtual IRALRenderTarget* CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName = nullptr) override;
 
     // 创建深度/模板缓冲区
-    IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format);
+    virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName = nullptr) override;
     
     // 创建渲染目标视图
-    IRALRenderTargetView* CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc);
+    virtual IRALRenderTargetView* CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc, const wchar_t* debugName = nullptr) override;
 
     // 创建深度模板视图
-    IRALDepthStencilView* CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc);
+    virtual IRALDepthStencilView* CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc, const wchar_t* debugName = nullptr) override;
 
     // 创建着色器资源视图
-    IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc);
+    virtual IRALShaderResourceView* CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc, const wchar_t* debugName = nullptr) override;
 
     // 释放渲染目标视图描述符
     bool ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
@@ -358,6 +379,10 @@ private:
 
     // 等待前一帧完成
     void WaitForPreviousFrame();
+
+	// 检查资源是否正在上传
+	bool IsUploadingResource(ID3D12Resource* resource) const;
+	void AddUploadingResource(ID3D12Resource* resource, const ComPtr<ID3D12Resource>& uploadBuffer);
 
 private:
     // 成员变量
@@ -405,5 +430,11 @@ private:
     std::vector<ComPtr<ID3D12Resource>> m_backBuffers;          // 后缓冲区
     ComPtr<ID3D12Resource> m_depthStencilBuffer;                // 深度/模板缓冲区
 
-    std::vector<ComPtr<ID3D12Resource>> m_uploadingResources;
+    struct UploadingResourceInfo
+    {
+        std::vector<ComPtr<ID3D12Resource>> uploadBuffers;
+	};
+
+    typedef std::unordered_map<ComPtr<ID3D12Resource>, UploadingResourceInfo> UploadingResources;
+    UploadingResources m_uploadingResources;
 };

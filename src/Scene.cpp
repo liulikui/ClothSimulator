@@ -60,7 +60,7 @@ bool Scene::Initialize(IRALDevice* pDevice)
 
     m_device = pDevice;
     
-    m_sceneConstBuffer = pDevice->CreateConstBuffer(sizeof(SceneConstBuffer));
+    m_sceneConstBuffer = pDevice->CreateConstBuffer(sizeof(SceneConstBuffer), L"SceneConstBuffer");
     if (!m_sceneConstBuffer.Get())
     {
         logDebug("[DEBUG] Scene::Initialize failed: failed to create scene const buffer");
@@ -192,7 +192,7 @@ void Scene::UpdatePrimitiveRequests()
         primitiveInfo.indexBuffer = mesh.indexBuffer;
         
         primitiveInfo.diffuseColor = primitive->GetDiffuseColor();
-        primitiveInfo.constBuffer = m_device->CreateConstBuffer(sizeof(ObjectConstBuffer));
+        primitiveInfo.constBuffer = m_device->CreateConstBuffer(sizeof(ObjectConstBuffer), L"ObjectConstBuffer");
 
         // 添加对象到场景中
         m_primitives.push_back(primitiveInfo);
@@ -267,7 +267,7 @@ bool Scene::InitializeDeferredRendering()
 
     // 创建GBuffer纹理
     // GBufferA: 世界空间法线 (RGBA16F用于精度)
-    m_gbufferA = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_Float);
+    m_gbufferA = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_Float, L"GBufferA_Normals");
     if (!m_gbufferA.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA");
@@ -277,7 +277,7 @@ bool Scene::InitializeDeferredRendering()
     // 创建GBufferA的RTV和SRV
     RALRenderTargetViewDesc rtvDescA;
     rtvDescA.format = RALDataFormat::R16G16B16A16_Float;
-    m_gbufferARTV = m_device->CreateRenderTargetView(m_gbufferA.Get(), rtvDescA);
+    m_gbufferARTV = m_device->CreateRenderTargetView(m_gbufferA.Get(), rtvDescA, L"GBufferA_RTV");
     if (!m_gbufferARTV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA RTV");
@@ -286,7 +286,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc srvDescA;
     srvDescA.format = RALDataFormat::R16G16B16A16_Float;
-    m_gbufferASRV = m_device->CreateShaderResourceView(m_gbufferA.Get(), srvDescA);
+    m_gbufferASRV = m_device->CreateShaderResourceView(m_gbufferA.Get(), srvDescA, L"GBufferA_SRV");
     if (!m_gbufferASRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferA SRV");
@@ -294,7 +294,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // GBufferB: Metallic (R), Specular (G), Roughness (B) (RGB8_UNorm)
-    m_gbufferB = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm);
+    m_gbufferB = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm, L"GBufferB_MetallicSpecRough");
     if (!m_gbufferB.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB");
@@ -304,7 +304,7 @@ bool Scene::InitializeDeferredRendering()
     // 创建GBufferB的RTV和SRV
     RALRenderTargetViewDesc rtvDescB;
     rtvDescB.format = RALDataFormat::R8G8B8A8_UNorm;
-    m_gbufferBRTV = m_device->CreateRenderTargetView(m_gbufferB.Get(), rtvDescB);
+    m_gbufferBRTV = m_device->CreateRenderTargetView(m_gbufferB.Get(), rtvDescB, L"GBufferB_RTV");
     if (!m_gbufferBRTV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB RTV");
@@ -313,7 +313,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc srvDescB;
     srvDescB.format = RALDataFormat::R8G8B8A8_UNorm;
-    m_gbufferBSRV = m_device->CreateShaderResourceView(m_gbufferB.Get(), srvDescB);
+    m_gbufferBSRV = m_device->CreateShaderResourceView(m_gbufferB.Get(), srvDescB, L"GBufferB_SRV");
     if (!m_gbufferBSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferB SRV");
@@ -321,7 +321,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // GBufferC: BaseColor RGB (RGB8_UNorm)
-    m_gbufferC = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm);
+    m_gbufferC = m_device->CreateRenderTarget(width, height, RALDataFormat::R8G8B8A8_UNorm, L"GBufferC_BaseColor");
     if (!m_gbufferC.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC");
@@ -331,7 +331,7 @@ bool Scene::InitializeDeferredRendering()
     // 创建GBufferC的RTV和SRV
     RALRenderTargetViewDesc rtvDescC;
     rtvDescC.format = RALDataFormat::R8G8B8A8_UNorm;
-    m_gbufferCRTV = m_device->CreateRenderTargetView(m_gbufferC.Get(), rtvDescC);
+    m_gbufferCRTV = m_device->CreateRenderTargetView(m_gbufferC.Get(), rtvDescC, L"GBufferC_RTV");
     if (!m_gbufferCRTV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC RTV");
@@ -340,7 +340,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc srvDescC;
     srvDescC.format = RALDataFormat::R8G8B8A8_UNorm;
-    m_gbufferCSRV = m_device->CreateShaderResourceView(m_gbufferC.Get(), srvDescC);
+    m_gbufferCSRV = m_device->CreateShaderResourceView(m_gbufferC.Get(), srvDescC, L"GBufferC_SRV");
     if (!m_gbufferCSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBufferC SRV");
@@ -348,7 +348,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建深度/模板缓冲区
-    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::R32_Typeless);
+    m_gbufferDepthStencil = m_device->CreateDepthStencil(width, height, RALDataFormat::R32_Typeless, L"GBuffer_DepthStencil");
     if (!m_gbufferDepthStencil.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil");
@@ -358,7 +358,7 @@ bool Scene::InitializeDeferredRendering()
     // 创建深度模板缓冲区的DSV和SRV
     RALDepthStencilViewDesc dsvDesc;
     dsvDesc.format = RALDataFormat::D32_Float;
-    m_gbufferDSV = m_device->CreateDepthStencilView(m_gbufferDepthStencil.Get(), dsvDesc);
+    m_gbufferDSV = m_device->CreateDepthStencilView(m_gbufferDepthStencil.Get(), dsvDesc, L"GBuffer_DepthStencil_DSV");
     if (!m_gbufferDSV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil DSV");
@@ -367,7 +367,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc depthSRVDesc;
     depthSRVDesc.format = RALDataFormat::R32_Float;
-    m_gbufferDepthSRV = m_device->CreateShaderResourceView(m_gbufferDepthStencil.Get(), depthSRVDesc);
+    m_gbufferDepthSRV = m_device->CreateShaderResourceView(m_gbufferDepthStencil.Get(), depthSRVDesc, L"GBuffer_DepthStencil_SRV");
     if (!m_gbufferDepthSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create depth stencil SRV");
@@ -375,7 +375,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建光照结果RT - Diffuse光照结果 (R16G16B16A16_UNorm)
-    m_diffuseLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm);
+    m_diffuseLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, L"DiffuseLightRT");
     if (!m_diffuseLightRT.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create diffuse light RT");
@@ -385,7 +385,7 @@ bool Scene::InitializeDeferredRendering()
     // 创建Diffuse光照结果的RTV和SRV
     RALRenderTargetViewDesc diffuseRTVDESC;
     diffuseRTVDESC.format = RALDataFormat::R16G16B16A16_UNorm;
-    m_diffuseLightRTV = m_device->CreateRenderTargetView(m_diffuseLightRT.Get(), diffuseRTVDESC);
+    m_diffuseLightRTV = m_device->CreateRenderTargetView(m_diffuseLightRT.Get(), diffuseRTVDESC, L"DiffuseLight_RTV");
     if (!m_diffuseLightRTV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create diffuse light RTV");
@@ -394,7 +394,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc diffuseSRVDesc;
     diffuseSRVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
-    m_diffuseLightSRV = m_device->CreateShaderResourceView(m_diffuseLightRT.Get(), diffuseSRVDesc);
+    m_diffuseLightSRV = m_device->CreateShaderResourceView(m_diffuseLightRT.Get(), diffuseSRVDesc, L"DiffuseLight_SRV");
     if (!m_diffuseLightSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create diffuse light SRV");
@@ -402,7 +402,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建光照结果RT - Specular光照结果 (R16G16B16A16_UNorm)
-    m_specularLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm);
+    m_specularLightRT = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, L"SpecularLightRT");
     if (!m_specularLightRT.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create specular light RT");
@@ -412,7 +412,7 @@ bool Scene::InitializeDeferredRendering()
     // 创建Specular光照结果的RTV和SRV
     RALRenderTargetViewDesc specularRTVDESC;
     specularRTVDESC.format = RALDataFormat::R16G16B16A16_UNorm;
-    m_specularLightRTV = m_device->CreateRenderTargetView(m_specularLightRT.Get(), specularRTVDESC);
+    m_specularLightRTV = m_device->CreateRenderTargetView(m_specularLightRT.Get(), specularRTVDESC, L"SpecularLight_RTV");
     if (!m_specularLightRTV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create specular light RTV");
@@ -421,7 +421,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc specularSRVDesc;
     specularSRVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
-    m_specularLightSRV = m_device->CreateShaderResourceView(m_specularLightRT.Get(), specularSRVDesc);
+    m_specularLightSRV = m_device->CreateShaderResourceView(m_specularLightRT.Get(), specularSRVDesc, L"SpecularLight_SRV");
     if (!m_specularLightSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create specular light SRV");
@@ -429,7 +429,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建HDR场景颜色渲染目标（用于延迟着色Resolve结果）
-    m_HDRSceneColor = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm);
+    m_HDRSceneColor = m_device->CreateRenderTarget(width, height, RALDataFormat::R16G16B16A16_UNorm, L"HDRSceneColor");
     if (!m_HDRSceneColor.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create HDR scene color render target");
@@ -439,7 +439,7 @@ bool Scene::InitializeDeferredRendering()
     // 创建HDR场景颜色RTV和SRV
     RALRenderTargetViewDesc hdrRTVDesc;
     hdrRTVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
-    m_HDRSceneColorRTV = m_device->CreateRenderTargetView(m_HDRSceneColor.Get(), hdrRTVDesc);
+    m_HDRSceneColorRTV = m_device->CreateRenderTargetView(m_HDRSceneColor.Get(), hdrRTVDesc, L"HDRSceneColor_RTV");
     if (!m_HDRSceneColorRTV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create HDR scene color RTV");
@@ -448,7 +448,7 @@ bool Scene::InitializeDeferredRendering()
     
     RALShaderResourceViewDesc hdrSRVDesc;
     hdrSRVDesc.format = RALDataFormat::R16G16B16A16_UNorm;
-    m_HDRSceneColorSRV = m_device->CreateShaderResourceView(m_HDRSceneColor.Get(), hdrSRVDesc);
+    m_HDRSceneColorSRV = m_device->CreateShaderResourceView(m_HDRSceneColor.Get(), hdrSRVDesc, L"HDRSceneColor_SRV");
     if (!m_HDRSceneColorSRV.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create HDR scene color SRV");
@@ -456,7 +456,7 @@ bool Scene::InitializeDeferredRendering()
     }
 
     // 创建光照阶段常量缓冲区
-    m_lightPassConstBuffer = m_device->CreateConstBuffer(sizeof(LightPassConstBuffer));
+    m_lightPassConstBuffer = m_device->CreateConstBuffer(sizeof(LightPassConstBuffer), L"LightPassConstBuffer");
     if (!m_lightPassConstBuffer.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create light pass const buffer");
@@ -475,7 +475,8 @@ bool Scene::InitializeDeferredRendering()
     m_gbufferRootSignature = m_device->CreateRootSignature(
         gbufferRootParameters,
         {}, // 暂时不需要静态采样器
-        RALRootSignatureFlags::AllowInputAssemblerInputLayout
+        RALRootSignatureFlags::AllowInputAssemblerInputLayout,
+        L"GBufferRootSignature"
     );
 
     if (!m_gbufferRootSignature.Get())
@@ -637,7 +638,7 @@ bool Scene::InitializeDeferredRendering()
     gbufferPipelineDesc.depthStencilFormat = RALDataFormat::D32_Float;
 
     // 创建几何阶段管道状态
-    m_gbufferPipelineState = m_device->CreateGraphicsPipelineState(gbufferPipelineDesc);
+    m_gbufferPipelineState = m_device->CreateGraphicsPipelineState(gbufferPipelineDesc, L"GBufferPipelineState");
     if (!m_gbufferPipelineState.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create GBuffer pipeline state");
@@ -715,7 +716,8 @@ bool Scene::InitializeDeferredRendering()
     m_lightRootSignature = m_device->CreateRootSignature(
         lightRootParameters,
         lightSamplers,
-        RALRootSignatureFlags::AllowInputAssemblerInputLayout
+        RALRootSignatureFlags::AllowInputAssemblerInputLayout,
+        L"LightPassRootSignature"
     );
     if (!m_lightRootSignature.Get())
     {
@@ -897,7 +899,7 @@ bool Scene::InitializeDeferredRendering()
     lightPipelineDesc.depthStencilFormat = RALDataFormat::D32_Float;
 
     // 创建光照阶段管道状态
-    m_lightPipelineState = m_device->CreateGraphicsPipelineState(lightPipelineDesc);
+    m_lightPipelineState = m_device->CreateGraphicsPipelineState(lightPipelineDesc, L"LightPassPipelineState");
     if (!m_lightPipelineState.Get())
     {
         logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create light pass pipeline state");
@@ -984,13 +986,13 @@ void Scene::CreateFullscreenQuad()
     };
 
     // 创建顶点缓冲区，直接传递初始数据
-    m_fullscreenQuadVB = m_device->CreateVertexBuffer(sizeof(vertices), sizeof(FullscreenQuadVertex), true, vertices);
+    m_fullscreenQuadVB = m_device->CreateVertexBuffer(sizeof(vertices), sizeof(FullscreenQuadVertex), true, vertices, L"FullScreenQuadVB");
 
     // 定义索引数据
     uint32_t indices[6] = { 0, 1, 2, 0, 2, 3 };
 
     // 创建索引缓冲区，直接传递初始数据
-    m_fullscreenQuadIB = m_device->CreateIndexBuffer(6, true, true, indices);
+    m_fullscreenQuadIB = m_device->CreateIndexBuffer(6, true, true, indices, L"FullScreenQuadIB");
 }
 
 // 执行几何阶段

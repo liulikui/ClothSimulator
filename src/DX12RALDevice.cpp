@@ -70,6 +70,18 @@ void DX12RALDevice::BeginFrame()
 {
     ID3D12GraphicsCommandList* dx12CommandList = (ID3D12GraphicsCommandList*)m_graphicsCommandList->GetNativeCommandList();;
 
+    if (m_uploadingResources.size() > 0)
+    {
+        dx12CommandList->Close();
+        // 执行上传命令列表
+        ID3D12CommandList* ppCommandLists[] = { dx12CommandList };
+        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+        // 等待上传完成
+        WaitForPreviousOperations();
+
+        m_uploadingResources.clear();
+	}
+
     // 获取当前后台缓冲区
     m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_mainRtvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -359,6 +371,7 @@ void DX12RALDevice::CreateCommandObjects()
 
     // 创建DX12RALGraphicsCommandList实例
     m_graphicsCommandList = new DX12RALGraphicsCommandList(m_commandAllocators[0].Get(), commandList.Get());
+    m_graphicsCommandList->Reset();
 }
 
 // 创建描述符堆
@@ -674,7 +687,7 @@ IRALRayCallableShader* DX12RALDevice::CompileRayCallableShader(const char* shade
 }
 
 // 创建图形管线状态
-IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc)
+IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc, const wchar_t* debugName)
 {
     // 创建D3D12图形管线状态描述
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -1317,6 +1330,12 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     // 创建D3D12管线状态对象
     ComPtr<ID3D12PipelineState> pipelineState;
     HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf()));
+    
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        pipelineState->SetName(debugName);
+    }
     if (FAILED(hr))
     {
         return nullptr;
@@ -1370,7 +1389,8 @@ static inline D3D12_ROOT_SIGNATURE_FLAGS ConvertToD3D12RootSignatureFlags(RALRoo
 
 // 创建根签名
 IRALRootSignature* DX12RALDevice::CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
-    const std::vector<RALStaticSampler>& staticSamplers, RALRootSignatureFlags flags)
+        const std::vector<RALStaticSampler>& staticSamplers,
+        RALRootSignatureFlags flags, const wchar_t* debugName)
 {
     // 转换根参数
     std::vector<D3D12_ROOT_PARAMETER> d3d12RootParameters;
@@ -1447,6 +1467,12 @@ IRALRootSignature* DX12RALDevice::CreateRootSignature(const std::vector<RALRootP
         rootSignatureBlob->GetBufferSize(),
         IID_PPV_ARGS(d3d12RootSignature.ReleaseAndGetAddressOf())
     );
+    
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        d3d12RootSignature->SetName(debugName);
+    }
     
     if (FAILED(hr))
     {
@@ -1817,7 +1843,7 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
 //}
 
 // 创建顶点缓冲区
-IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData)
+IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData, const wchar_t* debugName)
 {
     // 创建DX12RALVertexBuffer对象
     DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size, stride);
@@ -1844,7 +1870,7 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
     }
 
     // 设置初始状态
-    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
@@ -1853,6 +1879,12 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
         heapProps,
         initialState
     );
+    
+    // 设置调试名称
+    if (debugName)
+    {
+        d3d12Resource->SetName(debugName);
+    }
 
     // 如果提供了初始数据
     if (initialData && size > 0)
@@ -1884,6 +1916,13 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
                 uploadHeapProps,
                 D3D12_RESOURCE_STATE_GENERIC_READ
             );
+            
+            // 设置上传缓冲区的调试名称
+            if (debugName)
+            {
+                std::wstring uploadBufferName = debugName + std::wstring(L"_Upload"); 
+                uploadBuffer->SetName(uploadBufferName.c_str());
+            }
 
             // 映射上传缓冲区并复制数据
             void* mappedData = nullptr;
@@ -1912,6 +1951,9 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
                 barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
                 barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
                 commandList->ResourceBarrier(1, &barrier);
+
+                // 记录下来到EndFrame之后释放
+                AddUploadingResource(d3d12Resource.Get(), uploadBuffer.Get());
             }
         }
     }
@@ -1924,7 +1966,7 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
 }
 
 // 创建索引缓冲区
-IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData)
+IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData, const wchar_t* debugName)
 {
     // 创建DX12RALIndexBuffer对象
     uint32_t size = is32BitIndex ? count * sizeof(int32_t) : count * sizeof(int16_t);
@@ -1953,7 +1995,7 @@ IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIn
     }
 
     // 设置初始状态
-    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
@@ -2021,6 +2063,9 @@ IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIn
                 barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
                 barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_INDEX_BUFFER;
                 commandList->ResourceBarrier(1, &barrier);
+
+                // 记录下来到EndFrame之后释放
+                AddUploadingResource(d3d12Resource.Get(), uploadBuffer.Get());
             }
         }
     }
@@ -2031,8 +2076,8 @@ IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIn
 
     return indexBuffer;
 }
-
-IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size)
+// 创建常量缓冲区
+IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size, const wchar_t* debugName)
 {
     // 创建DX12RALConstBuffer对象
     DX12RALConstBuffer* constBuffer = new DX12RALConstBuffer(size);
@@ -2070,6 +2115,12 @@ IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size)
         nullptr,
         IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
     );
+    
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        d3d12Resource->SetName(debugName);
+    }
 
     if (FAILED(hr))
     {
@@ -2082,10 +2133,49 @@ IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size)
     return constBuffer;
 }
 
+bool DX12RALDevice::IsUploadingResource(ID3D12Resource* resource) const
+{
+	ComPtr<ID3D12Resource> resourcePtr = resource;
+
+    UploadingResources::const_iterator iter = m_uploadingResources.find(resourcePtr);
+
+    if (iter == m_uploadingResources.end())
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
+
+void DX12RALDevice::AddUploadingResource(ID3D12Resource* resource, const ComPtr<ID3D12Resource>& uploadBuffer)
+{
+    UploadingResources::iterator iter = m_uploadingResources.find(resource);
+
+    if (iter == m_uploadingResources.end())
+    {
+        UploadingResourceInfo info;
+        info.uploadBuffers.push_back(uploadBuffer);
+		m_uploadingResources[resource] = info;
+    }
+    else
+    {
+		iter->second.uploadBuffers.push_back(uploadBuffer);
+    }
+}
+
 bool DX12RALDevice::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size)
 {
-    // 等待之前的复制操作完成
-    WaitForPreviousOperations();
+    ID3D12Resource* nativeResource = (ID3D12Resource*)buffer->GetNativeResource();
+
+	bool uploading = IsUploadingResource(nativeResource);
+
+    if (uploading)
+    {
+        // 等待之前的复制操作完成
+        WaitForPreviousOperations();
+	}
 
     // 创建上传堆
     D3D12_HEAP_PROPERTIES heapProps = {};
@@ -2103,8 +2193,7 @@ bool DX12RALDevice::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t 
         D3D12_RESOURCE_STATE_GENERIC_READ
     );
 
-    // 记录下来到EndFrame之后释放
-    m_uploadingResources.push_back(uploadBuffer);
+    AddUploadingResource(nativeResource, uploadBuffer.Get());
 
     // 映射上传缓冲区并复制数据
     void* mappedData = nullptr;
@@ -2167,7 +2256,7 @@ void DX12RALDevice::Cleanup()
 }
 
 // 创建渲染目标
-IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format)
+IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName)
 {
     // 创建DX12RALRenderTarget对象
     DX12RALRenderTarget* renderTarget = new DX12RALRenderTarget(width, height, format);
@@ -2235,6 +2324,12 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
         &clearValue,
         IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
     );
+    
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        d3d12Resource->SetName(debugName);
+    }
 
     if (FAILED(hr))
     {
@@ -2250,7 +2345,7 @@ IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t hei
 }
 
 // 创建渲染目标视图
-IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc)
+IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc, const wchar_t* debugName)
 {
     if (!renderTarget)
     {
@@ -2304,7 +2399,7 @@ IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* re
 }
 
 // 创建深度/模板缓冲区
-IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format)
+IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName)
 {
     // 创建DX12RALDepthStencil对象
     DX12RALDepthStencil* depthStencil = new DX12RALDepthStencil(width, height, format);
@@ -2365,7 +2460,7 @@ IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t hei
 }
 
 // 创建深度模板视图
-IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc)
+IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc, const wchar_t* debugName)
 {
     if (!depthStencil)
     {
@@ -2415,7 +2510,7 @@ IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* de
 }
 
 // 创建着色器资源视图
-IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc)
+IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc, const wchar_t* debugName)
 {
     if (!resource)
     {
