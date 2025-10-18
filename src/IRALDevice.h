@@ -100,5 +100,11 @@ public:
 
     // 创建深度/模板缓冲区
     virtual IRALDepthStencil* CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const wchar_t* debugName = nullptr) = 0;
+    
+    // 获取backbuffer的渲染目标视图
+    virtual IRALRenderTargetView* GetBackBufferRTV() = 0;
+    
+    // 获取backbuffer的深度模板视图
+    virtual IRALDepthStencilView* GetBackBufferDSV() = 0;
 };
 #endif//IRAL_DEVICE_H

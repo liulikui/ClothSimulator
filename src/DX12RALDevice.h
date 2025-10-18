@@ -349,6 +349,12 @@ public:
 
     // 释放着色器资源视图描述符
     bool ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap);
+    
+    // 获取backbuffer的渲染目标视图
+    virtual IRALRenderTargetView* GetBackBufferRTV() override;
+    
+    // 获取backbuffer的深度模板视图
+    virtual IRALDepthStencilView* GetBackBufferDSV() override;
 
 private:
     // 通用着色器编译辅助方法
@@ -429,6 +435,10 @@ private:
     // 资源
     std::vector<ComPtr<ID3D12Resource>> m_backBuffers;          // 后缓冲区
     ComPtr<ID3D12Resource> m_depthStencilBuffer;                // 深度/模板缓冲区
+    
+    // Backbuffer的RTV和DSV
+    std::vector<TRefCountPtr<IRALRenderTargetView>> m_backBufferRTVs;      // 后缓冲区渲染目标视图
+    TRefCountPtr<IRALDepthStencilView> m_mainDepthStencilView;              // 主深度模板视图
 
     struct UploadingResourceInfo
     {

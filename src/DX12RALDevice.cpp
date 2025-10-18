@@ -431,6 +431,8 @@ void DX12RALDevice::CreateMainRenderTargetViews()
 
     // 为每个后台缓冲区创建渲染目标视图
     m_backBuffers.resize(m_backBufferCount);
+    m_backBufferRTVs.resize(m_backBufferCount);
+    
     for (uint32_t i = 0; i < m_backBufferCount; ++i)
     {
         // 获取后台缓冲区
@@ -440,7 +442,25 @@ void DX12RALDevice::CreateMainRenderTargetViews()
             throw std::runtime_error("Failed to get swap chain buffer.");
         }
 
-        // 创建渲染目标视图
+        // 设置后台缓冲区名称
+        std::wstring bufferName = L"BackBuffer_" + std::to_wstring(i);
+        m_backBuffers[i]->SetName(bufferName.c_str());
+
+        // 创建RAL渲染目标对象
+        DX12RALRenderTarget* renderTarget = new DX12RALRenderTarget(m_width, m_height, RALDataFormat::R8G8B8A8_UNorm);
+        renderTarget->SetNativeResource(m_backBuffers[i].Get());
+        
+        // 创建RAL渲染目标视图
+        DX12RALRenderTargetView* rtv = new DX12RALRenderTargetView();
+        rtv->SetRenderTarget(renderTarget);
+        rtv->SetRTVHeap(m_mainRtvHeap.Get());
+        rtv->SetRTVCPUHandle(rtvHandle);
+        rtv->SetDevice(this);
+        
+        // 存储到成员变量中
+        m_backBufferRTVs[i] = rtv;
+
+        // 创建D3D12渲染目标视图
         m_device->CreateRenderTargetView(m_backBuffers[i].Get(), nullptr, rtvHandle);
 
         // 移动到下一个描述符
@@ -492,6 +512,23 @@ void DX12RALDevice::CreateMainDepthStencilView()
     {
         throw std::runtime_error("Failed to create depth stencil buffer.");
     }
+
+    // 设置深度模板缓冲区名称
+    m_depthStencilBuffer->SetName(L"MainDepthStencilBuffer");
+
+    // 创建RAL深度模板对象
+    DX12RALDepthStencil* depthStencil = new DX12RALDepthStencil(m_width, m_height, RALDataFormat::D32_Float);
+    depthStencil->SetNativeResource(m_depthStencilBuffer.Get());
+    
+    // 创建RAL深度模板视图
+    DX12RALDepthStencilView* dsv = new DX12RALDepthStencilView();
+    dsv->SetDepthStencil(depthStencil);
+    dsv->SetDSVHeap(m_mainDsvHeap.Get());
+    dsv->SetDSVCPUHandle(m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart());
+    dsv->SetDevice(this);
+    
+    // 存储到成员变量中
+    m_mainDepthStencilView = dsv;
 
     // 创建深度/模板视图
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -1799,6 +1836,9 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
     m_backBuffers.clear();
     m_depthStencilBuffer.Reset();
 
+    m_backBufferRTVs.clear();
+    m_mainDepthStencilView = nullptr;
+
     // 调整交换链大小
     HRESULT hr = m_swapChain->ResizeBuffers(
         m_backBufferCount,
@@ -2641,4 +2681,23 @@ bool DX12RALDevice::ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uin
 bool DX12RALDevice::ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
 {
     return m_SRVDescriptorHeaps.FreeDescriptor(heap, index);
+}
+
+// 获取backbuffer的渲染目标视图
+IRALRenderTargetView* DX12RALDevice::GetBackBufferRTV()
+{
+    // 确保当前后缓冲区索引有效
+    if (m_currentBackBufferIndex < m_backBufferRTVs.size())
+    {
+        // 直接返回存储的渲染目标视图
+        return m_backBufferRTVs[m_currentBackBufferIndex].Get();
+    }
+    return nullptr;
+}
+
+// 获取backbuffer的深度模板视图
+IRALDepthStencilView* DX12RALDevice::GetBackBufferDSV()
+{
+    // 直接返回存储的深度模板视图
+    return m_mainDepthStencilView.Get();
 }

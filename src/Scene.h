@@ -139,6 +139,8 @@ private:
     void ExecuteLightingPass();
     // 执行GBuffer Resolve阶段
     void ExecuteResolvePass();
+	// 执行色调映射阶段
+    void ExecuteTonemappingPass();
     // 创建全屏四边形
     void CreateFullscreenQuad();
 
@@ -210,6 +212,12 @@ private:
     TRefCountPtr<IRALRenderTarget> m_HDRSceneColor;        // HDR场景颜色RT
     TRefCountPtr<IRALRenderTargetView> m_HDRSceneColorRTV; // HDR场景颜色RTV
     TRefCountPtr<IRALShaderResourceView> m_HDRSceneColorSRV; // HDR场景颜色SRV
+    
+    // 色调映射相关
+    TRefCountPtr<IRALRootSignature> m_tonemappingRootSignature;          // 色调映射根签名
+    TRefCountPtr<IRALGraphicsPipelineState> m_tonemappingPipelineState;   // 色调映射管线状态
+    TRefCountPtr<IRALVertexShader> m_tonemappingVS;                       // 色调映射顶点着色器
+    TRefCountPtr<IRALPixelShader> m_tonemappingPS;                        // 色调映射像素着色器
     
     TRefCountPtr<IRALConstBuffer> m_lightPassConstBuffer;
     TRefCountPtr<IRALVertexBuffer> m_fullscreenQuadVB;

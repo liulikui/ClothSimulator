@@ -119,6 +119,9 @@ void Scene::Render(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectio
     
     // 3. Resolve阶段：将光照结果与材质信息结合，输出最终HDR场景颜色
     ExecuteResolvePass();
+    
+    // 4. 色调映射阶段：将HDR场景颜色转换为LDR并输出到backbuffer
+    ExecuteTonemappingPass();
 }
 
 bool Scene::AddPrimitive(Primitive* primitive)
@@ -1122,11 +1125,237 @@ bool Scene::InitializeDeferredRendering()
         return false;
     }
 
+    // 创建色调映射根签名
+    std::vector<RALRootParameter> tonemappingRootParameters;
+    
+    // 创建采样器描述符表 - 移除这个，因为我们已经使用了静态采样器
+    
+    // 创建着色器资源视图描述符表
+    RALRootParameter srvTable;
+    srvTable.Type = RALRootParameterType::DescriptorTable;
+    srvTable.ShaderVisibility = RALShaderVisibility::Pixel;
+    
+    RALRootDescriptorTableRange srvRange(RALDescriptorRangeType::SRV, 1, 0, 0);
+    srvTable.Data.DescriptorTable.Ranges.push_back(srvRange);
+    tonemappingRootParameters.push_back(srvTable);
+    
+    // 创建静态采样器
+    std::vector<RALStaticSampler> tonemappingStaticSamplers;
+    RALStaticSampler sampler;
+    sampler.Filter = RALFilter::MinMagMipLinear;
+    sampler.AddressU = RALTextureAddressMode::Wrap;
+    sampler.AddressV = RALTextureAddressMode::Wrap;
+    sampler.AddressW = RALTextureAddressMode::Wrap;
+    sampler.MipLODBias = 0.0f;
+    sampler.MaxAnisotropy = 1;
+    sampler.ComparisonFunc = RALComparisonFunc::Never;
+    sampler.BorderColor = RALStaticBorderColor::TransparentBlack;
+    sampler.MinLOD = 0.0f;
+    sampler.MaxLOD = 32.0f;
+    sampler.ShaderRegister = 0;
+    sampler.RegisterSpace = 0;
+    
+    tonemappingStaticSamplers.push_back(sampler);
+    
+    // 创建根签名
+    m_tonemappingRootSignature = m_device->CreateRootSignature(
+        tonemappingRootParameters,
+        tonemappingStaticSamplers,
+        RALRootSignatureFlags::AllowInputAssemblerInputLayout,
+        L"TonemappingRootSignature"
+    );
+    
+    if (!m_tonemappingRootSignature.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create tonemapping root signature");
+        return false;
+    }
+    
+    // 编译色调映射顶点着色器
+    const char* tonemappingVSCode = 
+        "struct VS_INPUT {\n"
+        "   float4 pos : POSITION;\n"
+        "   float2 uv : TEXCOORD0;\n"
+        "};\n"
+        "\n"
+        "struct VS_OUTPUT {\n"
+        "   float4 pos : SV_POSITION;\n"
+        "   float2 uv : TEXCOORD;\n"
+        "};\n"
+        "\n"
+        "VS_OUTPUT main(VS_INPUT input) {\n"
+        "   VS_OUTPUT output;\n"
+        "   output.pos = input.pos;\n"
+        "   output.uv = input.uv;\n"
+        "   return output;\n"
+        "};";
+    
+    m_tonemappingVS = m_device->CompileVertexShader(tonemappingVSCode);
+    if (!m_tonemappingVS.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to compile tonemapping vertex shader");
+        return false;
+    }
+    
+    // 编译色调映射像素着色器（使用ACES色调映射曲线）
+    const char* tonemappingPSCode = 
+        "struct PS_INPUT {\n"
+        "   float4 pos : SV_POSITION;\n"
+        "   float2 uv : TEXCOORD;\n"
+        "};\n"
+        "\n"
+        "Texture2D<float4> hdrSceneTexture : register(t0);\n"
+        "SamplerState samplerTonemapping : register(s0);\n"
+        "\n"
+        "// ACES色调映射函数\n"
+        "float3 ACESFilm(float3 x) {\n"
+        "   float a = 2.51f;\n"
+        "   float b = 0.03f;\n"
+        "   float c = 2.43f;\n"
+        "   float d = 0.59f;\n"
+        "   float e = 0.14f;\n"
+        "   return saturate((x * (a * x + b)) / (x * (c * x + d) + e));\n"
+        "}\n"
+        "\n"
+        "struct PS_OUTPUT {\n"
+        "   float4 ldrColor : SV_TARGET0;\n"
+        "};\n"
+        "\n"
+        "PS_OUTPUT main(PS_INPUT input) {\n"
+        "   PS_OUTPUT output;\n"
+        "   \n"
+        "   // 采样HDR场景纹理\n"
+        "   float4 hdrColor = hdrSceneTexture.Sample(samplerTonemapping, input.uv);\n"
+        "   \n"
+        "   // 应用ACES色调映射\n"
+        "   float3 ldrColor = ACESFilm(hdrColor.rgb);\n"
+        "   \n"
+        "   // 应用gamma校正（近似值）\n"
+        "   ldrColor = pow(ldrColor, 1.0 / 2.2);\n"
+        "   \n"
+        "   output.ldrColor = float4(ldrColor, 1.0f);\n"
+        "   return output;\n"
+        "};";
+    
+    m_tonemappingPS = m_device->CompilePixelShader(tonemappingPSCode);
+    if (!m_tonemappingPS.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to compile tonemapping pixel shader");
+        return false;
+    }
+    
+    // 创建色调映射管线状态
+    RALGraphicsPipelineStateDesc tonemappingPsoDesc = {};
+    tonemappingPsoDesc.rootSignature = m_tonemappingRootSignature.Get();
+    tonemappingPsoDesc.vertexShader = m_tonemappingVS.Get();
+    tonemappingPsoDesc.pixelShader = m_tonemappingPS.Get();
+    
+    // 设置输入布局 - 为全屏四边形创建输入布局
+    std::vector<RALVertexAttribute> tonemappingInputLayout;
+    RALVertexAttribute tonemappingPosAttr;
+    tonemappingPosAttr.semantic = RALVertexSemantic::Position;
+    tonemappingPosAttr.format = RALVertexFormat::Float4;
+    tonemappingPosAttr.bufferSlot = 0;
+    tonemappingPosAttr.offset = 0;
+    tonemappingInputLayout.push_back(tonemappingPosAttr);
+
+    RALVertexAttribute tonemappingUvAttr;
+    tonemappingUvAttr.semantic = RALVertexSemantic::TexCoord0;
+    tonemappingUvAttr.format = RALVertexFormat::Float2;
+    tonemappingUvAttr.bufferSlot = 0;
+    tonemappingUvAttr.offset = 16; // float4是16字节
+    tonemappingInputLayout.push_back(tonemappingUvAttr);
+
+    tonemappingPsoDesc.inputLayout = &tonemappingInputLayout;
+    
+    tonemappingPsoDesc.primitiveTopologyType = RALPrimitiveTopologyType::TriangleList;
+    
+    // 设置光栅化状态
+    tonemappingPsoDesc.rasterizerState.fillMode = RALFillMode::Solid;
+    tonemappingPsoDesc.rasterizerState.cullMode = RALCullMode::None;  // 无剔除，全屏四边形
+    
+    // 设置混合状态
+    tonemappingPsoDesc.blendState.alphaToCoverageEnable = false;
+    tonemappingPsoDesc.blendState.independentBlendEnable = false;
+    
+    // 设置渲染目标混合状态
+    tonemappingPsoDesc.renderTargetBlendStates.resize(1);
+    auto& rtBlendState = tonemappingPsoDesc.renderTargetBlendStates[0];
+    rtBlendState.blendEnable = false;
+    rtBlendState.logicOpEnable = false;
+    rtBlendState.srcBlend = RALBlendFactor::One;
+    rtBlendState.destBlend = RALBlendFactor::Zero;
+    rtBlendState.blendOp = RALBlendOp::Add;
+    rtBlendState.srcBlendAlpha = RALBlendFactor::One;
+    rtBlendState.destBlendAlpha = RALBlendFactor::Zero;
+    rtBlendState.blendOpAlpha = RALBlendOp::Add;
+    rtBlendState.logicOp = RALLogicOp::Noop;
+    rtBlendState.colorWriteMask = 0xf; // RGBA所有通道都写入
+    
+    // 深度模板状态使用默认值即可
+    
+    // 设置渲染目标格式
+    tonemappingPsoDesc.numRenderTargets = 1;
+    tonemappingPsoDesc.renderTargetFormats[0] = RALDataFormat::R8G8B8A8_UNorm;  // LDR格式
+    tonemappingPsoDesc.depthStencilFormat = RALDataFormat::D32_Float;
+    
+    m_tonemappingPipelineState = m_device->CreateGraphicsPipelineState(tonemappingPsoDesc, L"TonemappingPipelineState");
+    if (!m_tonemappingPipelineState.Get())
+    {
+        logDebug("[DEBUG] Scene::InitializeDeferredRendering failed: failed to create tonemapping pipeline state");
+        return false;
+    }
+    
     logDebug("[DEBUG] Scene::InitializeDeferredRendering succeeded");
     return true;
 }
 
 // 清理延迟着色相关资源
+
+    
+void Scene::ExecuteTonemappingPass()
+{
+    // 获取backbuffer的渲染目标视图
+    IRALRenderTargetView* backBufferRTV = m_device->GetBackBufferRTV();
+    
+    // 获取命令列表
+    IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
+    
+    // 设置渲染目标为backbuffer
+    commandList->SetRenderTargets(1, &backBufferRTV, nullptr);
+    
+    // 清除渲染目标（可选，但为了干净的输出）
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    commandList->ClearRenderTarget(backBufferRTV, clearColor);
+    
+    // 设置根签名
+    commandList->SetGraphicsRootSignature(m_tonemappingRootSignature.Get());
+    
+    // 设置管线状态
+    commandList->SetPipelineState(m_tonemappingPipelineState.Get());
+    
+    // 设置着色器资源视图到根描述符表
+    commandList->SetGraphicsRootDescriptorTable(0, m_HDRSceneColorSRV.Get());
+    
+    // 设置顶点缓冲区
+    IRALVertexBuffer* vertexBuffer = m_fullscreenQuadVB.Get();
+    commandList->SetVertexBuffers(0, 1, &vertexBuffer);
+    
+    // 设置索引缓冲区
+    commandList->SetIndexBuffer(m_fullscreenQuadIB.Get());
+    
+    // 绘制全屏四边形
+    commandList->DrawIndexed(6, 1, 0, 0, 0);
+    
+    // 转换资源状态回渲染目标（以便下一帧重用）
+    RALResourceBarrier finalBarrier = {};
+    finalBarrier.type = RALResourceBarrierType::Transition;
+    finalBarrier.resource = m_HDRSceneColor.Get();
+    finalBarrier.oldState = RALResourceState::ShaderResource;
+    finalBarrier.newState = RALResourceState::RenderTarget;
+    commandList->ResourceBarriers(&finalBarrier, 1);
+}
+
 void Scene::CleanupDeferredRendering()
 {
     // 清理GBuffer纹理和深度缓冲区
@@ -1157,6 +1386,12 @@ void Scene::CleanupDeferredRendering()
     m_HDRSceneColor = nullptr;
     m_HDRSceneColorRTV = nullptr;
     m_HDRSceneColorSRV = nullptr;
+    
+    // 清理色调映射资源
+    m_tonemappingRootSignature = nullptr;
+    m_tonemappingPipelineState = nullptr;
+    m_tonemappingVS = nullptr;
+    m_tonemappingPS = nullptr;
     
     // 清理着色器和管道状态
     m_gbufferVertexShader = nullptr;
