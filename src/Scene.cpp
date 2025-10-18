@@ -39,8 +39,8 @@ Scene::Scene()
     , m_backgroundColor({0.9f, 0.9f, 0.9f, 1.0f})
     , m_lightPosition({10.0f, 10.0f, 10.0f})
     , m_lightDirection({-1.0f, -1.0f, -1.0f})
-    , m_lightDiffuseColor({1.0f, 1.0f, 1.0f, 1.0f})
-    , m_lightSpecularColor({1.0f, 1.0f, 1.0f, 1.0f})
+    , m_lightDiffuseColor({6.0f, 6.0f, 6.0f, 1.0f})
+    , m_lightSpecularColor({6.0f, 6.0f, 6.0f, 1.0f})
     , m_lightAmbientColor({0.1f, 0.1f, 0.1f, 1.0f})
 {
     // 初始化场景
@@ -1247,7 +1247,7 @@ bool Scene::InitializeDeferredRendering()
         return false;
     }
     
-    // 编译色调映射像素着色器（使用ACES色调映射曲线）
+    // 编译色调映射像素着色器（使用ACES色调映射曲线和可配置gamma矫正）
     const char* tonemappingPSCode = 
         "struct PS_INPUT {\n"
         "   float4 pos : SV_POSITION;\n"
@@ -1257,6 +1257,10 @@ bool Scene::InitializeDeferredRendering()
         "Texture2D<float4> hdrSceneTexture : register(t0);\n"
         "SamplerState samplerTonemapping : register(s0);\n"
         "\n"
+        "// 常量定义\n"
+        "static const float GAMMA = 2.2f;         // 显示设备的gamma值\n"
+        "static const float INVERSE_GAMMA = 1.0f / GAMMA; // 反转gamma值\n"
+        "\n"
         "// ACES色调映射函数\n"
         "float3 ACESFilm(float3 x) {\n"
         "   float a = 2.51f;\n"
@@ -1265,6 +1269,17 @@ bool Scene::InitializeDeferredRendering()
         "   float d = 0.59f;\n"
         "   float e = 0.14f;\n"
         "   return saturate((x * (a * x + b)) / (x * (c * x + d) + e));\n"
+        "}\n"
+        "\n"
+        "// 精确的gamma校正函数\n"
+        "float3 ApplyGamma(float3 color, float gamma) {\n"
+        "   // 对于低亮度值使用线性处理，避免数值精度问题\n"
+        "   float3 threshold = float3(0.0031308, 0.0031308, 0.0031308);\n"
+        "   float3 linearPart = 12.92 * color;\n"
+        "   float3 nonLinearPart = 1.055 * pow(color, 1.0 / gamma) - 0.055;\n"
+        "   \n"
+        "   // 根据值的大小选择不同的处理方式\n"
+        "   return lerp(linearPart, nonLinearPart, step(threshold, color));\n"
         "}\n"
         "\n"
         "struct PS_OUTPUT {\n"
@@ -1280,8 +1295,8 @@ bool Scene::InitializeDeferredRendering()
         "   // 应用ACES色调映射\n"
         "   float3 ldrColor = ACESFilm(hdrColor.rgb);\n"
         "   \n"
-        "   // 应用gamma校正（近似值）\n"
-        "   ldrColor = pow(ldrColor, 1.0 / 2.2);\n"
+        "   // 应用精确的gamma校正\n"
+        "   ldrColor = ApplyGamma(ldrColor, GAMMA);\n"
         "   \n"
         "   output.ldrColor = float4(ldrColor, 1.0f);\n"
         "   return output;\n"

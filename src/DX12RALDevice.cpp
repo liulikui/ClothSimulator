@@ -291,6 +291,29 @@ bool DX12RALDevice::CreateDeviceAndSwapChain()
     if (FAILED(hr))
     {
         std::cerr << "Failed to create swap chain." << std::endl;
+        // 转换HRESULT为错误信息字符串
+        LPSTR errorMsg = nullptr;
+        DWORD formatResult = FormatMessageA(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            nullptr,
+            hr,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPSTR)&errorMsg,
+            0,
+            nullptr
+        );
+
+        if (formatResult > 0)
+        {
+            // 输出错误信息
+            logDebug("create swap chain：" + std::string(errorMsg));
+            LocalFree(errorMsg); // 释放FormatMessage分配的内存
+        }
+        else
+        {
+            // 无法解析时直接输出HRESULT值
+            logDebug("create swap chain，error code：0x" + std::to_string(hr));
+        }
         return false;
     }
 
@@ -460,8 +483,13 @@ void DX12RALDevice::CreateMainRenderTargetViews()
         // 存储到成员变量中
         m_backBufferRTVs[i] = rtv;
 
+        // Setup RTV descriptor to specify sRGB format.
+        D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+        rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
         // 创建D3D12渲染目标视图
-        m_device->CreateRenderTargetView(m_backBuffers[i].Get(), nullptr, rtvHandle);
+        m_device->CreateRenderTargetView(m_backBuffers[i].Get(), &rtvDesc, rtvHandle);
 
         // 移动到下一个描述符
         rtvHandle.ptr += m_rtvDescriptorSize;
