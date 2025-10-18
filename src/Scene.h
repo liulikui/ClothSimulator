@@ -107,6 +107,18 @@ public:
     { 
         return m_lightDirection; 
     }
+    
+    // 设置场景的环境光颜色
+    void SetLightAmbientColor(const dx::XMFLOAT4& color)
+    { 
+        m_lightAmbientColor = color; 
+    }
+    
+    // 获取场景的环境光颜色
+    const dx::XMFLOAT4& GetLightAmbientColor() const 
+    { 
+        return m_lightAmbientColor; 
+    }
 
 private:
     struct AddPrimitiveRequest
@@ -161,6 +173,7 @@ private:
     dx::XMFLOAT3 m_lightDirection; // 默认光源方向
     dx::XMFLOAT4 m_lightDiffuseColor;       // 默认光源颜色（白色）
     dx::XMFLOAT4 m_lightSpecularColor;       // 默认光源颜色（白色）
+    dx::XMFLOAT4 m_lightAmbientColor;        // 默认环境光颜色
 
     // 延迟着色相关 - 几何阶段管道状态
     TRefCountPtr<IRALGraphicsPipelineState> m_gbufferPipelineState;

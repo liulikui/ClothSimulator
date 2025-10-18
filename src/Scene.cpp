@@ -24,6 +24,7 @@ struct SceneConstBuffer
     dx::XMFLOAT4 lightSpecularColor; // 光源高光颜色
     dx::XMFLOAT3 lightDirection;    // 光源方向
     float padding2;                 // 4字节对齐填充
+    dx::XMFLOAT4 lightAmbientColor; // 环境光颜色
 };
 
 struct ObjectConstBuffer
@@ -40,6 +41,7 @@ Scene::Scene()
     , m_lightDirection({-1.0f, -1.0f, -1.0f})
     , m_lightDiffuseColor({1.0f, 1.0f, 1.0f, 1.0f})
     , m_lightSpecularColor({1.0f, 1.0f, 1.0f, 1.0f})
+    , m_lightAmbientColor({0.1f, 0.1f, 0.1f, 1.0f})
 {
     // 初始化场景
     // cameraConstBuffer将在渲染器中创建并传入
@@ -223,6 +225,7 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
     data.lightDiffuseColor = m_lightDiffuseColor;
     data.lightSpecularColor = m_lightSpecularColor;
     data.lightDirection = m_lightDirection;
+    data.lightAmbientColor = m_lightAmbientColor;
     data.padding1 = 0.0f;
     data.padding2 = 0.0f;
 
@@ -504,13 +507,18 @@ bool Scene::InitializeDeferredRendering()
         "   float3 worldPos : WORLD_POS;\n"
         "   float2 uv : TEXCOORD;\n"
         "};\n"
-        "cbuffer SceneBuffer : register(b0) {\n"
+        "cbuffer SceneConstants : register(b0) {\n"
         "   float4x4 View;\n"
         "   float4x4 Proj;\n"
         "   float4x4 ViewProj;\n"
+        "   float4x4 invViewProj;\n"
         "   float3 lightPos;\n"
+        "   float padding1;\n"
         "   float4 lightDiffuseColor;\n"
         "   float4 lightSpecularColor;\n"
+        "   float3 lightDirection;\n"
+        "   float padding2;\n"
+        "   float4 lightAmbientColor;\n"
         "};\n"
         "cbuffer ObjectBuffer : register(b1) {\n"
         "   float4x4 World;\n"
@@ -753,7 +761,7 @@ bool Scene::InitializeDeferredRendering()
         "   float4 pos : SV_POSITION;\n"
         "   float2 uv : TEXCOORD;\n"
         "};\n"
-        "cbuffer SceneBuffer : register(b0) {\n"
+        "cbuffer SceneConstants : register(b0) {\n"
         "   float4x4 View;\n"
         "   float4x4 Proj;\n"
         "   float4x4 ViewProj;\n"
@@ -764,6 +772,7 @@ bool Scene::InitializeDeferredRendering()
         "   float4 lightSpecularColor;\n"
         "   float3 lightDirection;\n"
         "   float padding2;\n"
+        "   float4 lightAmbientColor;\n"
         "};\n"
         "// 采样GBuffer纹理\n"
         "Texture2D<float4> gbufferA : register(t0);\n"
@@ -1015,6 +1024,20 @@ bool Scene::InitializeDeferredRendering()
         "   float2 uv : TEXCOORD;\n"
         "};\n"
         "\n"
+        "// 场景常量缓冲区\n"
+        "cbuffer SceneConstants : register(b0) {\n"
+        "   float4x4 View;\n"
+        "   float4x4 Proj;\n"
+        "   float4x4 ViewProj;\n"
+        "   float4x4 invViewProj;\n"
+        "   float3 lightPos;\n"
+        "   float padding1;\n"
+        "   float4 lightDiffuseColor;\n"
+        "   float4 lightSpecularColor;\n"
+        "   float3 lightDirection;\n"
+        "   float padding2;\n"
+        "   float4 lightAmbientColor;  // 环境光颜色\n"
+        "}\n\n"
         "// 采样纹理\n"
         "Texture2D<float4> diffuseLightTexture : register(t0);\n"
         "Texture2D<float4> specularLightTexture : register(t1);\n"
@@ -1043,13 +1066,15 @@ bool Scene::InitializeDeferredRendering()
         "   float roughness = material.b;\n"
         "   \n"
         "   // 计算最终的HDR场景颜色\n"
+        "   // 环境光部分：环境光 * 基础颜色\n"
         "   // 漫反射部分：漫反射光照 * 基础颜色\n"
         "   // 高光部分：高光光照 * 材质高光颜色 * 金属度因素\n"
+        "   float3 ambient = lightAmbientColor.rgb * baseColor.rgb;\n"
         "   float3 diffuse = diffuseLight.rgb * baseColor.rgb;\n"
         "   float3 specularColor = specularLight.rgb * specular * (metallic * baseColor.rgb + (1.0 - metallic) * float3(0.04, 0.04, 0.04));\n"
         "   \n"
-        "   // 合并漫反射和高光结果\n"
-        "   output.hdrColor.rgb = diffuse + specularColor;\n"
+        "   // 合并环境光、漫反射和高光结果\n"
+        "   output.hdrColor.rgb = ambient + diffuse + specularColor;\n"
         "   output.hdrColor.a = 1.0f;\n"
         "   \n"
         "   return output;\n"
@@ -1310,9 +1335,7 @@ bool Scene::InitializeDeferredRendering()
     return true;
 }
 
-// 清理延迟着色相关资源
 
-    
 void Scene::ExecuteTonemappingPass()
 {
     // 获取backbuffer的渲染目标视图
@@ -1356,6 +1379,7 @@ void Scene::ExecuteTonemappingPass()
     commandList->ResourceBarriers(&finalBarrier, 1);
 }
 
+// 清理延迟着色相关资源
 void Scene::CleanupDeferredRendering()
 {
     // 清理GBuffer纹理和深度缓冲区
