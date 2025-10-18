@@ -14,16 +14,18 @@ extern void logDebug(const std::string& message);
 
 struct SceneConstBuffer 
 {
-    dx::XMFLOAT4X4 View;            // 世界矩阵
+    dx::XMFLOAT4X4 View;            // 视图矩阵
     dx::XMFLOAT4X4 Proj;            // 投影矩阵
     dx::XMFLOAT4X4 ViewProj;        // 视图-投影矩阵
     dx::XMFLOAT4X4 invViewProj;     // 视图-投影矩阵的逆矩阵
-    dx::XMFLOAT3 lightPos;          // 光源位置
+    dx::XMFLOAT3 cameraPos;         // 摄像机位置
     float padding1;                 // 4字节对齐填充
+    dx::XMFLOAT3 lightPos;          // 光源位置
+    float padding2;                 // 4字节对齐填充
     dx::XMFLOAT4 lightDiffuseColor; // 光源漫反射颜色
     dx::XMFLOAT4 lightSpecularColor; // 光源高光颜色
     dx::XMFLOAT3 lightDirection;    // 光源方向
-    float padding2;                 // 4字节对齐填充
+    float padding3;                 // 4字节对齐填充
     dx::XMFLOAT4 lightAmbientColor; // 环境光颜色
 };
 
@@ -39,8 +41,8 @@ Scene::Scene()
     , m_backgroundColor({0.9f, 0.9f, 0.9f, 1.0f})
     , m_lightPosition({10.0f, 10.0f, 10.0f})
     , m_lightDirection({-1.0f, -1.0f, -1.0f})
-    , m_lightDiffuseColor({6.0f, 6.0f, 6.0f, 1.0f})
-    , m_lightSpecularColor({6.0f, 6.0f, 6.0f, 1.0f})
+    , m_lightDiffuseColor({1.0f, 1.0f, 1.0f, 1.0f})
+    , m_lightSpecularColor({1.0f, 1.0f, 1.0f, 1.0f})
     , m_lightAmbientColor({0.1f, 0.1f, 0.1f, 1.0f})
 {
     // 初始化场景
@@ -215,12 +217,19 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
     dx::XMMATRIX viewProjMatrix = viewMatrix * projectionMatrix;
     // 计算视图-投影矩阵的逆矩阵
     dx::XMMATRIX invViewProjMatrix = dx::XMMatrixInverse(nullptr, viewProjMatrix);
+    
+    // 从viewMatrix中提取摄像机位置（view矩阵的逆矩阵的平移分量）
+    dx::XMMATRIX invViewMatrix = dx::XMMatrixInverse(nullptr, viewMatrix);
+    dx::XMFLOAT4X4 invViewMat;
+    dx::XMStoreFloat4x4(&invViewMat, invViewMatrix);
+    dx::XMFLOAT3 cameraPos = { invViewMat._41, invViewMat._42, invViewMat._43 };
 
     SceneConstBuffer data;
     dx::XMStoreFloat4x4(&data.View, dx::XMMatrixTranspose(viewMatrix));
     dx::XMStoreFloat4x4(&data.Proj, dx::XMMatrixTranspose(projectionMatrix));
     dx::XMStoreFloat4x4(&data.ViewProj, dx::XMMatrixTranspose(viewProjMatrix));
     dx::XMStoreFloat4x4(&data.invViewProj, dx::XMMatrixTranspose(invViewProjMatrix));
+    data.cameraPos = cameraPos;
     data.lightPos = m_lightPosition;
     data.lightDiffuseColor = m_lightDiffuseColor;
     data.lightSpecularColor = m_lightSpecularColor;
@@ -228,6 +237,7 @@ void Scene::UpdateSceneConstBuffer(IRALGraphicsCommandList* commandList, const d
     data.lightAmbientColor = m_lightAmbientColor;
     data.padding1 = 0.0f;
     data.padding2 = 0.0f;
+    data.padding3 = 0.0f;
 
     // 映射并更新缓冲区
     void* mappedData = nullptr;
@@ -533,18 +543,20 @@ bool Scene::InitializeDeferredRendering()
         "   float2 uv : TEXCOORD;\n"
         "};\n"
         "cbuffer SceneConstants : register(b0) {\n"
-        "   float4x4 View;\n"
-        "   float4x4 Proj;\n"
-        "   float4x4 ViewProj;\n"
-        "   float4x4 invViewProj;\n"
-        "   float3 lightPos;\n"
-        "   float padding1;\n"
-        "   float4 lightDiffuseColor;\n"
-        "   float4 lightSpecularColor;\n"
-        "   float3 lightDirection;\n"
-        "   float padding2;\n"
-        "   float4 lightAmbientColor;\n"
-        "};\n"
+"   float4x4 View;\n"
+"   float4x4 Proj;\n"
+"   float4x4 ViewProj;\n"
+"   float4x4 invViewProj;\n"
+"   float3 cameraPos;\n"
+"   float padding1;\n"
+"   float3 lightPos;\n"
+"   float padding2;\n"
+"   float4 lightDiffuseColor;\n"
+"   float4 lightSpecularColor;\n"
+"   float3 lightDirection;\n"
+"   float padding3;\n"
+"   float4 lightAmbientColor;\n"
+"};\n"
         "cbuffer ObjectBuffer : register(b1) {\n"
         "   float4x4 World;\n"
         "   float4 diffuseColor;\n"
@@ -791,12 +803,14 @@ bool Scene::InitializeDeferredRendering()
         "   float4x4 Proj;\n"
         "   float4x4 ViewProj;\n"
         "   float4x4 invViewProj;\n"
-        "   float3 lightPos;\n"
+        "   float3 cameraPos;\n"
         "   float padding1;\n"
+        "   float3 lightPos;\n"
+        "   float padding2;\n"
         "   float4 lightDiffuseColor;\n"
         "   float4 lightSpecularColor;\n"
         "   float3 lightDirection;\n"
-        "   float padding2;\n"
+        "   float padding3;\n"
         "   float4 lightAmbientColor;\n"
         "};\n"
         "// 采样GBuffer纹理\n"
@@ -849,7 +863,7 @@ bool Scene::InitializeDeferredRendering()
         "   // 计算视图方向（从世界空间点指向摄像机）\n"
         "   // 注意：这里需要使用摄像机的世界位置，为简化可以从View矩阵中提取或传入常量\n"
         "   // 为了简化，我们可以从View矩阵的最后一行提取摄像机位置\n"
-        "   float3 viewDir = normalize(float3(0.0f, 0.0f, 0.0f) - worldPos); // 假设摄像机在原点\n"
+        "   float3 viewDir = normalize(cameraPos - worldPos); // 从世界空间点指向摄像机\n"
         "   \n"
         "   // 使用场景中的光源方向（已经归一化）\n"
         "   float3 lightDir = -normalize(lightDirection); // 注意：lightDirection是指向光源的方向\n"
@@ -859,8 +873,8 @@ bool Scene::InitializeDeferredRendering()
         "   \n"
         "   // 计算漫反射分量（不乘材质）\n"
         "   float diffuseTerm = max(dot(normal, lightDir), 0.0f);\n"
-        "   // 计算高光分量（不乘材质，使用Blinn-Phong模型，假设shininess为32）\n"
-        "   float specularTerm = pow(max(dot(normal, halfVec), 0.0f), 32.0f);\n"
+        "   // 计算高光分量（不乘材质，使用Blinn-Phong模型，假设shininess为8）\n"
+        "   float specularTerm = pow(max(dot(normal, halfVec), 0.0f), 8.0f);\n"
         "   \n"
         "   // 输出漫反射光照结果（不乘材质）\n"
         "   output.diffuseResult.rgb = diffuseTerm * lightDiffuseColor.rgb;\n"
@@ -1055,12 +1069,14 @@ bool Scene::InitializeDeferredRendering()
         "   float4x4 Proj;\n"
         "   float4x4 ViewProj;\n"
         "   float4x4 invViewProj;\n"
-        "   float3 lightPos;\n"
+        "   float3 cameraPos;\n"
         "   float padding1;\n"
+        "   float3 lightPos;\n"
+        "   float padding2;\n"
         "   float4 lightDiffuseColor;\n"
         "   float4 lightSpecularColor;\n"
         "   float3 lightDirection;\n"
-        "   float padding2;\n"
+        "   float padding3;\n"
         "   float4 lightAmbientColor;  // 环境光颜色\n"
         "}\n\n"
         "// 采样纹理\n"
