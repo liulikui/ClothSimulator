@@ -1566,11 +1566,53 @@ bool ConvertToD3D12StaticSampler(const RALStaticSampler& ralSampler, D3D12_STATI
     // 转换过滤模式
     switch (ralSampler.Filter)
     {
+    case RALFilter::MinMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+        break;
+    case RALFilter::MinMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::MinPointMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+        break;
+    case RALFilter::MinPointMagMipLinear:
+        outSampler.Filter = D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+        break;
+    case RALFilter::MinLinearMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+        break;
+    case RALFilter::MinLinearMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::MinMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+        break;
     case RALFilter::MinMagMipLinear:
         outSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         break;
     case RALFilter::Anisotropic:
         outSampler.Filter = D3D12_FILTER_ANISOTROPIC;
+        break;
+    case RALFilter::ComparisonMinMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+        break;
+    case RALFilter::ComparisonMinMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::ComparisonMinPointMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT;
+        break;
+    case RALFilter::ComparisonMinPointMagMipLinear:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR;
+        break;
+    case RALFilter::ComparisonMinLinearMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT;
+        break;
+    case RALFilter::ComparisonMinLinearMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::ComparisonMinMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
         break;
     case RALFilter::ComparisonMinMagMipLinear:
         outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
@@ -1578,7 +1620,6 @@ bool ConvertToD3D12StaticSampler(const RALStaticSampler& ralSampler, D3D12_STATI
     case RALFilter::ComparisonAnisotropic:
         outSampler.Filter = D3D12_FILTER_COMPARISON_ANISOTROPIC;
         break;
-    // 这里可以添加更多过滤模式的映射
     default:
         outSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         break;
