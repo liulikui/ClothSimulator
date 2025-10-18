@@ -141,6 +141,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
             {
                 camera->Resize(width, height);
             }
+            
+            // 更新场景渲染资源的尺寸
+            if (scene)
+            {
+                scene->Resize(width, height);
+            }
         }
         break;
     case WM_KEYDOWN:

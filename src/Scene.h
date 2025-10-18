@@ -119,6 +119,9 @@ public:
     { 
         return m_lightAmbientColor; 
     }
+    
+    // 调整渲染资源大小
+    void Resize(uint32_t width, uint32_t height);
 
 private:
     struct AddPrimitiveRequest
@@ -145,6 +148,12 @@ private:
     bool InitializeDeferredRendering();
     // 清理延迟着色相关资源
     void CleanupDeferredRendering();
+    // 创建渲染目标、深度模板和相关视图资源
+    bool CreateRenderingResources(uint32_t width, uint32_t height);
+    // 释放所有渲染资源
+    void ReleaseRenderingResources();
+    
+
     // 执行几何阶段
     void ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
     // 执行光照阶段
