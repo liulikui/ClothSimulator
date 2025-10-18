@@ -1347,50 +1347,6 @@ bool Scene::InitializeDeferredRendering()
     return true;
 }
 
-
-void Scene::ExecuteTonemappingPass()
-{
-    // 获取backbuffer的渲染目标视图
-    IRALRenderTargetView* backBufferRTV = m_device->GetBackBufferRTV();
-    
-    // 获取命令列表
-    IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
-    
-    // 设置渲染目标为backbuffer
-    commandList->SetRenderTargets(1, &backBufferRTV, nullptr);
-    
-    // 清除渲染目标（可选，但为了干净的输出）
-    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    commandList->ClearRenderTarget(backBufferRTV, clearColor);
-    
-    // 设置根签名
-    commandList->SetGraphicsRootSignature(m_tonemappingRootSignature.Get());
-    
-    // 设置管线状态
-    commandList->SetPipelineState(m_tonemappingPipelineState.Get());
-    
-    // 设置着色器资源视图到根描述符表
-    commandList->SetGraphicsRootDescriptorTable(0, m_HDRSceneColorSRV.Get());
-    
-    // 设置顶点缓冲区
-    IRALVertexBuffer* vertexBuffer = m_fullscreenQuadVB.Get();
-    commandList->SetVertexBuffers(0, 1, &vertexBuffer);
-    
-    // 设置索引缓冲区
-    commandList->SetIndexBuffer(m_fullscreenQuadIB.Get());
-    
-    // 绘制全屏四边形
-    commandList->DrawIndexed(6, 1, 0, 0, 0);
-    
-    // 转换资源状态回渲染目标（以便下一帧重用）
-    RALResourceBarrier finalBarrier = {};
-    finalBarrier.type = RALResourceBarrierType::Transition;
-    finalBarrier.resource = m_HDRSceneColor.Get();
-    finalBarrier.oldState = RALResourceState::ShaderResource;
-    finalBarrier.newState = RALResourceState::RenderTarget;
-    commandList->ResourceBarriers(&finalBarrier, 1);
-}
-
 // 清理延迟着色相关资源
 void Scene::Resize(uint32_t width, uint32_t height)
 {
@@ -1741,5 +1697,49 @@ void Scene::ExecuteResolvePass()
     finalBarrier.oldState = RALResourceState::RenderTarget;
     finalBarrier.newState = RALResourceState::ShaderResource;
     
+    commandList->ResourceBarriers(&finalBarrier, 1);
+}
+
+// 执行色调映射阶段
+void Scene::ExecuteTonemappingPass()
+{
+    // 获取backbuffer的渲染目标视图
+    IRALRenderTargetView* backBufferRTV = m_device->GetBackBufferRTV();
+
+    // 获取命令列表
+    IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
+
+    // 设置渲染目标为backbuffer
+    commandList->SetRenderTargets(1, &backBufferRTV, nullptr);
+
+    // 清除渲染目标（可选，但为了干净的输出）
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    commandList->ClearRenderTarget(backBufferRTV, clearColor);
+
+    // 设置根签名
+    commandList->SetGraphicsRootSignature(m_tonemappingRootSignature.Get());
+
+    // 设置管线状态
+    commandList->SetPipelineState(m_tonemappingPipelineState.Get());
+
+    // 设置着色器资源视图到根描述符表
+    commandList->SetGraphicsRootDescriptorTable(0, m_HDRSceneColorSRV.Get());
+
+    // 设置顶点缓冲区
+    IRALVertexBuffer* vertexBuffer = m_fullscreenQuadVB.Get();
+    commandList->SetVertexBuffers(0, 1, &vertexBuffer);
+
+    // 设置索引缓冲区
+    commandList->SetIndexBuffer(m_fullscreenQuadIB.Get());
+
+    // 绘制全屏四边形
+    commandList->DrawIndexed(6, 1, 0, 0, 0);
+
+    // 转换资源状态回渲染目标（以便下一帧重用）
+    RALResourceBarrier finalBarrier = {};
+    finalBarrier.type = RALResourceBarrierType::Transition;
+    finalBarrier.resource = m_HDRSceneColor.Get();
+    finalBarrier.oldState = RALResourceState::ShaderResource;
+    finalBarrier.newState = RALResourceState::RenderTarget;
     commandList->ResourceBarriers(&finalBarrier, 1);
 }

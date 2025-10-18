@@ -153,6 +153,8 @@ private:
     // 释放所有渲染资源
     void ReleaseRenderingResources();
     
+    // 创建全屏四边形
+    void CreateFullscreenQuad();
 
     // 执行几何阶段
     void ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATRIX& projectionMatrix);
@@ -162,8 +164,6 @@ private:
     void ExecuteResolvePass();
 	// 执行色调映射阶段
     void ExecuteTonemappingPass();
-    // 创建全屏四边形
-    void CreateFullscreenQuad();
 
 private:
     IRALDevice* m_device;
