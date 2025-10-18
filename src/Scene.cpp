@@ -1488,36 +1488,6 @@ void Scene::ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATR
 {
     IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
 
-    // 在设置渲染目标之前，先将GBuffer和深度模板缓冲区转换为正确的渲染状态
-    RALResourceBarrier barriers[4];
-    
-    // GBuffer A转换为渲染目标状态
-    barriers[0].type = RALResourceBarrierType::Transition;
-    barriers[0].resource = m_gbufferA.Get();
-    barriers[0].oldState = RALResourceState::ShaderResource;  // 假设之前是ShaderResource状态
-    barriers[0].newState = RALResourceState::RenderTarget;
-    
-    // GBuffer B转换为渲染目标状态
-    barriers[1].type = RALResourceBarrierType::Transition;
-    barriers[1].resource = m_gbufferB.Get();
-    barriers[1].oldState = RALResourceState::ShaderResource;
-    barriers[1].newState = RALResourceState::RenderTarget;
-    
-    // GBuffer C转换为渲染目标状态
-    barriers[2].type = RALResourceBarrierType::Transition;
-    barriers[2].resource = m_gbufferC.Get();
-    barriers[2].oldState = RALResourceState::ShaderResource;
-    barriers[2].newState = RALResourceState::RenderTarget;
-    
-    // 深度模板缓冲区转换为深度模板状态
-    barriers[3].type = RALResourceBarrierType::Transition;
-    barriers[3].resource = m_gbufferDepthStencil.Get();
-    barriers[3].oldState = RALResourceState::ShaderResource;
-    barriers[3].newState = RALResourceState::DepthStencil;
-    
-    // 一次性提交所有资源屏障
-    commandList->ResourceBarriers(barriers, 4);
-
     // 设置渲染目标视图和深度模板视图
     IRALRenderTargetView* renderTargetViews[3] = { m_gbufferARTV.Get(), m_gbufferBRTV.Get(), m_gbufferCRTV.Get() };
     commandList->SetRenderTargets(3, renderTargetViews, m_gbufferDSV.Get());
@@ -1586,37 +1556,6 @@ void Scene::ExecuteGeometryPass(const dx::XMMATRIX& viewMatrix, const dx::XMMATR
             commandList->DrawIndexed(indexBuffer->GetIndexCount(), 1, 0, 0, 0);
         }
     }
-    
-    // 几何阶段完成后，将GBuffer和深度模板缓冲区转换为着色器资源状态，以便光照阶段读取
-    // 使用ResourceBarrier替代专门的状态转换方法
-    RALResourceBarrier endBarriers[4];
-    
-    // GBuffer A从渲染目标状态转换为着色器资源状态
-    endBarriers[0].type = RALResourceBarrierType::Transition;
-    endBarriers[0].resource = m_gbufferA.Get();
-    endBarriers[0].oldState = RALResourceState::RenderTarget;
-    endBarriers[0].newState = RALResourceState::ShaderResource;
-    
-    // GBuffer B从渲染目标状态转换为着色器资源状态
-    endBarriers[1].type = RALResourceBarrierType::Transition;
-    endBarriers[1].resource = m_gbufferB.Get();
-    endBarriers[1].oldState = RALResourceState::RenderTarget;
-    endBarriers[1].newState = RALResourceState::ShaderResource;
-    
-    // GBuffer C从渲染目标状态转换为着色器资源状态
-    endBarriers[2].type = RALResourceBarrierType::Transition;
-    endBarriers[2].resource = m_gbufferC.Get();
-    endBarriers[2].oldState = RALResourceState::RenderTarget;
-    endBarriers[2].newState = RALResourceState::ShaderResource;
-    
-    // 深度模板缓冲区从深度模板状态转换为着色器资源状态
-    endBarriers[3].type = RALResourceBarrierType::Transition;
-    endBarriers[3].resource = m_gbufferDepthStencil.Get();
-    endBarriers[3].oldState = RALResourceState::DepthStencil;
-    endBarriers[3].newState = RALResourceState::ShaderResource;
-    
-    // 一次性提交所有资源屏障
-    commandList->ResourceBarriers(endBarriers, 4);
 }
 
 // 执行光照阶段
@@ -1637,6 +1576,37 @@ void Scene::ExecuteLightingPass()
 
     // 设置根参数0（场景常量，包含invViewProj和光照信息）
     commandList->SetGraphicsRootConstantBuffer(0, m_sceneConstBuffer.Get());
+
+    // 几何阶段完成后，将GBuffer和深度模板缓冲区转换为着色器资源状态，以便光照阶段读取
+ // 使用ResourceBarrier替代专门的状态转换方法
+    RALResourceBarrier barriers[4];
+
+    // GBuffer A从渲染目标状态转换为着色器资源状态
+    barriers[0].type = RALResourceBarrierType::Transition;
+    barriers[0].resource = m_gbufferA.Get();
+    barriers[0].oldState = RALResourceState::RenderTarget;
+    barriers[0].newState = RALResourceState::ShaderResource;
+
+    // GBuffer B从渲染目标状态转换为着色器资源状态
+    barriers[1].type = RALResourceBarrierType::Transition;
+    barriers[1].resource = m_gbufferB.Get();
+    barriers[1].oldState = RALResourceState::RenderTarget;
+    barriers[1].newState = RALResourceState::ShaderResource;
+
+    // GBuffer C从渲染目标状态转换为着色器资源状态
+    barriers[2].type = RALResourceBarrierType::Transition;
+    barriers[2].resource = m_gbufferC.Get();
+    barriers[2].oldState = RALResourceState::RenderTarget;
+    barriers[2].newState = RALResourceState::ShaderResource;
+
+    // 深度模板缓冲区从深度模板状态转换为着色器资源状态
+    barriers[3].type = RALResourceBarrierType::Transition;
+    barriers[3].resource = m_gbufferDepthStencil.Get();
+    barriers[3].oldState = RALResourceState::DepthStencil;
+    barriers[3].newState = RALResourceState::ShaderResource;
+
+    // 一次性提交所有资源屏障
+    commandList->ResourceBarriers(barriers, 4);
 
     // 绑定GBuffer纹理到描述符表
     commandList->SetGraphicsRootDescriptorTable(1, m_gbufferASRV.Get());
@@ -1761,4 +1731,34 @@ void Scene::ExecuteTonemappingPass()
     finalBarrier.oldState = RALResourceState::ShaderResource;
     finalBarrier.newState = RALResourceState::RenderTarget;
     commandList->ResourceBarriers(&finalBarrier, 1);
+
+    // 在设置渲染目标之前，先将GBuffer和深度模板缓冲区转换为正确的渲染状态
+    RALResourceBarrier barriers[4];
+
+    // GBuffer A转换为渲染目标状态
+    barriers[0].type = RALResourceBarrierType::Transition;
+    barriers[0].resource = m_gbufferA.Get();
+    barriers[0].oldState = RALResourceState::ShaderResource;
+    barriers[0].newState = RALResourceState::RenderTarget;
+
+    // GBuffer B转换为渲染目标状态
+    barriers[1].type = RALResourceBarrierType::Transition;
+    barriers[1].resource = m_gbufferB.Get();
+    barriers[1].oldState = RALResourceState::ShaderResource;
+    barriers[1].newState = RALResourceState::RenderTarget;
+
+    // GBuffer C转换为渲染目标状态
+    barriers[2].type = RALResourceBarrierType::Transition;
+    barriers[2].resource = m_gbufferC.Get();
+    barriers[2].oldState = RALResourceState::ShaderResource;
+    barriers[2].newState = RALResourceState::RenderTarget;
+
+    // 深度模板缓冲区转换为深度模板状态
+    barriers[3].type = RALResourceBarrierType::Transition;
+    barriers[3].resource = m_gbufferDepthStencil.Get();
+    barriers[3].oldState = RALResourceState::ShaderResource;
+    barriers[3].newState = RALResourceState::DepthStencil;
+
+    // 一次性提交所有资源屏障
+    commandList->ResourceBarriers(barriers, 4);
 }
