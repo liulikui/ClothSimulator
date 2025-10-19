@@ -110,7 +110,9 @@ void Cloth::OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh)
     mesh.vertexBuffer = device->CreateVertexBuffer(
         vertexBufferSize,
         6 * sizeof(float),// 顶点 stride（3个位置分量 + 3个法线分量）
-        true
+        true,
+        vertexData.data(),
+        L"ClothVB"
     );
 
     // 创建索引缓冲区
@@ -118,14 +120,10 @@ void Cloth::OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh)
     mesh.indexBuffer = device->CreateIndexBuffer(
         m_indices.size(),
         true, // 32位索引
-        true
+        true,
+        m_indices.data(),
+        L"ClothIB"
     );
-
-    // 上传顶点数据
-    device->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexBufferSize);
-
-    // 上传索引数据
-    device->UploadBuffer(mesh.indexBuffer.Get(), (const char*)m_indices.data(), indexBufferSize);
 }
 
 void Cloth::OnUpdateMesh(IRALDevice* device, PrimitiveMesh& mesh)

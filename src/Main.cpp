@@ -141,6 +141,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lPar
             {
                 camera->Resize(width, height);
             }
+            
+            // 更新场景渲染资源的尺寸
+            if (scene)
+            {
+                scene->Resize(width, height);
+            }
         }
         break;
     case WM_KEYDOWN:
@@ -915,7 +921,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     cloth->SetPosition(dx::XMFLOAT3(-5.0f, 10.0f, -5.0f));
 
     // 设置布料的材质颜色（红色）
-    cloth->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
+    cloth->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.1f, 0.1f));
 
     // 初始化布料
 	cloth->Initialize(device);
@@ -935,7 +941,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     sphere = new Sphere(sphereRadius, 32, 32);
 
     // 设置球体的材质颜色（红色）
-    sphere->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.3f, 0.3f));
+    sphere->SetDiffuseColor(dx::XMFLOAT3(1.0f, 0.1f, 0.1f));
     
     // 设置球体的世界矩阵
     sphere->SetPosition(dx::XMFLOAT3(0.0f, 5.0f, 0.0f));

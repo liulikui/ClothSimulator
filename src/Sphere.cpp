@@ -45,21 +45,19 @@ void Sphere::OnSetupMesh(IRALDevice* device, PrimitiveMesh& mesh)
     mesh.vertexBuffer = device->CreateVertexBuffer(
         vertexData.size(),
         6 * sizeof(float),// 顶点 stride（3个位置分量 + 3个法线分量）
-        true
+        true,
+        vertexData.data(),
+		L"SphereVB"
     );
 
     // 创建索引缓冲区
     mesh.indexBuffer = device->CreateIndexBuffer(
         m_indices.size(),
         true,// 32位索引
-        true
+        true,
+        m_indices.data(),
+        L"SphereIB"
     );
-
-    // 上传顶点数据
-    device->UploadBuffer(mesh.vertexBuffer.Get(), (const char*)vertexData.data(), vertexData.size());
-
-    // 上传索引数据
-    device->UploadBuffer(mesh.indexBuffer.Get(), (const char*)m_indices.data(), m_indices.size() * sizeof(uint32_t));
 }
 
 void Sphere::SetRadius(float newRadius)

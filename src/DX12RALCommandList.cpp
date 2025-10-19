@@ -7,11 +7,11 @@ D3D12_RESOURCE_STATES ConvertToDX12ResourceState(RALResourceState state);
 D3D_PRIMITIVE_TOPOLOGY ConvertToDX12PrimitiveTopology(RALPrimitiveTopologyType topology);
 
 // DX12RALGraphicsCommandList构造函数
-DX12RALGraphicsCommandList::DX12RALGraphicsCommandList(ID3D12CommandAllocator* dx12CommandAllocator, ID3D12GraphicsCommandList* dx12CommandList)
+DX12RALGraphicsCommandList::DX12RALGraphicsCommandList(ID3D12CommandAllocator* commandAllocator, ID3D12GraphicsCommandList* commandList)
     : IRALGraphicsCommandList()
-    , m_commandAllocator(dx12CommandAllocator)
-    , m_commandList(dx12CommandList)
-{
+    , m_commandAllocator(commandAllocator)
+    , m_commandList(commandList)
+{    
 }
 
 // DX12RALGraphicsCommandList析构函数
@@ -84,25 +84,39 @@ void* DX12RALGraphicsCommandList::GetNativeCommandList()
 }
 
 // 清除渲染目标
-void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTarget* renderTarget, const float color[4])
+void DX12RALGraphicsCommandList::ClearRenderTarget(IRALRenderTargetView* renderTargetView, const RALClearValue& clearValue)
 {
-    //if (renderTarget)
-    //{
-    //    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = {};
-    //    rtvHandle.ptr = reinterpret_cast<uint64_t>(renderTarget->GetNativeRenderTargetView());
-    //    m_commandList->ClearRenderTargetView(rtvHandle, color, 0, nullptr);
-    //}
+    if (!renderTargetView)
+        return;
+    
+    DX12RALRenderTargetView* dx12RTV = static_cast<DX12RALRenderTargetView*>(renderTargetView);
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dx12RTV->GetRTVCPUHandle();
+    
+    // 直接使用RALClearValue中的颜色数据
+    m_commandList->ClearRenderTargetView(rtvHandle, clearValue.clearValue.color, 0, nullptr);
 }
 
 // 清除深度/模板视图
-void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencil* depthStencil, float depth, uint8_t stencil)
+void DX12RALGraphicsCommandList::ClearDepthStencil(IRALDepthStencilView* depthStencilView, const RALClearValue& clearValue)
 {
-    //if (depthStencil)
-    //{
-    //    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
-    //    dsvHandle.ptr = reinterpret_cast<uint64_t>(depthStencil->GetNativeDepthStencilView());
-    //    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, depth, stencil, 0, nullptr);
-    //}
+    if (!depthStencilView)
+        return;
+    
+    DX12RALDepthStencilView* dx12DSV = static_cast<DX12RALDepthStencilView*>(depthStencilView);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dx12DSV->GetDSVCPUHandle();
+    
+    // 根据格式判断清除类型，默认同时清除深度和模板
+    D3D12_CLEAR_FLAGS d3dClearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
+    
+    // 使用RALClearValue中提供的值
+    m_commandList->ClearDepthStencilView(
+        dsvHandle, 
+        d3dClearFlags, 
+        clearValue.clearValue.depthStencil.depth, 
+        clearValue.clearValue.depthStencil.stencil, 
+        0U, 
+        nullptr
+    );
 }
 
 // 设置视口
@@ -134,8 +148,9 @@ void DX12RALGraphicsCommandList::SetPipelineState(IRALResource* pipelineState)
 {
     if (pipelineState)
     {
-        ID3D12PipelineState* dxPipelineState = static_cast<ID3D12PipelineState*>(pipelineState->GetNativeResource());
-        m_commandList->SetPipelineState(dxPipelineState);
+        DX12RALGraphicsPipelineState* dx12PipelineState = static_cast<DX12RALGraphicsPipelineState*>(pipelineState);
+        ID3D12PipelineState* nativePipelineState = static_cast<ID3D12PipelineState*>(dx12PipelineState->GetNativeResource());
+        m_commandList->SetPipelineState(nativePipelineState);
     }
 }
 
@@ -200,6 +215,27 @@ void DX12RALGraphicsCommandList::SetGraphicsRootDescriptorTable(uint32_t rootPar
     }
 }
 
+// 绑定根描述符表（通过SRV）
+void DX12RALGraphicsCommandList::SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, IRALShaderResourceView* srv)
+{
+    if (srv)
+    {
+        // 将IRALShaderResourceView转换为DX12RALShaderResourceView以获取GPU描述符句柄
+        DX12RALShaderResourceView* dx12SRV = static_cast<DX12RALShaderResourceView*>(srv);
+        if (dx12SRV)
+        {
+            ID3D12DescriptorHeap* srvHeap = dx12SRV->GetSRVHeap();
+            ID3D12DescriptorHeap* heaps[1];
+            heaps[0] = srvHeap;
+
+            m_commandList->SetDescriptorHeaps(1, heaps); // 绑定堆
+
+            D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = dx12SRV->GetSRVGPUHandle();
+            m_commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, gpuHandle);
+        }
+    }
+}
+
 // 绑定根常量缓冲区视图
 void DX12RALGraphicsCommandList::SetGraphicsRootConstantBuffer(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
 {
@@ -207,12 +243,14 @@ void DX12RALGraphicsCommandList::SetGraphicsRootConstantBuffer(uint32_t rootPara
     m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, dx12ConstBuffer->GetGPUVirtualAddress());
 }
 
-// 绑定根着色器资源视图
+// 绑定根着色器资源视图（常量缓冲区）
 void DX12RALGraphicsCommandList::SetGraphicsRootShaderResource(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
 {
     DX12RALConstBuffer* dx12ConstBuffer = (DX12RALConstBuffer*)constBuffer;
     m_commandList->SetGraphicsRootShaderResourceView(rootParameterIndex, dx12ConstBuffer->GetGPUVirtualAddress());
 }
+
+// 注意：已删除SetGraphicsRootShaderResource(IRALShaderResourceView*)方法实现
 
 // 绑定根无序访问视图
 void DX12RALGraphicsCommandList::SetGraphicsRootUnorderedAccess(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer)
@@ -266,30 +304,41 @@ void DX12RALGraphicsCommandList::DrawIndexedIndirect(void* bufferLocation, uint3
 }
 
 // 设置渲染目标
-void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IRALRenderTarget** renderTargets, IRALDepthStencil* depthStencil)
+void DX12RALGraphicsCommandList::SetRenderTargets(uint32_t renderTargetCount, IRALRenderTargetView** renderTargetViews, IRALDepthStencilView* depthStencilView)
 {
-    //std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvHandles;
-    //rtvHandles.reserve(renderTargetCount);
-
-    //for (uint32_t i = 0; i < renderTargetCount; ++i) {
-    //    if (renderTargets[i]) {
-    //        D3D12_CPU_DESCRIPTOR_HANDLE handle = {};
-    //        handle.ptr = reinterpret_cast<uint64_t>(renderTargets[i]->GetNativeRenderTargetView());
-    //        rtvHandles.push_back(handle);
-    //    }
-    //}
-    //
-    //D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
-    //dsvHandle.ptr = depthStencil ? reinterpret_cast<uint64_t>(depthStencil->GetNativeDepthStencilView()) : 0;
-    //
-    //if (rtvHandles.empty())
-    //{
-    //    m_commandList->OMSetRenderTargets(0, nullptr, FALSE, dsvHandle.ptr ? &dsvHandle : nullptr);
-    //}
-    //else
-    //{
-    //    m_commandList->OMSetRenderTargets(rtvHandles.size(), rtvHandles.data(), FALSE, dsvHandle.ptr ? &dsvHandle : nullptr);
-    //}
+    // 确保渲染目标数量不超过D3D12支持的最大数量（通常为8）
+    const uint32_t kMaxRenderTargets = 8;
+    if (renderTargetCount > kMaxRenderTargets)
+    {
+        renderTargetCount = kMaxRenderTargets;
+    }
+    
+    // 创建描述符句柄数组
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvHandles(renderTargetCount);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
+    
+    // 获取渲染目标视图描述符
+    for (uint32_t i = 0; i < renderTargetCount; ++i)
+    {
+        if (renderTargetViews[i])
+        {
+            DX12RALRenderTargetView* dx12Rtv = static_cast<DX12RALRenderTargetView*>(renderTargetViews[i]);
+            rtvHandles[i] = dx12Rtv->GetRTVCPUHandle();
+        }
+    }
+    
+    if (depthStencilView)
+    {
+        DX12RALDepthStencilView* dx12Dsv = static_cast<DX12RALDepthStencilView*>(depthStencilView);
+        dsvHandle = dx12Dsv->GetDSVCPUHandle();
+    }
+    
+    m_commandList->OMSetRenderTargets(
+        renderTargetCount,
+        renderTargetCount > 0 ? rtvHandles.data() : nullptr,
+        FALSE, // 不绑定到所有视图
+        depthStencilView ? &dsvHandle : nullptr
+    );
 }
 
 // 执行渲染通道

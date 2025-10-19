@@ -4,6 +4,25 @@
 #include "RALResource.h"
 #include <atomic>
 
+// 深度/模板清除标志枚举
+enum class RALClearFlags
+{
+    None    = 0,
+    Depth   = 1,
+    Stencil = 2
+};
+
+// 允许RALClearFlags枚举按位操作
+constexpr RALClearFlags operator|(RALClearFlags a, RALClearFlags b)
+{
+    return static_cast<RALClearFlags>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+constexpr RALClearFlags operator&(RALClearFlags a, RALClearFlags b)
+{
+    return static_cast<RALClearFlags>(static_cast<int>(a) & static_cast<int>(b));
+}
+
 // 命令列表类型枚举
 enum class RALCommandListType
 {
@@ -80,10 +99,10 @@ public:
     virtual ~IRALGraphicsCommandList() = default;
 
     // 清除渲染目标
-    virtual void ClearRenderTarget(IRALRenderTarget* renderTarget, const float color[4]) = 0;
+    virtual void ClearRenderTarget(IRALRenderTargetView* renderTargetView, const RALClearValue& clearValue) = 0;
 
     // 清除深度/模板视图
-    virtual void ClearDepthStencil(IRALDepthStencil* depthStencil, float depth, uint8_t stencil) = 0;
+    virtual void ClearDepthStencil(IRALDepthStencilView* depthStencilView, const RALClearValue& clearValue) = 0;
 
     // 设置视口
     virtual void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) = 0;
@@ -109,6 +128,7 @@ public:
 
     // 绑定根描述符表
     virtual void SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, void* descriptorTable) = 0;
+    virtual void SetGraphicsRootDescriptorTable(uint32_t rootParameterIndex, IRALShaderResourceView* srv) = 0;
 
     // 绑定根常量缓冲区视图
     virtual void SetGraphicsRootConstantBuffer(uint32_t rootParameterIndex, IRALConstBuffer* constBuffer) = 0;
@@ -132,13 +152,13 @@ public:
     virtual void DrawIndexedIndirect(void* bufferLocation, uint32_t drawCount, uint32_t stride) = 0;
 
     // 设置渲染目标
-    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTarget** renderTargets, IRALDepthStencil* depthStencil = nullptr) = 0;
+    virtual void SetRenderTargets(uint32_t renderTargetCount, IRALRenderTargetView** renderTargetViews, IRALDepthStencilView* depthStencilView = nullptr) = 0;
 
     // 执行渲染通道
     virtual void ExecuteRenderPass(const void* renderPass, const void* framebuffer) = 0;
 
     // 设置图元拓扑
-    virtual void SetPrimitiveTopology(RALPrimitiveTopologyType topology) = 0;
+	virtual void SetPrimitiveTopology(RALPrimitiveTopologyType topology) = 0;
 };
 
 #endif // RALCOMMANDLIST_H

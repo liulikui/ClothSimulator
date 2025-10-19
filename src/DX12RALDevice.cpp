@@ -58,10 +58,10 @@ bool DX12RALDevice::Initialize()
     CreateDescriptorHeaps();
 
     // 创建渲染目标视图
-    CreateRenderTargetViews();
+    CreateMainRenderTargetViews();
 
     // 创建深度/模板视图
-    CreateDepthStencilView();
+    CreateMainDepthStencilView();
 
     return true;
 }
@@ -70,9 +70,21 @@ void DX12RALDevice::BeginFrame()
 {
     ID3D12GraphicsCommandList* dx12CommandList = (ID3D12GraphicsCommandList*)m_graphicsCommandList->GetNativeCommandList();;
 
+    if (m_uploadingResources.size() > 0)
+    {
+        dx12CommandList->Close();
+        // 执行上传命令列表
+        ID3D12CommandList* ppCommandLists[] = { dx12CommandList };
+        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+        // 等待上传完成
+        WaitForPreviousOperations();
+
+        m_uploadingResources.clear();
+	}
+
     // 获取当前后台缓冲区
     m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_mainRtvHeap->GetCPUDescriptorHandleForHeapStart();
     rtvHandle.ptr += m_currentBackBufferIndex * m_rtvDescriptorSize;
 
     // 重置当前帧的命令分配器
@@ -103,7 +115,7 @@ void DX12RALDevice::BeginFrame()
 
     dx12CommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     dx12CommandList->ClearDepthStencilView(
-        m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
+			m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart(),
         D3D12_CLEAR_FLAG_DEPTH,
         1.0f,
         0,
@@ -112,7 +124,7 @@ void DX12RALDevice::BeginFrame()
     );
 
     // 设置渲染目标和深度/模板视图
-    dx12CommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    dx12CommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     // 设置视口和裁剪矩形
     D3D12_VIEWPORT viewport = {};
@@ -279,6 +291,29 @@ bool DX12RALDevice::CreateDeviceAndSwapChain()
     if (FAILED(hr))
     {
         std::cerr << "Failed to create swap chain." << std::endl;
+        // 转换HRESULT为错误信息字符串
+        LPSTR errorMsg = nullptr;
+        DWORD formatResult = FormatMessageA(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            nullptr,
+            hr,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPSTR)&errorMsg,
+            0,
+            nullptr
+        );
+
+        if (formatResult > 0)
+        {
+            // 输出错误信息
+            logDebug("create swap chain：" + std::string(errorMsg));
+            LocalFree(errorMsg); // 释放FormatMessage分配的内存
+        }
+        else
+        {
+            // 无法解析时直接输出HRESULT值
+            logDebug("create swap chain，error code：0x" + std::to_string(hr));
+        }
         return false;
     }
 
@@ -314,6 +349,10 @@ bool DX12RALDevice::CreateDeviceAndSwapChain()
         std::cerr << "Failed to create fence event." << std::endl;
         return false;
     }
+
+    m_RTVDescriptorHeaps.SetDevice(m_device);
+    m_DSVDescriptorHeaps.SetDevice(m_device);
+    m_SRVDescriptorHeaps.SetDevice(m_device);
 
     return true;
 }
@@ -353,7 +392,9 @@ void DX12RALDevice::CreateCommandObjects()
     // 关闭命令列表（初始状态是打开的）
     commandList->Close();
 
+    // 创建DX12RALGraphicsCommandList实例
     m_graphicsCommandList = new DX12RALGraphicsCommandList(m_commandAllocators[0].Get(), commandList.Get());
+    m_graphicsCommandList->Reset();
 }
 
 // 创建描述符堆
@@ -364,51 +405,57 @@ void DX12RALDevice::CreateDescriptorHeaps()
     m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
     m_srvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    // 创建渲染目标视图堆
+    m_RTVDescriptorHeaps.SetDescriptorSize(m_rtvDescriptorSize);
+    m_DSVDescriptorHeaps.SetDescriptorSize(m_dsvDescriptorSize);
+    m_SRVDescriptorHeaps.SetDescriptorSize(m_srvDescriptorSize);
+
+    // 创建主渲染目标视图堆（用于后缓冲区）
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     rtvHeapDesc.NumDescriptors = m_backBufferCount;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    HRESULT hr = m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(m_rtvHeap.ReleaseAndGetAddressOf()));
+    HRESULT hr = m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(m_mainRtvHeap.ReleaseAndGetAddressOf()));
     if (FAILED(hr))
     {
-        throw std::runtime_error("Failed to create RTV heap.");
+        throw std::runtime_error("Failed to create main RTV heap.");
     }
 
-    // 创建深度/模板视图堆
+    // 创建主深度/模板视图堆（用于主深度缓冲区）
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvHeapDesc.NumDescriptors = 1;
     dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    hr = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_dsvHeap.ReleaseAndGetAddressOf()));
+    hr = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_mainDsvHeap.ReleaseAndGetAddressOf()));
     if (FAILED(hr))
     {
-        throw std::runtime_error("Failed to create DSV heap.");
+        throw std::runtime_error("Failed to create main DSV heap.");
     }
 
-    // 创建着色器资源视图堆
+    // 创建主着色器资源视图堆
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     srvHeapDesc.NumDescriptors = 10;  // 预留一些描述符
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-    hr = m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.ReleaseAndGetAddressOf()));
+    hr = m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_mainSrvHeap.ReleaseAndGetAddressOf()));
     if (FAILED(hr))
     {
-        throw std::runtime_error("Failed to create SRV heap.");
+        throw std::runtime_error("Failed to create main SRV heap.");
     }
 }
 
 // 创建渲染目标视图
-void DX12RALDevice::CreateRenderTargetViews()
+void DX12RALDevice::CreateMainRenderTargetViews()
 {
     // 获取渲染目标视图堆的起始句柄
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_mainRtvHeap->GetCPUDescriptorHandleForHeapStart();
 
     // 为每个后台缓冲区创建渲染目标视图
     m_backBuffers.resize(m_backBufferCount);
+    m_backBufferRTVs.resize(m_backBufferCount);
+    
     for (uint32_t i = 0; i < m_backBufferCount; ++i)
     {
         // 获取后台缓冲区
@@ -418,8 +465,31 @@ void DX12RALDevice::CreateRenderTargetViews()
             throw std::runtime_error("Failed to get swap chain buffer.");
         }
 
-        // 创建渲染目标视图
-        m_device->CreateRenderTargetView(m_backBuffers[i].Get(), nullptr, rtvHandle);
+        // 设置后台缓冲区名称
+        std::wstring bufferName = L"BackBuffer_" + std::to_wstring(i);
+        m_backBuffers[i]->SetName(bufferName.c_str());
+
+        // 创建RAL渲染目标对象
+        DX12RALRenderTarget* renderTarget = new DX12RALRenderTarget(m_width, m_height, RALDataFormat::R8G8B8A8_UNorm);
+        renderTarget->SetNativeResource(m_backBuffers[i].Get());
+        
+        // 创建RAL渲染目标视图
+        DX12RALRenderTargetView* rtv = new DX12RALRenderTargetView();
+        rtv->SetRenderTarget(renderTarget);
+        rtv->SetRTVHeap(m_mainRtvHeap.Get());
+        rtv->SetRTVCPUHandle(rtvHandle);
+        rtv->SetDevice(this);
+        
+        // 存储到成员变量中
+        m_backBufferRTVs[i] = rtv;
+
+        // Setup RTV descriptor to specify sRGB format.
+        D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+        rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+        // 创建D3D12渲染目标视图
+        m_device->CreateRenderTargetView(m_backBuffers[i].Get(), &rtvDesc, rtvHandle);
 
         // 移动到下一个描述符
         rtvHandle.ptr += m_rtvDescriptorSize;
@@ -427,7 +497,7 @@ void DX12RALDevice::CreateRenderTargetViews()
 }
 
 // 创建深度/模板视图
-void DX12RALDevice::CreateDepthStencilView()
+void DX12RALDevice::CreateMainDepthStencilView()
 {
     // 创建深度/模板缓冲区描述
     D3D12_RESOURCE_DESC depthStencilDesc = {};
@@ -471,6 +541,23 @@ void DX12RALDevice::CreateDepthStencilView()
         throw std::runtime_error("Failed to create depth stencil buffer.");
     }
 
+    // 设置深度模板缓冲区名称
+    m_depthStencilBuffer->SetName(L"MainDepthStencilBuffer");
+
+    // 创建RAL深度模板对象
+    DX12RALDepthStencil* depthStencil = new DX12RALDepthStencil(m_width, m_height, RALDataFormat::D32_Float);
+    depthStencil->SetNativeResource(m_depthStencilBuffer.Get());
+    
+    // 创建RAL深度模板视图
+    DX12RALDepthStencilView* dsv = new DX12RALDepthStencilView();
+    dsv->SetDepthStencil(depthStencil);
+    dsv->SetDSVHeap(m_mainDsvHeap.Get());
+    dsv->SetDSVCPUHandle(m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart());
+    dsv->SetDevice(this);
+    
+    // 存储到成员变量中
+    m_mainDepthStencilView = dsv;
+
     // 创建深度/模板视图
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -480,7 +567,7 @@ void DX12RALDevice::CreateDepthStencilView()
     m_device->CreateDepthStencilView(
         m_depthStencilBuffer.Get(),
         &dsvDesc,
-        m_dsvHeap->GetCPUDescriptorHandleForHeapStart()
+        m_mainDsvHeap->GetCPUDescriptorHandleForHeapStart()
     );
 }
 
@@ -665,7 +752,7 @@ IRALRayCallableShader* DX12RALDevice::CompileRayCallableShader(const char* shade
 }
 
 // 创建图形管线状态
-IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc)
+IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALGraphicsPipelineStateDesc& desc, const wchar_t* debugName)
 {
     // 创建D3D12图形管线状态描述
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -673,11 +760,14 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     std::vector<D3D12_INPUT_ELEMENT_DESC> d3dInputLayout;
 
     // 设置输入布局
-    if (desc.inputLayout) {
-        for (const auto& attr : *desc.inputLayout) {
+    if (desc.inputLayout)
+    {
+        for (const auto& attr : *desc.inputLayout)
+        {
             D3D12_INPUT_ELEMENT_DESC element = {};
             // 设置元素名称
-            switch (attr.semantic) {
+            switch (attr.semantic)
+            {
             case RALVertexSemantic::Position:
                 element.SemanticName = "POSITION";
                 break;
@@ -718,7 +808,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
             }
 
             // 设置格式
-            switch (attr.format) {
+            switch (attr.format)
+            {
             case RALVertexFormat::Float1:
                 element.Format = DXGI_FORMAT_R32_FLOAT;
                 break;
@@ -754,39 +845,47 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     }
 
     // 设置根签名
-    if (desc.rootSignature) {
+    if (desc.rootSignature)
+    {
         psoDesc.pRootSignature = static_cast<ID3D12RootSignature*>(desc.rootSignature->GetNativeResource());
     }
 
     // 设置顶点着色器
-    if (desc.vertexShader) {
+    if (desc.vertexShader)
+    {
         auto dx12VertexShader = static_cast<DX12RALVertexShader*>(desc.vertexShader);
         ID3DBlob* shaderBlob = dx12VertexShader->GetNativeShader();
-        if (shaderBlob) {
+        if (shaderBlob)
+        {
             psoDesc.VS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
         }
     }
 
     // 设置像素着色器
-    if (desc.pixelShader) {
+    if (desc.pixelShader)
+    {
         auto dx12PixelShader = static_cast<DX12RALPixelShader*>(desc.pixelShader);
         ID3DBlob* shaderBlob = dx12PixelShader->GetNativeShader();
-        if (shaderBlob) {
+        if (shaderBlob)
+        {
             psoDesc.PS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
         }
     }
 
     // 设置几何着色器
-    if (desc.geometryShader) {
+    if (desc.geometryShader)
+    {
         auto dx12GeometryShader = static_cast<DX12RALGeometryShader*>(desc.geometryShader);
         ID3DBlob* shaderBlob = dx12GeometryShader->GetNativeShader();
-        if (shaderBlob) {
+        if (shaderBlob)
+        {
             psoDesc.GS = { shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
         }
     }
 
     // 设置图元拓扑类型
-    switch (desc.primitiveTopologyType) {
+    switch (desc.primitiveTopologyType)
+    {
     case RALPrimitiveTopologyType::TriangleList:
     case RALPrimitiveTopologyType::TriangleStrip:
     case RALPrimitiveTopologyType::TriangleListAdj:
@@ -809,7 +908,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
 
     // 设置光栅化状态
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
-    switch (desc.rasterizerState.fillMode) {
+    switch (desc.rasterizerState.fillMode)
+    {
     case RALFillMode::Wireframe:
         rasterizerDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;
         break;
@@ -819,7 +919,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.rasterizerState.cullMode) {
+    switch (desc.rasterizerState.cullMode)
+    {
     case RALCullMode::None:
         rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
         break;
@@ -848,7 +949,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     blendDesc.AlphaToCoverageEnable = desc.blendState.alphaToCoverageEnable;
     blendDesc.IndependentBlendEnable = desc.blendState.independentBlendEnable;
 
-    for (uint32_t i = 0; i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT && i < desc.numRenderTargets; ++i) {
+    for (uint32_t i = 0; i < D3D12_SIMULTANEOUS_RENDERTARGET_COUNT && i < desc.numRenderTargets; ++i)
+    {
         const auto& rtBlendState = desc.renderTargetBlendStates[i];
         auto& rtBlendDesc = blendDesc.RenderTarget[i];
 
@@ -856,7 +958,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         rtBlendDesc.LogicOpEnable = rtBlendState.logicOpEnable;
 
         // 设置源混合因子和目标混合因子
-        switch (rtBlendState.srcBlend) {
+        switch (rtBlendState.srcBlend)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.SrcBlend = D3D12_BLEND_ZERO;
             break;
@@ -896,7 +999,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // 目标混合因子
-        switch (rtBlendState.destBlend) {
+        switch (rtBlendState.destBlend)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.DestBlend = D3D12_BLEND_ZERO;
             break;
@@ -933,7 +1037,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // 混合操作
-        switch (rtBlendState.blendOp) {
+        switch (rtBlendState.blendOp)
+        {
         case RALBlendOp::Add:
             rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
             break;
@@ -955,7 +1060,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // Alpha混合因子和操作（类似RGB部分）
-        switch (rtBlendState.srcBlendAlpha) {
+        switch (rtBlendState.srcBlendAlpha)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ZERO;
             break;
@@ -991,7 +1097,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
             break;
         }
 
-        switch (rtBlendState.destBlendAlpha) {
+        switch (rtBlendState.destBlendAlpha)
+        {
         case RALBlendFactor::Zero:
             rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
             break;
@@ -1027,7 +1134,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
             break;
         }
 
-        switch (rtBlendState.blendOpAlpha) {
+        switch (rtBlendState.blendOpAlpha)
+        {
         case RALBlendOp::Add:
             rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
             break;
@@ -1049,7 +1157,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         }
 
         // 逻辑操作
-        switch (rtBlendState.logicOp) {
+        switch (rtBlendState.logicOp)
+        {
         case RALLogicOp::Copy:
             rtBlendDesc.LogicOp = D3D12_LOGIC_OP_COPY;
             break;
@@ -1100,7 +1209,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     depthStencilDesc.DepthEnable = desc.depthStencilState.depthEnable;
     depthStencilDesc.DepthWriteMask = desc.depthStencilState.depthWriteMask ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
 
-    switch (desc.depthStencilState.depthFunc) {
+    switch (desc.depthStencilState.depthFunc)
+    {
     case RALCompareOp::Never:
         depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_NEVER;
         break;
@@ -1136,7 +1246,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     depthStencilDesc.StencilWriteMask = desc.depthStencilState.stencilWriteMask;
 
     // 设置前向面模板操作
-    switch (desc.depthStencilState.frontFace.failOp) {
+    switch (desc.depthStencilState.frontFace.failOp)
+    {
     case RALStencilOp::Keep:
         depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
         break;
@@ -1167,7 +1278,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.depthStencilState.frontFace.depthFailOp) {
+    switch (desc.depthStencilState.frontFace.depthFailOp)
+    {
     case RALStencilOp::Keep:
         depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
         break;
@@ -1198,7 +1310,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.depthStencilState.frontFace.passOp) {
+    switch (desc.depthStencilState.frontFace.passOp)
+    {
     case RALStencilOp::Keep:
         depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
         break;
@@ -1229,7 +1342,8 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
         break;
     }
 
-    switch (desc.depthStencilState.frontFace.compareFunc) {
+    switch (desc.depthStencilState.frontFace.compareFunc)
+    {
     case RALCompareOp::Never:
         depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NEVER;
         break;
@@ -1281,7 +1395,14 @@ IRALGraphicsPipelineState* DX12RALDevice::CreateGraphicsPipelineState(const RALG
     // 创建D3D12管线状态对象
     ComPtr<ID3D12PipelineState> pipelineState;
     HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf()));
-    if (FAILED(hr)) {
+    
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        pipelineState->SetName(debugName);
+    }
+    if (FAILED(hr))
+    {
         return nullptr;
     }
 
@@ -1333,7 +1454,8 @@ static inline D3D12_ROOT_SIGNATURE_FLAGS ConvertToD3D12RootSignatureFlags(RALRoo
 
 // 创建根签名
 IRALRootSignature* DX12RALDevice::CreateRootSignature(const std::vector<RALRootParameter>& rootParameters,
-    const std::vector<RALStaticSampler>& staticSamplers, RALRootSignatureFlags flags)
+        const std::vector<RALStaticSampler>& staticSamplers,
+        RALRootSignatureFlags flags, const wchar_t* debugName)
 {
     // 转换根参数
     std::vector<D3D12_ROOT_PARAMETER> d3d12RootParameters;
@@ -1411,6 +1533,12 @@ IRALRootSignature* DX12RALDevice::CreateRootSignature(const std::vector<RALRootP
         IID_PPV_ARGS(d3d12RootSignature.ReleaseAndGetAddressOf())
     );
     
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        d3d12RootSignature->SetName(debugName);
+    }
+    
     if (FAILED(hr))
     {
         std::cerr << "Failed to create root signature. HRESULT: " << hr << std::endl;
@@ -1438,11 +1566,53 @@ bool ConvertToD3D12StaticSampler(const RALStaticSampler& ralSampler, D3D12_STATI
     // 转换过滤模式
     switch (ralSampler.Filter)
     {
+    case RALFilter::MinMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+        break;
+    case RALFilter::MinMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::MinPointMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+        break;
+    case RALFilter::MinPointMagMipLinear:
+        outSampler.Filter = D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+        break;
+    case RALFilter::MinLinearMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+        break;
+    case RALFilter::MinLinearMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::MinMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+        break;
     case RALFilter::MinMagMipLinear:
         outSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         break;
     case RALFilter::Anisotropic:
         outSampler.Filter = D3D12_FILTER_ANISOTROPIC;
+        break;
+    case RALFilter::ComparisonMinMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+        break;
+    case RALFilter::ComparisonMinMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::ComparisonMinPointMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT;
+        break;
+    case RALFilter::ComparisonMinPointMagMipLinear:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR;
+        break;
+    case RALFilter::ComparisonMinLinearMagMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT;
+        break;
+    case RALFilter::ComparisonMinLinearMagPointMipLinear:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+        break;
+    case RALFilter::ComparisonMinMagLinearMipPoint:
+        outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
         break;
     case RALFilter::ComparisonMinMagMipLinear:
         outSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
@@ -1450,7 +1620,6 @@ bool ConvertToD3D12StaticSampler(const RALStaticSampler& ralSampler, D3D12_STATI
     case RALFilter::ComparisonAnisotropic:
         outSampler.Filter = D3D12_FILTER_COMPARISON_ANISOTROPIC;
         break;
-    // 这里可以添加更多过滤模式的映射
     default:
         outSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         break;
@@ -1606,9 +1775,27 @@ bool ConvertToD3D12RootParameter(const RALRootParameter& ralParam, D3D12_ROOT_PA
             for (const auto& ralRange : ralParam.Data.DescriptorTable.Ranges)
             {
                 D3D12_DESCRIPTOR_RANGE range = {};
-                // 注意：这里简化处理，假设所有描述符都是CBV类型
-                // 在实际应用中，需要更复杂的类型映射
-                range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+                
+                // 根据RALDescriptorRangeType设置D3D12_DESCRIPTOR_RANGE_TYPE
+                switch (ralRange.Type)
+                {
+                case RALDescriptorRangeType::SRV:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+                    break;
+                case RALDescriptorRangeType::UAV:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+                    break;
+                case RALDescriptorRangeType::CBV:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+                    break;
+                case RALDescriptorRangeType::Sampler:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+                    break;
+                default:
+                    range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV; // 默认为CBV
+                    break;
+                }
+                
                 range.NumDescriptors = ralRange.NumDescriptors;
                 range.BaseShaderRegister = ralRange.BaseShaderRegister;
                 range.RegisterSpace = ralRange.RegisterSpace;
@@ -1718,6 +1905,9 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
     m_backBuffers.clear();
     m_depthStencilBuffer.Reset();
 
+    m_backBufferRTVs.clear();
+    m_mainDepthStencilView = nullptr;
+
     // 调整交换链大小
     HRESULT hr = m_swapChain->ResizeBuffers(
         m_backBufferCount,
@@ -1733,12 +1923,10 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
     }
 
     // 重新创建渲染目标视图
-    CreateRenderTargetViews();
+    CreateMainRenderTargetViews();
 
     // 重新创建深度/模板视图
-    CreateDepthStencilView();
-
-    // 注意：相机调整现在由Main.cpp处理
+    CreateMainDepthStencilView();
 }
 
 //// 创建图形命令列表
@@ -1764,7 +1952,7 @@ void DX12RALDevice::Resize(uint32_t width, uint32_t height)
 //}
 
 // 创建顶点缓冲区
-IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic)
+IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stride, bool isStatic, const void* initialData, const wchar_t* debugName)
 {
     // 创建DX12RALVertexBuffer对象
     DX12RALVertexBuffer* vertexBuffer = new DX12RALVertexBuffer(size, stride);
@@ -1791,7 +1979,7 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
     }
 
     // 设置初始状态
-    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
@@ -1800,6 +1988,84 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
         heapProps,
         initialState
     );
+    
+    // 设置调试名称
+    if (debugName)
+    {
+        d3d12Resource->SetName(debugName);
+    }
+
+    // 如果提供了初始数据
+    if (initialData && size > 0)
+    {
+        if (!isStatic)
+        {
+            // 对于UPLOAD堆，可以直接映射资源并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = d3d12Resource->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                d3d12Resource->Unmap(0, nullptr);
+            }
+        }
+        else
+        {
+            // 对于DEFAULT堆，需要创建临时上传缓冲区
+            D3D12_HEAP_PROPERTIES uploadHeapProps = {};
+            uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+            uploadHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            uploadHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            uploadHeapProps.CreationNodeMask = 1;
+            uploadHeapProps.VisibleNodeMask = 1;
+
+            ComPtr<ID3D12Resource> uploadBuffer = CreateBuffer(
+                size,
+                D3D12_RESOURCE_FLAG_NONE,
+                uploadHeapProps,
+                D3D12_RESOURCE_STATE_GENERIC_READ
+            );
+            
+            // 设置上传缓冲区的调试名称
+            if (debugName)
+            {
+                std::wstring uploadBufferName = debugName + std::wstring(L"_Upload"); 
+                uploadBuffer->SetName(uploadBufferName.c_str());
+            }
+
+            // 映射上传缓冲区并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = uploadBuffer->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                uploadBuffer->Unmap(0, nullptr);
+
+                // 获取命令列表
+                ID3D12GraphicsCommandList* commandList = static_cast<ID3D12GraphicsCommandList*>(m_graphicsCommandList->GetNativeCommandList());
+
+                // 需要先转换DEFAULT堆资源到复制目标状态
+                D3D12_RESOURCE_BARRIER barrier = {};
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                barrier.Transition.pResource = d3d12Resource.Get();
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                commandList->ResourceBarrier(1, &barrier);
+
+                // 复制数据
+                commandList->CopyBufferRegion(d3d12Resource.Get(), 0, uploadBuffer.Get(), 0, size);
+
+                // 转换回顶点缓冲区状态
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+                commandList->ResourceBarrier(1, &barrier);
+
+                // 记录下来到EndFrame之后释放
+                AddUploadingResource(d3d12Resource.Get(), uploadBuffer.Get());
+            }
+        }
+    }
 
     // 设置原生资源
     vertexBuffer->SetNativeResource(d3d12Resource.Get());
@@ -1809,7 +2075,7 @@ IRALVertexBuffer* DX12RALDevice::CreateVertexBuffer(uint32_t size, uint32_t stri
 }
 
 // 创建索引缓冲区
-IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic)
+IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIndex, bool isStatic, const void* initialData, const wchar_t* debugName)
 {
     // 创建DX12RALIndexBuffer对象
     uint32_t size = is32BitIndex ? count * sizeof(int32_t) : count * sizeof(int16_t);
@@ -1838,7 +2104,7 @@ IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIn
     }
 
     // 设置初始状态
-    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
 
     // 创建底层D3D12资源
     ComPtr<ID3D12Resource> d3d12Resource = CreateBuffer(
@@ -1848,14 +2114,79 @@ IRALIndexBuffer* DX12RALDevice::CreateIndexBuffer(uint32_t count, bool is32BitIn
         initialState
     );
 
+    // 如果提供了初始数据
+    if (initialData && size > 0)
+    {
+        if (!isStatic)
+        {
+            // 对于UPLOAD堆，可以直接映射资源并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = d3d12Resource->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                d3d12Resource->Unmap(0, nullptr);
+            }
+        }
+        else
+        {
+            // 对于DEFAULT堆，需要创建临时上传缓冲区
+            D3D12_HEAP_PROPERTIES uploadHeapProps = {};
+            uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+            uploadHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            uploadHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            uploadHeapProps.CreationNodeMask = 1;
+            uploadHeapProps.VisibleNodeMask = 1;
+
+            ComPtr<ID3D12Resource> uploadBuffer = CreateBuffer(
+                size,
+                D3D12_RESOURCE_FLAG_NONE,
+                uploadHeapProps,
+                D3D12_RESOURCE_STATE_GENERIC_READ
+            );
+
+            // 映射上传缓冲区并复制数据
+            void* mappedData = nullptr;
+            HRESULT hr = uploadBuffer->Map(0, nullptr, &mappedData);
+            if (SUCCEEDED(hr))
+            {
+                memcpy(mappedData, initialData, size);
+                uploadBuffer->Unmap(0, nullptr);
+
+                // 获取命令列表
+                ID3D12GraphicsCommandList* commandList = static_cast<ID3D12GraphicsCommandList*>(m_graphicsCommandList->GetNativeCommandList());
+
+                // 需要先转换DEFAULT堆资源到复制目标状态
+                D3D12_RESOURCE_BARRIER barrier = {};
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                barrier.Transition.pResource = d3d12Resource.Get();
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                commandList->ResourceBarrier(1, &barrier);
+
+                // 复制数据
+                commandList->CopyBufferRegion(d3d12Resource.Get(), 0, uploadBuffer.Get(), 0, size);
+
+                // 转换回索引缓冲区状态
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+                commandList->ResourceBarrier(1, &barrier);
+
+                // 记录下来到EndFrame之后释放
+                AddUploadingResource(d3d12Resource.Get(), uploadBuffer.Get());
+            }
+        }
+    }
+
     // 设置原生资源
     indexBuffer->SetNativeResource(d3d12Resource.Get());
     indexBuffer->SetResourceState(RALResourceState::IndexBuffer);
 
     return indexBuffer;
 }
-
-IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size)
+// 创建常量缓冲区
+IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size, const wchar_t* debugName)
 {
     // 创建DX12RALConstBuffer对象
     DX12RALConstBuffer* constBuffer = new DX12RALConstBuffer(size);
@@ -1893,6 +2224,12 @@ IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size)
         nullptr,
         IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
     );
+    
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        d3d12Resource->SetName(debugName);
+    }
 
     if (FAILED(hr))
     {
@@ -1905,10 +2242,49 @@ IRALConstBuffer* DX12RALDevice::CreateConstBuffer(uint32_t size)
     return constBuffer;
 }
 
+bool DX12RALDevice::IsUploadingResource(ID3D12Resource* resource) const
+{
+	ComPtr<ID3D12Resource> resourcePtr = resource;
+
+    UploadingResources::const_iterator iter = m_uploadingResources.find(resourcePtr);
+
+    if (iter == m_uploadingResources.end())
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
+
+void DX12RALDevice::AddUploadingResource(ID3D12Resource* resource, const ComPtr<ID3D12Resource>& uploadBuffer)
+{
+    UploadingResources::iterator iter = m_uploadingResources.find(resource);
+
+    if (iter == m_uploadingResources.end())
+    {
+        UploadingResourceInfo info;
+        info.uploadBuffers.push_back(uploadBuffer);
+		m_uploadingResources[resource] = info;
+    }
+    else
+    {
+		iter->second.uploadBuffers.push_back(uploadBuffer);
+    }
+}
+
 bool DX12RALDevice::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t size)
 {
-    // 等待之前的复制操作完成
-    WaitForPreviousOperations();
+    ID3D12Resource* nativeResource = (ID3D12Resource*)buffer->GetNativeResource();
+
+	bool uploading = IsUploadingResource(nativeResource);
+
+    if (uploading)
+    {
+        // 等待之前的复制操作完成
+        WaitForPreviousOperations();
+	}
 
     // 创建上传堆
     D3D12_HEAP_PROPERTIES heapProps = {};
@@ -1926,8 +2302,7 @@ bool DX12RALDevice::UploadBuffer(IRALBuffer* buffer, const char* data, uint64_t 
         D3D12_RESOURCE_STATE_GENERIC_READ
     );
 
-    // 记录下来到EndFrame之后释放
-    m_uploadingResources.push_back(uploadBuffer);
+    AddUploadingResource(nativeResource, uploadBuffer.Get());
 
     // 映射上传缓冲区并复制数据
     void* mappedData = nullptr;
@@ -1987,6 +2362,417 @@ void DX12RALDevice::Cleanup()
         CloseHandle(m_fenceEvent);
         m_fenceEvent = nullptr;
     }
+}
 
-    // 释放资源（智能指针会自动处理）
+// 创建渲染目标
+IRALRenderTarget* DX12RALDevice::CreateRenderTarget(uint32_t width, uint32_t height, RALDataFormat format, const RALClearValue* clearValue, const wchar_t* debugName)
+{
+    // 创建DX12RALRenderTarget对象
+    DX12RALRenderTarget* renderTarget = new DX12RALRenderTarget(width, height, format);
+
+    // 定义纹理描述符
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Alignment = 0;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = toDXGIFormat(format);
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+    // 设置堆属性（使用默认堆，适合GPU读取）
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    // 设置初始状态
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    // 创建底层D3D12资源
+    ComPtr<ID3D12Resource> d3d12Resource;
+    
+    // 创建clear value以避免D3D12警告
+    D3D12_CLEAR_VALUE dx12ClearValue = {};
+    dx12ClearValue.Format = desc.Format;
+    
+    // 如果提供了clearValue参数，则使用它的值
+    if (clearValue)
+    {
+        // 复制RALClearValue中的颜色数据到D3D12_CLEAR_VALUE
+        dx12ClearValue.Color[0] = clearValue->clearValue.color[0];
+        dx12ClearValue.Color[1] = clearValue->clearValue.color[1];
+        dx12ClearValue.Color[2] = clearValue->clearValue.color[2];
+        dx12ClearValue.Color[3] = clearValue->clearValue.color[3];
+    }
+    else
+    {
+        // 没有提供clearValue时，默认使用黑色作为清除值
+        dx12ClearValue.Color[0] = 0.0f;
+        dx12ClearValue.Color[1] = 0.0f;
+        dx12ClearValue.Color[2] = 0.0f;
+        dx12ClearValue.Color[3] = 1.0f;
+    }
+    
+    HRESULT hr = m_device->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        initialState,
+        &dx12ClearValue,
+        IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
+    );
+    
+    // 设置调试名称
+    if (SUCCEEDED(hr) && debugName)
+    {
+        d3d12Resource->SetName(debugName);
+    }
+
+    if (FAILED(hr))
+    {
+        delete renderTarget;
+        return nullptr;
+    }
+
+    // 设置原生资源和描述符信息
+    renderTarget->SetNativeResource(d3d12Resource.Get());
+    renderTarget->SetResourceState(RALResourceState::RenderTarget);
+
+    return renderTarget;
+}
+
+// 创建渲染目标视图
+IRALRenderTargetView* DX12RALDevice::CreateRenderTargetView(IRALRenderTarget* renderTarget, const RALRenderTargetViewDesc& desc, const wchar_t* debugName)
+{
+    if (!renderTarget)
+    {
+        return nullptr;
+    }
+
+    // 创建DX12RALRenderTargetView对象
+    DX12RALRenderTargetView* rtv = new DX12RALRenderTargetView();
+
+    // 分配RTV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE rtvGPUHandle;
+    uint32_t rtvIndex;
+    ComPtr<ID3D12DescriptorHeap> rtvHeap;
+
+    if (!m_RTVDescriptorHeaps.AllocateDescriptor(rtvCPUHandle, rtvGPUHandle, rtvHeap, rtvIndex))
+    {
+        delete rtv;
+        return nullptr;
+    }
+
+    // 设置渲染目标资源和设备信息
+    rtv->SetRenderTarget(renderTarget);
+    rtv->SetRTVHeap(rtvHeap.Get());
+    rtv->SetRTVCPUHandle(rtvCPUHandle);
+    rtv->SetRTVGPUHandle(rtvGPUHandle);
+    rtv->SetRTVIndex(rtvIndex);
+    rtv->SetDevice(this);
+
+    // 从renderTarget获取原生资源
+    DX12RALRenderTarget* dx12RenderTarget = static_cast<DX12RALRenderTarget*>(renderTarget);
+    ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(dx12RenderTarget->GetNativeResource());
+
+    if (!d3d12Resource)
+    {
+        delete rtv;
+        return nullptr;
+    }
+
+    // 创建RTV
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    // 如果描述符中指定了格式，则使用指定的格式，否则使用渲染目标的格式
+    rtvDesc.Format = desc.format != RALDataFormat::Undefined ? toDXGIFormat(desc.format) : toDXGIFormat(renderTarget->GetFormat());
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = desc.mipSlice;
+    rtvDesc.Texture2D.PlaneSlice = desc.planeSlice;
+
+    m_device->CreateRenderTargetView(d3d12Resource, &rtvDesc, rtvCPUHandle);
+
+    return rtv;
+}
+
+// 创建深度/模板缓冲区
+IRALDepthStencil* DX12RALDevice::CreateDepthStencil(uint32_t width, uint32_t height, RALDataFormat format, const RALClearValue* clearValue, const wchar_t* debugName)
+{
+    // 创建DX12RALDepthStencil对象
+    DX12RALDepthStencil* depthStencil = new DX12RALDepthStencil(width, height, format);
+
+    // 定义纹理描述符
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Alignment = 0;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = toDXGIFormat(format);
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    // 设置堆属性（使用默认堆，适合GPU读取）
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    // 设置初始状态
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
+    // 创建深度/模板资源描述符
+    D3D12_CLEAR_VALUE dx12ClearValue = {};
+    dx12ClearValue.Format = isTypelessFormat(format) ? toDXGIFormat(getDepthStencilFormatFromTypeless(format)) : toDXGIFormat(format);
+    
+    // 如果提供了clearValue参数，则使用它的值
+    if (clearValue)
+    {
+        dx12ClearValue.DepthStencil.Depth = clearValue->clearValue.depthStencil.depth;
+        dx12ClearValue.DepthStencil.Stencil = clearValue->clearValue.depthStencil.stencil;
+    }
+    else
+    {
+        // 默认值
+        dx12ClearValue.DepthStencil.Depth = 1.0f;
+        dx12ClearValue.DepthStencil.Stencil = 0;
+    }
+
+    // 创建底层D3D12资源
+    ComPtr<ID3D12Resource> d3d12Resource;
+    HRESULT hr = m_device->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        initialState,
+        &dx12ClearValue,
+        IID_PPV_ARGS(d3d12Resource.ReleaseAndGetAddressOf())
+    );
+
+    if (FAILED(hr))
+    {
+        delete depthStencil;
+        return nullptr;
+    }
+
+    // 设置原生资源和描述符信息
+    depthStencil->SetNativeResource(d3d12Resource.Get());
+    depthStencil->SetResourceState(RALResourceState::DepthStencil);
+
+    return depthStencil;
+}
+
+// 创建深度模板视图
+IRALDepthStencilView* DX12RALDevice::CreateDepthStencilView(IRALDepthStencil* depthStencil, const RALDepthStencilViewDesc& desc, const wchar_t* debugName)
+{
+    if (!depthStencil)
+    {
+        return nullptr;
+    }
+
+    DX12RALDepthStencil* dx12DepthStencil = static_cast<DX12RALDepthStencil*>(depthStencil);
+    ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(dx12DepthStencil->GetNativeResource());
+    
+    // 创建一个新的深度模板视图
+    DX12RALDepthStencilView* dsv = new DX12RALDepthStencilView();
+    dsv->SetDepthStencil(depthStencil);
+    dsv->SetDevice(this);
+
+    // 分配DSV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE dsvGPUHandle;
+    uint32_t dsvIndex;
+    ComPtr<ID3D12DescriptorHeap> dsvHeap;
+
+    if (!m_DSVDescriptorHeaps.AllocateDescriptor(dsvCPUHandle, dsvGPUHandle, dsvHeap, dsvIndex))
+    {
+        delete dsv;
+        return nullptr;
+    }
+
+    dsv->SetDSVCPUHandle(dsvCPUHandle);
+    dsv->SetDSVGPUHandle(dsvGPUHandle);
+    dsv->SetDSVHeap(dsvHeap.Get());
+    dsv->SetDSVIndex(dsvIndex);
+
+    // 创建DSV
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    
+    // 确定使用的格式
+    RALDataFormat formatToUse = desc.format != RALDataFormat::Undefined ? desc.format : depthStencil->GetFormat();
+    
+    // 对于无类型格式，需要转换为对应的深度模板格式
+    dsvDesc.Format = isTypelessFormat(formatToUse) ? toDXGIFormat(getDepthStencilFormatFromTypeless(formatToUse)) : toDXGIFormat(formatToUse);
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = desc.mipSlice;
+    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+    
+    m_device->CreateDepthStencilView(d3d12Resource, &dsvDesc, dsvCPUHandle);
+    
+    return dsv;
+}
+
+// 创建着色器资源视图
+IRALShaderResourceView* DX12RALDevice::CreateShaderResourceView(IRALResource* resource, const RALShaderResourceViewDesc& desc, const wchar_t* debugName)
+{
+    if (!resource)
+    {
+        return nullptr;
+    }
+
+    // 创建一个新的着色器资源视图
+    DX12RALShaderResourceView* srv = new DX12RALShaderResourceView();
+    srv->SetResource(resource);
+    srv->SetDevice(this);
+
+    // 分配SRV描述符
+    D3D12_CPU_DESCRIPTOR_HANDLE srvCPUHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle;
+    uint32_t srvIndex;
+    ComPtr<ID3D12DescriptorHeap> srvHeap;
+
+    if (!m_SRVDescriptorHeaps.AllocateDescriptor(srvCPUHandle, srvGPUHandle, srvHeap, srvIndex))
+    {
+        delete srv;
+        return nullptr;
+    }
+
+    srv->SetSRVCPUHandle(srvCPUHandle);
+    srv->SetSRVGPUHandle(srvGPUHandle);
+    srv->SetSRVHeap(srvHeap.Get());
+    srv->SetSRVIndex(srvIndex);
+
+    // 获取原生资源
+    ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(resource->GetNativeResource());
+    if (!d3d12Resource)
+    {
+        delete srv;
+        return nullptr;
+    }
+
+    // 创建SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    
+    // 确定资源类型并设置相应的视图维度
+    RALResourceType resourceType = resource->GetResourceType();
+    
+    // 这里简化处理，主要支持纹理类型的资源
+    // 对于其他资源类型（如缓冲区），可以根据需要扩展
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    
+    // 设置格式
+    if (desc.format != RALDataFormat::Undefined)
+    {
+        srvDesc.Format = toDXGIFormat(desc.format);
+    }
+    else
+    {
+        // 定义一个辅助函数来从无类型格式获取着色器资源格式
+        auto getShaderResourceFormatFromTypeless = [](DXGI_FORMAT format) -> DXGI_FORMAT {
+            // 简单的格式映射，可根据需要扩展
+            switch (format)
+            {
+            case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+                return DXGI_FORMAT_R32G32B32A32_FLOAT;
+            case DXGI_FORMAT_R32G32B32_TYPELESS:
+                return DXGI_FORMAT_R32G32B32_FLOAT;
+            case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+                return DXGI_FORMAT_R16G16B16A16_FLOAT;
+            case DXGI_FORMAT_R32G32_TYPELESS:
+                return DXGI_FORMAT_R32G32_FLOAT;
+            case DXGI_FORMAT_R16G16_TYPELESS:
+                return DXGI_FORMAT_R16G16_FLOAT;
+            case DXGI_FORMAT_R32_TYPELESS:
+                return DXGI_FORMAT_R32_FLOAT;
+            case DXGI_FORMAT_R16_TYPELESS:
+                return DXGI_FORMAT_R16_FLOAT;
+            case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+                return DXGI_FORMAT_R8G8B8A8_UNORM;
+            case DXGI_FORMAT_R8G8_TYPELESS:
+                return DXGI_FORMAT_R8G8_UNORM;
+            case DXGI_FORMAT_R8_TYPELESS:
+                return DXGI_FORMAT_R8_UNORM;
+            default:
+                return format; // 如果不是无类型格式，直接返回
+            }
+        };
+
+        // 尝试根据资源类型获取格式
+        if (resourceType == RALResourceType::RenderTarget)
+        {
+            srvDesc.Format = toDXGIFormat(static_cast<IRALRenderTarget*>(resource)->GetFormat());
+        }
+        else if (resourceType == RALResourceType::DepthStencil)
+        {
+            // 对于深度模板资源，需要获取对应的SRV格式
+            RALDataFormat depthFormat = static_cast<IRALDepthStencil*>(resource)->GetFormat();
+            srvDesc.Format = isTypelessFormat(depthFormat) ? getShaderResourceFormatFromTypeless(toDXGIFormat(depthFormat)) : toDXGIFormat(depthFormat);
+        }
+        else
+        {
+            // 如果无法确定格式，使用默认格式或抛出错误
+            // 这里简化处理，实际项目中应该有更完善的错误处理
+            srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        }
+    }
+    
+    // 设置MIP和数组切片信息
+    srvDesc.Texture2D.MostDetailedMip = desc.mostDetailedMip;
+    srvDesc.Texture2D.MipLevels = desc.mipLevels;
+    srvDesc.Texture2D.PlaneSlice = 0; // 单平面纹理
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    
+    m_device->CreateShaderResourceView(d3d12Resource, &srvDesc, srvCPUHandle);
+    
+    return srv;
+}
+
+// 释放渲染目标视图描述符
+bool DX12RALDevice::ReleaseRTVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+{
+    return m_RTVDescriptorHeaps.FreeDescriptor(heap, index);
+}
+
+// 释放深度模板视图描述符
+bool DX12RALDevice::ReleaseDSVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+{
+    return m_DSVDescriptorHeaps.FreeDescriptor(heap, index);
+}
+
+// 释放着色器资源视图描述符
+bool DX12RALDevice::ReleaseSRVDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t index, ID3D12DescriptorHeap* heap)
+{
+    return m_SRVDescriptorHeaps.FreeDescriptor(heap, index);
+}
+
+// 获取backbuffer的渲染目标视图
+IRALRenderTargetView* DX12RALDevice::GetBackBufferRTV()
+{
+    // 确保当前后缓冲区索引有效
+    if (m_currentBackBufferIndex < m_backBufferRTVs.size())
+    {
+        // 直接返回存储的渲染目标视图
+        return m_backBufferRTVs[m_currentBackBufferIndex].Get();
+    }
+    return nullptr;
+}
+
+// 获取backbuffer的深度模板视图
+IRALDepthStencilView* DX12RALDevice::GetBackBufferDSV()
+{
+    // 直接返回存储的深度模板视图
+    return m_mainDepthStencilView.Get();
 }
