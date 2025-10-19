@@ -135,6 +135,8 @@ private:
         dx::XMMATRIX worldMatrix;
         bool visible;
         dx::XMFLOAT3 diffuseColor;
+        dx::XMFLOAT3 specularColor;
+        float shininess;
         TRefCountPtr<IRALVertexBuffer> vertexBuffer;
         TRefCountPtr<IRALIndexBuffer> indexBuffer;
         TRefCountPtr<IRALConstBuffer> constBuffer;

@@ -34,6 +34,8 @@ struct ObjectConstBuffer
     dx::XMFLOAT4X4 World;           // 世界矩阵
     dx::XMFLOAT3 diffuseColor;      // 漫反射颜色
     float padding1;                 // 4字节对齐填充
+    dx::XMFLOAT3 specularColor;     // 高光颜色
+    float shininess;                // 光泽度
 };
 
 Scene::Scene()
@@ -202,6 +204,9 @@ void Scene::UpdatePrimitiveRequests()
         primitiveInfo.indexBuffer = mesh.indexBuffer;
         
         primitiveInfo.diffuseColor = primitive->GetDiffuseColor();
+        // 尝试获取高光颜色，如果Primitive类没有提供，则设置默认值
+        primitiveInfo.specularColor = primitive->GetSpecularColor();
+        primitiveInfo.shininess = primitive->GetShininess();
         primitiveInfo.constBuffer = m_device->CreateConstBuffer(sizeof(ObjectConstBuffer), L"ObjectConstBuffer");
 
         // 添加对象到场景中
@@ -252,6 +257,9 @@ void Scene::UpdatePrimitiveConstBuffer(IRALGraphicsCommandList* commandList, Pri
     ObjectConstBuffer data;
     dx::XMStoreFloat4x4(&data.World, dx::XMMatrixTranspose(primitiveInfo->worldMatrix));
     data.diffuseColor = primitiveInfo->diffuseColor;
+    // 使用float3直接赋值，不需要转换为float4
+    data.specularColor = primitiveInfo->specularColor;
+    data.shininess = primitiveInfo->shininess;
 
     // 映射并更新缓冲区
     void* mappedData = nullptr;
@@ -543,23 +551,26 @@ bool Scene::InitializeDeferredRendering()
         "   float2 uv : TEXCOORD;\n"
         "};\n"
         "cbuffer SceneConstants : register(b0) {\n"
-"   float4x4 View;\n"
-"   float4x4 Proj;\n"
-"   float4x4 ViewProj;\n"
-"   float4x4 invViewProj;\n"
-"   float3 cameraPos;\n"
-"   float padding1;\n"
-"   float3 lightPos;\n"
-"   float padding2;\n"
-"   float4 lightDiffuseColor;\n"
-"   float4 lightSpecularColor;\n"
-"   float3 lightDirection;\n"
-"   float padding3;\n"
-"   float4 lightAmbientColor;\n"
-"};\n"
+        "   float4x4 View;\n"
+        "   float4x4 Proj;\n"
+        "   float4x4 ViewProj;\n"
+        "   float4x4 invViewProj;\n"
+        "   float3 cameraPos;\n"
+        "   float padding1;\n"
+        "   float3 lightPos;\n"
+        "   float padding2;\n"
+        "   float4 lightDiffuseColor;\n"
+        "   float4 lightSpecularColor;\n"
+        "   float3 lightDirection;\n"
+        "   float padding3;\n"
+        "   float4 lightAmbientColor;\n"
+        "};\n"
         "cbuffer ObjectBuffer : register(b1) {\n"
         "   float4x4 World;\n"
-        "   float4 diffuseColor;\n"
+        "   float3 diffuseColor;\n"
+		"   float padding;\n"
+        "   float3 specularColor;\n"
+        "   float shininess;\n"
         "};\n"
         "VS_OUTPUT main(VS_INPUT input) {\n"
         "   VS_OUTPUT output;\n"
@@ -582,12 +593,15 @@ bool Scene::InitializeDeferredRendering()
         "};\n"
         "cbuffer ObjectBuffer : register(b1) {\n"
         "   float4x4 World;\n"
-        "   float4 diffuseColor;\n"
+        "   float3 diffuseColor;\n"
+        "   float padding;\n"
+        "   float3 specularColor;\n"
+        "   float shininess;\n"
         "};\n"
         "// 输出到GBuffer\n"
         "struct PS_OUTPUT {\n"
         "   float4 gbufferA : SV_TARGET0; // 世界空间法线\n"
-        "   float4 gbufferB : SV_TARGET1; // Metallic, Specular, Roughness, 1.0\n"
+        "   float4 gbufferB : SV_TARGET1; // SpecularRGB, Shininess\n"
         "   float4 gbufferC : SV_TARGET2; // BaseColor RGB\n"
         "};\n"
         "PS_OUTPUT main(PS_INPUT input) {\n"
@@ -598,14 +612,12 @@ bool Scene::InitializeDeferredRendering()
         "   output.gbufferA.w = 1.0f;\n"
         "   \n"
         "   // 输出材质属性到GBufferB\n"
-        "   output.gbufferB.r = 0.5f; // 金属度 (暂时固定值)\n"
-        "   output.gbufferB.g = 1.0f; // 高光强度 (暂时固定值)\n"
-        "   output.gbufferB.b = 0.5f; // 粗糙度 (暂时固定值)\n"
-        "   output.gbufferB.a = 1.0f;\n"
+        "   output.gbufferB.rgb = specularColor.rgb; // 高光颜色\n"
+        "   output.gbufferB.a = shininess / 128.0f; // 将shininess映射到[0,1]范围（假设最大值为128）\n"
         "   \n"
         "   // 输出基础颜色到GBufferC\n"
         "   output.gbufferC.rgb = diffuseColor.rgb;\n"
-        "   output.gbufferC.a = diffuseColor.a;\n"
+        "   output.gbufferC.a = 1.0f;\n"
         "   \n"
         "   return output;\n"
         "}";
@@ -845,6 +857,7 @@ bool Scene::InitializeDeferredRendering()
         "   \n"
         "   // 从GBuffer中采样数据\n"
         "   float4 normalSample = gbufferA.Sample(samplerGBuffer, input.uv);\n"
+        "   float4 specularSample = gbufferB.Sample(samplerGBuffer, input.uv);\n"
         "   // 从深度纹理采样深度值\n"
         "   float depth = depthTexture.Sample(samplerGBuffer, input.uv).r;\n"
         "   \n"
@@ -873,15 +886,16 @@ bool Scene::InitializeDeferredRendering()
         "   \n"
         "   // 计算漫反射分量（不乘材质）\n"
         "   float diffuseTerm = max(dot(normal, lightDir), 0.0f);\n"
-        "   // 计算高光分量（不乘材质，使用Blinn-Phong模型，假设shininess为32）\n"
-        "   float specularTerm = pow(max(dot(normal, halfVec), 0.0f), 32.0f);\n"
+        "   // 计算高光分量（使用Blinn-Phong模型和材质中的shininess）\n"
+        "   float shininess = specularSample.a * 128.0f; // 从[0,1]映射回实际的shininess值\n"
+        "   float specularTerm = pow(max(dot(normal, halfVec), 0.0f), shininess);\n"
         "   \n"
         "   // 输出漫反射光照结果（不乘材质）\n"
         "   output.diffuseResult.rgb = diffuseTerm * lightDiffuseColor.rgb;\n"
         "   output.diffuseResult.a = 1.0f;\n"
         "   \n"
-        "   // 输出高光光照结果（不乘材质）\n"
-        "   output.specularResult.rgb = specularTerm * lightSpecularColor.rgb;\n"
+        "   // 输出高光光照结果（使用材质的高光颜色）\n"
+        "   output.specularResult.rgb = specularTerm * lightSpecularColor.rgb * specularSample.rgb;\n"
         "   output.specularResult.a = 1.0f;\n"
         "   \n"
         "   return output;\n"

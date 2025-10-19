@@ -98,6 +98,26 @@ public:
         return diffuseColor;
 	}
 
+    void SetSpecularColor(const dx::XMFLOAT3& color)
+    {
+        specularColor = color;
+	}
+
+    const dx::XMFLOAT3& GetSpecularColor() const
+    {
+        return specularColor;
+	}
+
+    void SetShininess(float value)
+    {
+        shininess = value;
+	}
+
+    float GetShininess() const
+    {
+        return shininess;
+	}
+
 protected:
     // 世界变换矩阵
     dx::XMMATRIX worldMatrix = dx::XMMatrixIdentity();
@@ -109,6 +129,8 @@ protected:
 
     // 材质颜色
     dx::XMFLOAT3 diffuseColor = {1.0f, 1.0f, 1.0f};
+    dx::XMFLOAT3 specularColor = {1.0f, 1.0f, 1.0f};
+    float shininess = 32.0f;
 
     // 是否可见
     bool visible = true;
