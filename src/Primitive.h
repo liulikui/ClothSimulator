@@ -129,8 +129,8 @@ protected:
 
     // 材质颜色
     dx::XMFLOAT3 diffuseColor = {1.0f, 1.0f, 1.0f};
-    dx::XMFLOAT3 specularColor = {1.0f, 1.0f, 1.0f};
-    float shininess = 32.0f;
+    dx::XMFLOAT3 specularColor = {0.5f, 0.5f, 0.5f};
+    float shininess = 16.0f;
 
     // 是否可见
     bool visible = true;
