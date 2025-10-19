@@ -1377,8 +1377,8 @@ bool Scene::InitializeDeferredRendering()
     
     // 设置渲染目标格式
     tonemappingPsoDesc.numRenderTargets = 1;
-    tonemappingPsoDesc.renderTargetFormats[0] = RALDataFormat::R8G8B8A8_UNorm;  // LDR格式
-    tonemappingPsoDesc.depthStencilFormat = RALDataFormat::D32_Float;
+	tonemappingPsoDesc.renderTargetFormats[0] = RALDataFormat::R8G8B8A8_UNorm;  // LDR格式，在Tonemapping阶段手动做gamma校正从线性空间转换到gamma空间
+	tonemappingPsoDesc.depthStencilFormat = RALDataFormat::Undefined;           // 不使用深度模板缓冲区
     
     m_tonemappingPipelineState = m_device->CreateGraphicsPipelineState(tonemappingPsoDesc, L"TonemappingPipelineState");
     if (!m_tonemappingPipelineState.Get())
@@ -1661,28 +1661,21 @@ void Scene::ExecuteResolvePass()
 {
     IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
     
-    // 资源屏障：确保HDR场景颜色RT处于正确的状态
-    RALResourceBarrier barriers[5];
-    
-    // 将HDRSceneColor转换为渲染目标状态
-    barriers[0].type = RALResourceBarrierType::Transition;
-    barriers[0].resource = m_HDRSceneColor.Get();
-    barriers[0].oldState = RALResourceState::ShaderResource;
-    barriers[0].newState = RALResourceState::RenderTarget;
+    RALResourceBarrier barriers[2];
     
     // 确保所有输入资源处于着色器资源状态
+    barriers[0].type = RALResourceBarrierType::Transition;
+    barriers[0].resource = m_diffuseLightRT.Get();
+    barriers[0].oldState = RALResourceState::RenderTarget;
+    barriers[0].newState = RALResourceState::ShaderResource;
+    
     barriers[1].type = RALResourceBarrierType::Transition;
-    barriers[1].resource = m_diffuseLightRT.Get();
+    barriers[1].resource = m_specularLightRT.Get();
     barriers[1].oldState = RALResourceState::RenderTarget;
     barriers[1].newState = RALResourceState::ShaderResource;
     
-    barriers[2].type = RALResourceBarrierType::Transition;
-    barriers[2].resource = m_specularLightRT.Get();
-    barriers[2].oldState = RALResourceState::RenderTarget;
-    barriers[2].newState = RALResourceState::ShaderResource;
-    
     // 提交资源屏障
-    commandList->ResourceBarriers(barriers, 3);
+    commandList->ResourceBarriers(barriers, 2);
     
     // 设置渲染目标为HDR场景颜色
     IRALRenderTargetView* renderTargets[1] = { m_HDRSceneColorRTV.Get() };
@@ -1709,15 +1702,22 @@ void Scene::ExecuteResolvePass()
     
     // 绘制全屏四边形
     commandList->DrawIndexed(6, 1, 0, 0, 0);
-    
-    // 渲染完成后，将HDRSceneColor转换回ShaderResource状态，以便后续使用
-    RALResourceBarrier finalBarrier;
-    finalBarrier.type = RALResourceBarrierType::Transition;
-    finalBarrier.resource = m_HDRSceneColor.Get();
-    finalBarrier.oldState = RALResourceState::RenderTarget;
-    finalBarrier.newState = RALResourceState::ShaderResource;
-    
-    commandList->ResourceBarriers(&finalBarrier, 1);
+
+    RALResourceBarrier endBarriers[2];
+
+	// 还原光照结果RT到渲染目标状态，以便下一帧重用
+    endBarriers[0].type = RALResourceBarrierType::Transition;
+    endBarriers[0].resource = m_diffuseLightRT.Get();
+    endBarriers[0].oldState = RALResourceState::ShaderResource; 
+    endBarriers[0].newState = RALResourceState::RenderTarget;
+
+    endBarriers[1].type = RALResourceBarrierType::Transition;
+    endBarriers[1].resource = m_specularLightRT.Get();
+    endBarriers[1].oldState = RALResourceState::ShaderResource; 
+    endBarriers[1].newState = RALResourceState::RenderTarget;
+
+    // 提交资源屏障
+    commandList->ResourceBarriers(endBarriers, 2);
 }
 
 // 执行色调映射阶段
@@ -1728,6 +1728,15 @@ void Scene::ExecuteTonemappingPass()
 
     // 获取命令列表
     IRALGraphicsCommandList* commandList = m_device->GetGraphicsCommandList();
+
+    // 将HDRSceneColor转换到ShaderResource状态
+    RALResourceBarrier hdrRTBarrier;
+    hdrRTBarrier.type = RALResourceBarrierType::Transition;
+    hdrRTBarrier.resource = m_HDRSceneColor.Get();
+    hdrRTBarrier.oldState = RALResourceState::RenderTarget;
+    hdrRTBarrier.newState = RALResourceState::ShaderResource;
+
+    commandList->ResourceBarriers(&hdrRTBarrier, 1);
 
     // 设置渲染目标为backbuffer
     commandList->SetRenderTargets(1, &backBufferRTV, nullptr);
@@ -1763,33 +1772,33 @@ void Scene::ExecuteTonemappingPass()
     finalBarrier.newState = RALResourceState::RenderTarget;
     commandList->ResourceBarriers(&finalBarrier, 1);
 
-    // 在设置渲染目标之前，先将GBuffer和深度模板缓冲区转换为正确的渲染状态
-    RALResourceBarrier barriers[4];
+    // 将GBuffer和深度模板缓冲区转换为初始的渲染状态
+    RALResourceBarrier GBuffersBarriers[4];
 
     // GBuffer A转换为渲染目标状态
-    barriers[0].type = RALResourceBarrierType::Transition;
-    barriers[0].resource = m_gbufferA.Get();
-    barriers[0].oldState = RALResourceState::ShaderResource;
-    barriers[0].newState = RALResourceState::RenderTarget;
+    GBuffersBarriers[0].type = RALResourceBarrierType::Transition;
+    GBuffersBarriers[0].resource = m_gbufferA.Get();
+    GBuffersBarriers[0].oldState = RALResourceState::ShaderResource;
+    GBuffersBarriers[0].newState = RALResourceState::RenderTarget;
 
     // GBuffer B转换为渲染目标状态
-    barriers[1].type = RALResourceBarrierType::Transition;
-    barriers[1].resource = m_gbufferB.Get();
-    barriers[1].oldState = RALResourceState::ShaderResource;
-    barriers[1].newState = RALResourceState::RenderTarget;
+    GBuffersBarriers[1].type = RALResourceBarrierType::Transition;
+    GBuffersBarriers[1].resource = m_gbufferB.Get();
+    GBuffersBarriers[1].oldState = RALResourceState::ShaderResource;
+    GBuffersBarriers[1].newState = RALResourceState::RenderTarget;
 
     // GBuffer C转换为渲染目标状态
-    barriers[2].type = RALResourceBarrierType::Transition;
-    barriers[2].resource = m_gbufferC.Get();
-    barriers[2].oldState = RALResourceState::ShaderResource;
-    barriers[2].newState = RALResourceState::RenderTarget;
+    GBuffersBarriers[2].type = RALResourceBarrierType::Transition;
+    GBuffersBarriers[2].resource = m_gbufferC.Get();
+    GBuffersBarriers[2].oldState = RALResourceState::ShaderResource;
+    GBuffersBarriers[2].newState = RALResourceState::RenderTarget;
 
     // 深度模板缓冲区转换为深度模板状态
-    barriers[3].type = RALResourceBarrierType::Transition;
-    barriers[3].resource = m_gbufferDepthStencil.Get();
-    barriers[3].oldState = RALResourceState::ShaderResource;
-    barriers[3].newState = RALResourceState::DepthStencil;
+    GBuffersBarriers[3].type = RALResourceBarrierType::Transition;
+    GBuffersBarriers[3].resource = m_gbufferDepthStencil.Get();
+    GBuffersBarriers[3].oldState = RALResourceState::ShaderResource;
+    GBuffersBarriers[3].newState = RALResourceState::DepthStencil;
 
     // 一次性提交所有资源屏障
-    commandList->ResourceBarriers(barriers, 4);
+    commandList->ResourceBarriers(GBuffersBarriers, 4);
 }
