@@ -58,10 +58,12 @@ void XPBDSolver::Step(float deltaTime)
         // 2. 求解约束多次以获得更准确的结果
         for (int i = 0; i < m_cloth->m_iteratorCount; ++i)
         {
+            // 注意这里会立即更新粒子的位置但是不更新速度
+            // 这是NPGS的典型特征
             SolveConstraints(subDeltaTime);
         }
 
-        // 3. 更新速度和位置
+        // 3. 更新速度
         UpdateVelocities(subDeltaTime);
     }
 
