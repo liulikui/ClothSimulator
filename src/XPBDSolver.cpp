@@ -58,10 +58,12 @@ void XPBDSolver::Step(float deltaTime)
         // 2. 求解约束多次以获得更准确的结果
         for (int i = 0; i < m_cloth->m_iteratorCount; ++i)
         {
+            // 注意这里会立即更新粒子的位置但是不更新速度
+            // 这是NPGS的典型特征
             SolveConstraints(subDeltaTime);
         }
 
-        // 3. 更新速度和位置
+        // 3. 更新速度
         UpdateVelocities(subDeltaTime);
     }
 
@@ -129,7 +131,7 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
 
     // 计算分母项
     double sum = 0.0;
-    double delta_pos_total = 0.0;
+    double deltaPosTotal = 0.0;
 
     for (uint32_t i = 0; i < particleCount; ++i)
     {
@@ -147,43 +149,45 @@ void XPBDSolver::SolveConstraint(Constraint* constraint, float deltaTime)
             // 计算梯度与delta_pos的点积
             dx::XMVECTOR delta_pos = dx::XMVectorSubtract(dx::XMLoadFloat3(&particle->position), 
                 dx::XMLoadFloat3(&particle->predPosition));
-            delta_pos_total += dx::XMVectorGetX(dx::XMVector3Dot(gradient, delta_pos));
+            deltaPosTotal += dx::XMVectorGetX(dx::XMVector3Dot(gradient, delta_pos));
         }
     }
 
     // 添加柔度项
-    double alpha_tilde = constraint->GetCompliance() / ((double)deltaTime * (double)deltaTime);
+    double alphaTilde = constraint->GetCompliance() / ((double)deltaTime * (double)deltaTime);
 
-    if (alpha_tilde > 1e6f)
-    {
-        alpha_tilde = 1e6f;
-    }
+    //if (alphaTilde > 1e9f)
+    //{
+    //    alphaTilde = 1e9f;
+    //}
 
-    double gamma = constraint->GetDamping() * (double)deltaTime;
+    double gamma = constraint->GetDamping() * (double)deltaTime * alphaTilde;
 
-    sum = (1 + gamma) * sum + alpha_tilde;
+    double numerator = double(-C - alphaTilde * constraint->GetLambda() - gamma * deltaPosTotal);
+
+    double denominator = (1 + gamma) * sum + alphaTilde;
 
     // 防止除零
-    if (sum < 1e-9f)
+    if (denominator < 1e-9f)
     {
-        sum = 1e-9f;
+        denominator = 1e-9f;
     }
 
     // 计算拉格朗日乘子增量
-    double deltaLambda = (double(-C - alpha_tilde * constraint->GetLambda() - gamma * delta_pos_total) / sum);
+    double deltaLambda = numerator / denominator;
 
 #ifdef DEBUG_SOLVER
     // 检查约束值是否有效
     if (isnan(deltaLambda) || isinf(deltaLambda))
     {
         char buffer[256];
-        sprintf_s(buffer, "[DEBUG] deltaLambda is invalid:%f C:%f alpha_tilde:%f Lambda:%f gamma:%f delta_pos_total:%f"
+        sprintf_s(buffer, "[DEBUG] deltaLambda is invalid:%f C:%f alpha_tilde:%f Lambda:%f gamma:%f deltaPosTotal:%f"
             , deltaLambda
             , C
-            , alpha_tilde
+            , alphaTilde
             , constraint->GetLambda()
             , gamma
-            , delta_pos_total);
+            , deltaPosTotal);
         logDebug(buffer);
     }
 #endif//DEBUG_SOLVER
